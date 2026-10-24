@@ -165,12 +165,15 @@ export class Brain {
       this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), hold: 8000 });
       return;
     }
+    // clear the stage: nothing should cover her victory pose
+    this.panel.hide();
     // quick back-and-forth answers don't deserve the whole show
     const bigJob = s.count >= 3 || (s.taskStart && Date.now() - s.taskStart > 20000);
     if (bigJob) await this.capri.teleport(this.capri.spot('stage'));
-    this.voice.play('done');
-    this.capri.celebrate();
-    this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), summary, hold: 14000 });
+    // the panel comes in once she's back down from her victory pose
+    this.capri.celebrate({
+      onSpeak: () => this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), summary, hold: 14000 }),
+    });
   }
 
   onStopFailure(evt, s) {

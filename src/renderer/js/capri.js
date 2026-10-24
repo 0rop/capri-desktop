@@ -43,7 +43,8 @@ export class Capri {
     this.dragging = false;
 
     this.p = {
-      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, sit: 0, kickL: 0, kickR: 0, smear: [0, 0], echo: [0, 0],
+      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, sit: 0, kickL: 0, kickR: 0,
+      smear: [0, 0], echo: [0, 0],
       glitch: 0, glitchSeed: 0, split: 0, collapse: 0, dissolve: 0, sparkle: 1, grade: 1,
       sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
     };
@@ -79,13 +80,23 @@ export class Capri {
 
   // ---------- geometry ----------
 
+  // Her silhouette at rest, for hit tests: the cut-out plus the mirrored right arm the shader adds.
   buildAlphaMap(image) {
+    const { width: w, height: h, mirror } = SPRITE;
     const c = document.createElement('canvas');
-    c.width = SPRITE.width;
-    c.height = SPRITE.height;
+    c.width = w;
+    c.height = h;
     const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(image, 0, 0);
-    return ctx.getImageData(0, 0, c.width, c.height).data;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!SPRITE.armL(x, y) || mirror - x >= w) continue;
+        const to = (y * w + mirror - x) * 4 + 3;
+        data[to] = Math.max(data[to], data[(y * w + x) * 4 + 3]);
+      }
+    }
+    return data;
   }
 
   setScale(scale) {
@@ -274,21 +285,32 @@ export class Capri {
     const p = this.p;
     p.seed = Math.random() * 100; // a fresh drawing, so the line boils
 
-    const base = this.base.aim(this.base.sample(now) || {}, this.facing);
+    const under = this.base.sample(now);
+    const base = under ? this.base.resolve(under.pose, this.facing) : {};
     let act = null;
+    let cue = null;
     if (this.act) {
       const drawing = this.act.player.sample(now);
-      if (drawing) act = this.act.player.aim(drawing, this.facing);
-      else this.endAct(true);
+      if (drawing) {
+        act = this.act.player.resolve(drawing.pose, this.facing);
+        if (drawing.index !== this.act.index) {
+          this.act.index = drawing.index;
+          cue = drawing.cue;
+        }
+      } else {
+        this.endAct(true);
+      }
     }
     const pose = { ...NEUTRAL, ...base, ...act };
     if (this.mode === 'sleep' && this.stance === 'sit' && !act) {
-      Object.assign(pose, { head: 0.12, mane: -0.1, kickL: 0.03, kickR: 0.03 }); // dozing on the ledge
+      Object.assign(pose, { head: 0.12, mane: -0.1, kickL: 0.03, kickR: 0.03, armL: -0.45, armR: -0.45 }); // dozing on the ledge
     }
 
     p.head = pose.head;
     p.mane = pose.mane;
     p.hair = pose.hair;
+    p.armL = pose.armL;
+    p.armR = pose.armR;
     p.kickL = pose.kickL;
     p.kickR = pose.kickR;
     p.smear = pose.smear;
@@ -298,6 +320,7 @@ export class Capri {
     this.sx = pose.sx;
     this.sy = pose.sy;
     if (this.debug) Object.assign(p, this.debug); // --dev pose overrides
+    if (cue) this.onCue(cue);
   }
 
   behave(now) {
@@ -371,13 +394,13 @@ export class Capri {
   // ---------- acting ----------
 
   // Play an act from acting.js. Resolves when it's over (or cut off by a stronger one).
-  perform(name, dir = 0) {
+  perform(name, dir = 0, { reach = 1 } = {}) {
     const act = ACTS[name];
     if (reducedMotion.matches && act.fps === 24) {
       if (act.flip) this.facing *= -1;
       return Promise.resolve();
     }
-    const next = new Player(name, { dir });
+    const next = new Player(name, { dir, reach });
     if (this.act && this.act.player.priority > next.priority) return Promise.resolve();
     this.endAct(false);
     return new Promise((done) => {
@@ -474,18 +497,129 @@ export class Capri {
     this.fx.drift(h.x + Math.cos(a) * r, h.y - 40 * s + Math.sin(a) * r * 0.85, a);
   }
 
-  // She looks up at a star (the satellite) above the open side of the screen, and holds it.
+  // A point of the sprite (sprite px) on screen, where she stands, the way she faces.
+  toScreen(sx, sy) {
+    const s = this.scale;
+    return {
+      x: this.pos.x + (sx - SPRITE.feet.x) * s * this.facing,
+      y: this.pos.y - (SPRITE.feet.y - sy) * s + this.bob,
+    };
+  }
+
+  // Which arm points to screen side `dir`: 'L' or 'R' (the sprite may be mirrored).
+  armToward(dir) {
+    return dir * this.facing < 0 ? 'L' : 'R';
+  }
+
+  // Shoulder and hand of one arm on screen, at the arm's current angle (same turn as the shader).
+  limb(side) {
+    const { shoulder, hand, mirror } = SPRITE;
+    const a = side === 'L' ? this.p.armL : this.p.armR;
+    const vx = hand.x - shoulder.x, vy = hand.y - shoulder.y;
+    let hx = shoulder.x + Math.cos(a) * vx - Math.sin(a) * vy;
+    const hy = shoulder.y + Math.sin(a) * vx + Math.cos(a) * vy;
+    let sx = shoulder.x;
+    if (side === 'R') {
+      hx = mirror - hx;
+      sx = mirror - sx;
+    }
+    return { shoulder: this.toScreen(sx, shoulder.y), hand: this.toScreen(hx, hy) };
+  }
+
+  // She sees a star (the satellite) above the open side of the screen and reaches for it.
+  // The act (acting.js) times it; the cues below light the star, the link and the flare.
   gaze() {
     if (this.busy || this.hidden || this.act) return;
-    const h = this.head();
     const dir = this.towardCenter();
-    const x = clamp(h.x + dir * rand(140, 300), 40, this.view.w - 40);
-    const y = rand(40, Math.max(60, Math.min(160, h.top - 120)));
-    if (this.stance === 'stand') this.faceToward(x);
-    this.fx.star(x, y, { life: 4400 });
+    const { shoulder } = this.limb(this.armToward(dir));
+    // off to the side and up, so the reach reads as a diagonal clear of her mane
+    const x = clamp(shoulder.x + dir * rand(380, 620), 40, this.view.w - 40);
+    const y = clamp(shoulder.y - Math.abs(x - shoulder.x) * rand(0.7, 1.05), 40, shoulder.y - 160);
+    // how far the arm has to come up to point at it: it hangs about 30° below horizontal at rest
+    const lift = Math.atan2(shoulder.y - y, Math.abs(x - shoulder.x)) + 0.52;
+    this.sky = { star: this.fx.star(x, y), link: null, x, y, dir };
     this.voice.play('star');
-    this.perform('gaze', dir);
     this.onGaze?.();
+    this.perform('gaze', dir, { reach: clamp(lift, 0.5, 1.5) }).then(() => this.clearSky());
+  }
+
+  clearSky() {
+    if (!this.sky) return;
+    this.sky.star.fade();
+    this.sky.link?.fade();
+    this.sky = null;
+    tween(this.p, { sparkle: this.mode === 'sleep' ? 0.35 : 1 }, 400, ease.out);
+  }
+
+  // Flat-colour impact frames, one drawing each.
+  async flash(colors) {
+    const p = this.p;
+    for (const color of colors) {
+      p.sil = color;
+      p.silAmount = 1;
+      this.drawFrame();
+      await sleep(ON_ONES);
+    }
+    p.silAmount = 0;
+  }
+
+  // Effects and sounds pinned to drawings of an act (the third item of a key in acting.js).
+  onCue(cue) {
+    const s = this.scale;
+    const h = this.head();
+    const mane = { x: h.x, y: h.y - 40 * s };
+    switch (cue) {
+      case 'gather': // shards sucked into the mane before it blows
+        this.fx.burst(mane.x, mane.y, { count: 18, inward: true, power: 0.7, spread: 170 * s });
+        break;
+      case 'launch':
+        this.voice.play('rise');
+        this.fx.slices(h.x - 70 * s, h.y - 40 * s, 170 * s, 300 * s, { count: 5 });
+        break;
+      case 'peak':
+        this.voice.play('done');
+        this.fx.lines(mane.x, mane.y, { inner: 150 * s + 30 });
+        this.fx.ring(mane.x, mane.y);
+        this.fx.burst(mane.x, mane.y, { count: 34, power: 1.2, spread: 140 * s });
+        setTimeout(() => this.flash([GREEN, INK, GREEN]), 0);
+        break;
+      case 'speak':
+        this.fireSpeak();
+        break;
+      case 'laugh': {
+        const dir = this.act?.player.dir || this.towardCenter();
+        this.fx.cutin(h.x + dir * (85 * s + 24), h.y - 18, dir);
+        break;
+      }
+      case 'notice':
+        this.twitch();
+        break;
+      case 'starlight': // her specks light up with it
+        tween(this.p, { sparkle: 1.8 }, 500, ease.out);
+        break;
+      case 'link':
+        if (this.sky) {
+          this.sky.link = this.fx.link(this.limb(this.armToward(this.sky.dir)).hand, this.sky);
+          this.voice.play('tick');
+        }
+        break;
+      case 'flare':
+        if (this.sky) {
+          this.sky.star.flare();
+          this.fx.ring(this.sky.x, this.sky.y, { size: 0.45 });
+          this.voice.play('star');
+        }
+        break;
+      case 'fade':
+        this.clearSky();
+        break;
+    }
+  }
+
+  fireSpeak() {
+    const fn = this.onSpeak;
+    this.onSpeak = null;
+    fn?.();
   }
 
   async hurt() {
@@ -503,24 +637,17 @@ export class Capri {
     await tween(p, { glitch: 0, split: 0 }, 450, ease.out);
   }
 
-  // The manic laugh: split into her other minds, mane blown wide and shedding shards,
-  // flash frames, then a cut-in of her grin.
-  async celebrate() {
-    const dir = this.towardCenter();
-    this.perform('laugh', dir);
-    if (reducedMotion.matches) return;
-    const s = this.scale;
-    const h = this.head();
-    this.fx.burst(h.x, h.y - 40 * s, { count: 30, power: 1.1, spread: 130 * s });
-    const p = this.p;
-    for (const color of [GREEN, INK, GREEN]) {
-      p.sil = color;
-      p.silAmount = 1;
-      this.drawFrame();
-      await sleep(ON_ONES);
+  // Job done: the victory sequence (acting.js), its effects on cue. onSpeak runs when she
+  // comes back down (that's when the "done" panel comes in), or at the end if anything cut it short.
+  async celebrate({ onSpeak } = {}) {
+    this.onSpeak = onSpeak;
+    if (reducedMotion.matches) {
+      this.voice.play('done');
+      this.fireSpeak();
+      return;
     }
-    p.silAmount = 0;
-    await this.fx.cutin(h.x + dir * (85 * s + 24), h.y - 18, dir);
+    await this.perform('victory', this.towardCenter());
+    this.fireSpeak();
   }
 
   // ---------- moving around ----------

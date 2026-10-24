@@ -133,6 +133,7 @@ async function boot() {
       // --dev helpers
       case 'pose':
         capri.debug = cmd.params || null;
+        if (cmd.still) capri.nextMove = capri.nextGaze = Infinity; // no wandering off mid-test
         if (cmd.hush) {
           panel.setTicker(null);
           panel.hide();

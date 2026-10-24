@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise'];
 
 export class Voice {
   constructor() {
@@ -84,6 +84,7 @@ export class Voice {
       tick: () => this.tick(),
       star: () => this.star(),
       land: () => this.land(),
+      rise: () => this.rise(),
     }[cue];
     fn?.();
   }
@@ -157,6 +158,14 @@ export class Voice {
   tick() {
     const t = this.ctx.currentTime;
     this.noiseBurst(t, 0.03, 0.06, 3000, 9000, 8);
+  }
+
+  // the launch into the victory pose: a quick upward whoosh
+  rise() {
+    const t = this.ctx.currentTime;
+    const o = this.osc('sawtooth', 160, t, 0.2, 0.07);
+    o.frequency.exponentialRampToValueAtTime(1400, t + 0.18);
+    this.noiseBurst(t, 0.18, 0.12, 500, 6000, 2);
   }
 
   // touching down: a soft digital thump

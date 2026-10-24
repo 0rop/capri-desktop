@@ -129,9 +129,32 @@ export class FxLayer {
     });
   }
 
-  // The satellite: a star that blinks into view, twinkles, flares once and goes out.
-  star(x, y, { life = 4400 } = {}) {
-    this.add({ type: 'star', life, x, y });
+  // The satellite: a star that blinks into view and twinkles until told to flare or go out.
+  star(x, y) {
+    const item = { type: 'star', life: 30000, x, y, flareAt: 0, fadeAt: 0 };
+    this.add(item);
+    return {
+      flare: () => { item.flareAt = performance.now(); },
+      fade: () => { item.fadeAt ||= performance.now(); },
+    };
+  }
+
+  // A dashed line of data from her fingertips to the star, drawn out over a few frames,
+  // dashes crawling toward it, little packets riding along.
+  link(from, to) {
+    const item = { type: 'link', life: 30000, x1: from.x, y1: from.y, x2: to.x, y2: to.y, fadeAt: 0 };
+    this.add(item);
+    return { fade: () => { item.fadeAt ||= performance.now(); } };
+  }
+
+  // Manga concentration lines closing in on a point, redrawn every other frame.
+  lines(x, y, { inner = 140, life = 480 } = {}) {
+    this.add({ type: 'lines', life, x, y, inner });
+  }
+
+  // A hard-edged shockwave.
+  ring(x, y, { size = 1 } = {}) {
+    this.add({ type: 'ring', life: 280, x, y, size });
   }
 
   // Anime cut-in: a slanted band with her grin, pushed in, speed lines behind.
@@ -156,7 +179,7 @@ export class FxLayer {
       if (!alive) it.done?.();
       return alive;
     });
-    for (const it of this.items) this.draw(it, (now - it.born) / it.life, dt);
+    for (const it of this.items) this.draw(it, (now - it.born) / it.life, dt, now);
 
     if (this.items.length) {
       requestAnimationFrame((t) => this.frame(t));
@@ -167,7 +190,18 @@ export class FxLayer {
     }
   }
 
-  draw(it, t, dt) {
+  // Fade-out in four steps, like cels swapped for lighter ones. Kills the item when done.
+  fadeStep(it, now, ms) {
+    if (!it.fadeAt) return 1;
+    const k = (now - it.fadeAt) / ms;
+    if (k >= 1) {
+      it.life = 0;
+      return 0;
+    }
+    return 1 - Math.floor(k * 4) / 4;
+  }
+
+  draw(it, t, dt, now) {
     const { ctx } = this;
     switch (it.type) {
       case 'shard': {
@@ -282,13 +316,26 @@ export class FxLayer {
         break;
       }
       case 'star': {
-        const age = t * it.life;
+        const age = now - it.born;
         const frame = Math.floor(age / FRAME_MS);
+        const sinceFlare = it.flareAt ? now - it.flareAt : Infinity;
         let size;
         if (age < 90) size = 24;                                // blink into view
-        else if (t > 0.66 && t < 0.72) size = 30;               // the flare
+        else if (sinceFlare < 125) size = 36;                   // the flare, three drawings
+        else if (sinceFlare < 210) size = 20;
         else size = [9, 12, 8, 13][Math.floor(frame / 3) % 4];  // twinkle, on threes
-        const fade = t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1;
+        const fade = this.fadeStep(it, now, 420);
+        if (!fade) break;
+        if (sinceFlare < 210) {
+          // cross rays while it flares
+          ctx.save();
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = COLORS.paper;
+          const ray = size * 2.4;
+          ctx.fillRect(it.x - ray, it.y - 1, ray * 2, 2);
+          ctx.fillRect(it.x - 1, it.y - ray, 2, ray * 2);
+          ctx.restore();
+        }
         const spikes = (s, dx, dy) => {
           const w = s * 0.22;
           ctx.beginPath();
@@ -313,6 +360,77 @@ export class FxLayer {
         spikes(size * 0.35, 0, 0);
         ctx.fillStyle = COLORS.red;
         ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'link': {
+        const fade = this.fadeStep(it, now, 320);
+        if (!fade) break;
+        const age = now - it.born;
+        const grow = Math.min(1, (Math.floor(age / FRAME_MS) + 1) / 5);
+        const ex = it.x1 + (it.x2 - it.x1) * grow, ey = it.y1 + (it.y2 - it.y1) * grow;
+        const crawl = Math.floor(age / (FRAME_MS * 2)); // on twos
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.setLineDash([7, 6]);
+        ctx.lineDashOffset = -crawl * 4;
+        for (const [dx, color, width] of [[-2, COLORS.violet, 3], [0, COLORS.green, 1.6]]) {
+          ctx.beginPath();
+          ctx.moveTo(it.x1 + dx, it.y1 - dx);
+          ctx.lineTo(ex + dx, ey - dx);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width;
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.fillStyle = COLORS.paper;
+        for (let i = 0; i < 3; i++) {
+          const u = (crawl * 0.07 + i / 3) % 1;
+          if (u > grow) continue;
+          const px = it.x1 + (it.x2 - it.x1) * u, py = it.y1 + (it.y2 - it.y1) * u;
+          ctx.fillRect(Math.round(px) - 2, Math.round(py) - 2, 4, 4);
+        }
+        ctx.restore();
+        break;
+      }
+      case 'lines': {
+        const frame = Math.floor((t * it.life) / FRAME_MS);
+        if (!it.strokes || it.drawn !== frame >> 1) {
+          it.drawn = frame >> 1;
+          it.strokes = Array.from({ length: 32 }, () => ({
+            a: rand(0, Math.PI * 2),
+            w: rand(0.008, 0.026),
+            r0: it.inner * rand(1, 1.6),
+            color: COLORS[pick(['paper', 'paper', 'paper', 'violet', 'red'])],
+          }));
+        }
+        const outer = it.inner * 3.6;
+        ctx.save();
+        ctx.globalAlpha = t > 0.7 ? 1 - Math.floor(((t - 0.7) / 0.3) * 3) / 3 : 1;
+        for (const s of it.strokes) {
+          ctx.beginPath();
+          ctx.moveTo(it.x + Math.cos(s.a - s.w) * outer, it.y + Math.sin(s.a - s.w) * outer);
+          ctx.lineTo(it.x + Math.cos(s.a) * s.r0, it.y + Math.sin(s.a) * s.r0);
+          ctx.lineTo(it.x + Math.cos(s.a + s.w) * outer, it.y + Math.sin(s.a + s.w) * outer);
+          ctx.closePath();
+          ctx.fillStyle = s.color;
+          ctx.fill();
+        }
+        ctx.restore();
+        break;
+      }
+      case 'ring': {
+        const k = Math.floor(t * 6) / 6; // six drawings
+        const r = (40 + 230 * k) * it.size;
+        const lw = Math.max(1, 8 * (1 - k) * it.size);
+        ctx.save();
+        for (const [dx, color] of [[-3, COLORS.violet], [0, COLORS.red]]) {
+          ctx.beginPath();
+          ctx.arc(it.x + dx, it.y - dx, r, 0, Math.PI * 2);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lw;
+          ctx.stroke();
+        }
         ctx.restore();
         break;
       }
