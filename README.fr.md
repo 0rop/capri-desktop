@@ -19,10 +19,30 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 - **Quand c'est fini** : téléportation au milieu de l'écran, éclat de rire crinière déployée,
   cut-in façon anime de son sourire, puis un résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
-  penche la tête quand ta souris approche, regarde parfois une étoile au-dessus de l'écran (le satellite),
+  se retourne et penche la tête quand ta souris approche, regarde parfois une étoile au-dessus de l'écran (le satellite),
   et s'endort si rien ne se passe pendant 10 minutes.
 
 ![Le rire et le cut-in](docs/laugh.png)
+
+### Elle bouge partout
+
+- **Elle s'assoit sur tes fenêtres** : perchée sur le bord du haut d'une fenêtre, les jambes dans le vide qui balancent l'une après l'autre.
+  Elle suit la fenêtre quand tu la déplaces, et tombe quand tu la fermes, la réduis ou la caches.
+  Pendant que Claude travaille, elle s'installe sur la fenêtre au premier plan si elle peut.
+- **Elle dépasse des bords de l'écran** : à moitié cachée à gauche ou à droite, ou la tête en bas depuis le haut.
+  Elle est timide : approche ta souris et elle file se cacher sur un autre bord.
+- **Elle tombe** : étirée, crinière soufflée vers le haut, de plus en plus vite, puis un gros écrasement et une gerbe d'éclats à l'atterrissage.
+  En chemin, le rebord d'une fenêtre peut la rattraper.
+- **Pose-la sur une fenêtre** : attrape-la et lâche-la avec les hanches sur le bord du haut d'une fenêtre, elle s'y assoit.
+  Lâchée ailleurs, elle tombe.
+- **Petites fioritures** : un tour complet avec des images rémanentes, un saut, un regard à gauche puis à droite, la tête penchée.
+
+![Assise sur une fenêtre](docs/sit.png)
+
+![Elle dépasse des bords de l'écran](docs/peek.png)
+
+Le suivi des fenêtres ne marche que sous Windows pour l'instant (un petit script PowerShell lit la position des fenêtres, pas leurs titres ni leur contenu).
+Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même.
 
 Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l'écran reste utilisable normalement.
 
@@ -82,6 +102,7 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 | `error` | une commande a planté |
 | `hello` | une session démarre |
 | `star` | elle regarde le satellite |
+| `land` | elle atterrit après une chute |
 | `blip` | chaque syllabe quand elle parle |
 | `tick` | petit rappel discret |
 
@@ -97,9 +118,15 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
 
 - **Cel animation** : le corps est redessiné 12 fois par seconde (« on twos ») comme un anime,
   24 pendant les téléportations. Chaque dessin a un léger *boil* (le tremblement du trait redessiné à la main).
+- **Image par image, pose à pose** : rien n'est interpolé. Chaque mouvement est une feuille d'exposition (`acting.js`) :
+  des dessins clés tenus quelques images, une anticipation dans l'autre sens, une image de smear avec des copies
+  de la tête, un dépassement, des temps de pause. Son flottement au repos, c'est quatre dessins, pas une sinusoïde.
 - **Elle joue avec sa tête et sa crinière**, comme dans la série : la tête penchée, les éclats qui se hérissent
   ou explosent, le rire hystérique avec la tête qui tremble à chaque dessin, la tête qui tombe quand elle dort.
-  La découpe est riggée : la tête pivote autour du cou, la crinière s'ouvre de façon irrégulière autour d'un visage qui reste rigide.
+  La découpe est riggée : la tête pivote autour du cou, la crinière s'ouvre de façon irrégulière autour d'un visage qui reste rigide,
+  et les cuisses se replient (en raccourci, vues de face) pour qu'elle puisse s'asseoir en balançant le bas des jambes.
+- **Écrasement, étirement, images rémanentes** : la découpe plate s'écrase en lame pour se retourner, s'étire quand elle tombe,
+  s'aplatit à l'atterrissage, et se dédouble en copies verte et rouge (les autres esprits en elle) quand elle tourne ou rit.
 - **Le satellite** : de temps en temps elle fixe une étoile au-dessus de l'écran, clin d'œil à la fin de la saison.
 - **Sa texture** : la crinière rouge est remise au rouge de la série et couverte de points blancs qui scintillent.
   Des éclats s'en détachent et dérivent.
@@ -118,9 +145,11 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
+  windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
 src/renderer/js/
-  sprite.js              shader WebGL : tête, crinière, couleurs, paillettes, glitch, effondrement
-  capri.js               le personnage : position, gestes, téléportation, drag, sommeil, le satellite
+  sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
+  acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
+  capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
   fx.js                  éclats, colonnes de lumière, éclairs, glyphes, l'étoile, le cut-in
   panel.js               le panneau « transmission » et le ticker
   brain.js               traduit les événements Claude en répliques et en actions

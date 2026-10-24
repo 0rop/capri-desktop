@@ -19,9 +19,30 @@ comes to find you when Claude needs your permission, and loses it when the job i
 - **When it's done**: she teleports to the middle of the screen, laughs with her mane blown wide,
   an anime cut-in of her grin, then a summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
-  cocks her head when your mouse comes near, sometimes looks up at a star (the satellite), and falls asleep after 10 quiet minutes.
+  turns around and cocks her head when your mouse comes near, sometimes looks up at a star (the satellite),
+  and falls asleep after 10 quiet minutes.
 
 ![The laugh and the cut-in](docs/laugh.png)
+
+### She gets around
+
+- **She sits on your windows**: perched on the top edge of a window, legs dangling and kicking one after the other.
+  She rides along when you move the window, and falls off when you close, minimize or cover it.
+  While Claude works she settles on the window in front if she can.
+- **She peeks in from the edges of the screen**: half hidden on the left or right, or hanging upside down from the top.
+  She's shy: get your mouse close and she ducks away to another edge.
+- **She falls**: stretched, mane blown up, accelerating, then a big squash and a shower of shards when she lands.
+  On the way down, a window ledge can catch her.
+- **Drop her on a window**: drag her and let go with her hips on a window's top edge, she sits there.
+  Let go anywhere else and she falls.
+- **Little flourishes**: a full spin with afterimages, a hop, looking left and right, the cocked head.
+
+![Sitting on a window](docs/sit.png)
+
+![Peeking in from the edges](docs/peek.png)
+
+Window tracking is Windows-only for now (a tiny PowerShell helper reads window positions, no titles, no contents).
+On macOS and Linux she still floats, peeks, falls and wanders.
 
 She only catches the mouse on her actual body (pixel-precise): the rest of the screen works as usual.
 
@@ -81,6 +102,7 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 | `error` | a command failed |
 | `hello` | a session starts |
 | `star` | she looks up at the satellite |
+| `land` | she lands after a fall |
 | `blip` | every syllable while she talks |
 | `tick` | a quiet reminder |
 
@@ -96,9 +118,15 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
 
 - **Cel animation**: her body is redrawn 12 times a second ("on twos") like anime, 24 during teleports.
   Every drawing has a slight *boil* (the wobble of a line redrawn by hand).
+- **Frame by frame, pose to pose**: nothing is tweened. Each move is an exposure sheet (`acting.js`):
+  key drawings held for a few frames, an anticipation the other way, a smear frame with multiples of
+  the head, an overshoot, holds. Her idle float is four drawings, not a sine wave.
 - **She acts with her head and her mane**, like in the show: the cocked head, the shards bristling or
   blowing wide, the manic laugh with the head shaking on every drawing, the slump when she sleeps.
-  The cut-out is rigged so her head tilts around the neck and her mane flares unevenly around a rigid face.
+  The cut-out is rigged so her head tilts around the neck, her mane flares unevenly around a rigid face,
+  and her thighs fold (foreshortened, seen from the front) so she can sit with her lower legs swinging.
+- **Squash and stretch, afterimages**: the flat cut-out squashes to a sliver to turn around, stretches when
+  she falls, flattens when she lands, and splits into green and red copies (the other minds in her) when she spins or laughs.
 - **The satellite**: now and then she stares at a star above the screen, a nod to the season's ending.
 - **Her texture**: the red mane is pushed back to the show's hot red and covered in twinkling white specks.
   Shards come loose from it and drift away.
@@ -117,9 +145,11 @@ If Windows is set to "Show animations: off", she sticks to fades.
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
+  windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
 src/renderer/js/
-  sprite.js              WebGL shader: head tilt, mane flare, colors, specks, glitch, collapse
-  capri.js               the character: position, gestures, teleport, drag, sleep, the satellite
+  sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
+  acting.js              the exposure sheets: every move, drawing by drawing
+  capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
   fx.js                  shards, light columns, bolts, glyphs, the star, the cut-in
   panel.js               the "transmission" panel and the ticker
   brain.js               turns Claude events into lines and actions
