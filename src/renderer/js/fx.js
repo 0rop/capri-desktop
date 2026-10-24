@@ -1,5 +1,6 @@
 // Full-screen effect layer: shards, light beams, the zigzag streak between two
-// teleport points, and the little data glyphs Capri sheds while Claude works.
+// teleport points, the data glyphs Capri sheds while Claude works, mane shards drifting
+// off, the satellite she stares at, and the cut-in of her grin.
 // Drawn on whole frames (24 fps) and only while something is alive.
 
 import { rand, pick } from './util.js';
@@ -17,10 +18,14 @@ const SHARD_PALETTE = ['red', 'red', 'red', 'red', 'ink', 'ink', 'green', 'green
 const GLYPHS = ['01', '10', '▚', '▞', '◢', '◣', '>_', '{}', '#', '⌁', '//', '0x'];
 const FRAME_MS = 1000 / 24;
 
+// eyes and grin, inside capri-face.png (256x256)
+const GRIN = { x: 20, y: 58, w: 216, h: 150 };
+
 export class FxLayer {
-  constructor(canvas) {
+  constructor(canvas, { face = null } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.face = face;
     this.items = [];
     this.running = false;
     this.last = 0;
@@ -107,6 +112,35 @@ export class FxLayer {
     this.add({ type: 'glyph', life: rand(900, 1400), x: x + rand(-40, 40), y, text: pick(GLYPHS), drift: rand(-12, 12) });
   }
 
+  // One shard coming loose from the mane and floating away, slowly, outward and up.
+  drift(x, y, angle) {
+    const speed = rand(16, 34);
+    this.add({
+      type: 'drift',
+      life: rand(1900, 2900),
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 10,
+      rot: angle + rand(-0.4, 0.4),
+      vr: rand(-0.8, 0.8),
+      len: rand(9, 20),
+      wid: rand(3, 6),
+      color: COLORS[pick(['red', 'red', 'red', 'ink', 'paper'])],
+    });
+  }
+
+  // The satellite: a star that blinks into view, twinkles, flares once and goes out.
+  star(x, y, { life = 4400 } = {}) {
+    this.add({ type: 'star', life, x, y });
+  }
+
+  // Anime cut-in: a slanted band with her grin, pushed in, speed lines behind.
+  // Resolves when it's gone.
+  cutin(x, y, dir = 1, { life = 760 } = {}) {
+    if (!this.face) return Promise.resolve();
+    return new Promise((done) => this.add({ type: 'cutin', life, x, y, dir, done }));
+  }
+
   frame(now) {
     if (now - this.last < FRAME_MS - 2) {
       requestAnimationFrame((t) => this.frame(t));
@@ -117,7 +151,11 @@ export class FxLayer {
 
     const { ctx } = this;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.items = this.items.filter((it) => now - it.born < it.life);
+    this.items = this.items.filter((it) => {
+      const alive = now - it.born < it.life;
+      if (!alive) it.done?.();
+      return alive;
+    });
     for (const it of this.items) this.draw(it, (now - it.born) / it.life, dt);
 
     if (this.items.length) {
@@ -218,6 +256,103 @@ export class FxLayer {
         ctx.globalAlpha = 1 - t;
         ctx.fillRect(it.x + it.dx * t, it.y, it.w, it.h);
         ctx.globalAlpha = 1;
+        break;
+      }
+      case 'drift': {
+        // moved on twos, like the body it came from
+        const age = Math.floor((t * it.life) / 1000 * 12) / 12;
+        const x = it.x + it.vx * age;
+        const y = it.y + it.vy * age;
+        const k = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
+        const l = it.len * (0.6 + 0.4 * k), w = it.wid * k;
+        ctx.save();
+        ctx.translate(Math.round(x), Math.round(y));
+        ctx.rotate(it.rot + it.vr * age);
+        for (const [dx, color] of [[-2, COLORS.violet], [0, it.color]]) {
+          ctx.beginPath();
+          ctx.moveTo(-l * 0.5 + dx, -dx);
+          ctx.lineTo(dx, -w * 0.5 - dx);
+          ctx.lineTo(l * 0.5 + dx, -dx);
+          ctx.lineTo(dx, w * 0.5 - dx);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+        ctx.restore();
+        break;
+      }
+      case 'star': {
+        const age = t * it.life;
+        const frame = Math.floor(age / FRAME_MS);
+        let size;
+        if (age < 90) size = 24;                                // blink into view
+        else if (t > 0.66 && t < 0.72) size = 30;               // the flare
+        else size = [9, 12, 8, 13][Math.floor(frame / 3) % 4];  // twinkle, on threes
+        const fade = t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1;
+        const spikes = (s, dx, dy) => {
+          const w = s * 0.22;
+          ctx.beginPath();
+          ctx.moveTo(it.x + dx, it.y - s + dy);
+          ctx.lineTo(it.x + w + dx, it.y - w + dy);
+          ctx.lineTo(it.x + s + dx, it.y + dy);
+          ctx.lineTo(it.x + w + dx, it.y + w + dy);
+          ctx.lineTo(it.x + dx, it.y + s + dy);
+          ctx.lineTo(it.x - w + dx, it.y + w + dy);
+          ctx.lineTo(it.x - s + dx, it.y + dy);
+          ctx.lineTo(it.x - w + dx, it.y - w + dy);
+          ctx.closePath();
+        };
+        ctx.save();
+        ctx.globalAlpha = fade;
+        spikes(size, -2, 2);
+        ctx.fillStyle = COLORS.violet;
+        ctx.fill();
+        spikes(size, 0, 0);
+        ctx.fillStyle = COLORS.paper;
+        ctx.fill();
+        spikes(size * 0.35, 0, 0);
+        ctx.fillStyle = COLORS.red;
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'cutin': {
+        const W = 250, H = 96, skew = 24;
+        // three-frame wipe in, two-frame squash out
+        const open = t < 0.06 ? 0.3 : t < 0.12 ? 0.7 : 1;
+        const tall = t > 0.9 ? 0.12 : t > 0.82 ? 0.5 : 1;
+        const w = W * open, h = H * tall;
+        const x0 = it.dir > 0 ? it.x : it.x - w;
+        const y0 = it.y - h / 2;
+        const band = (dx, dy) => {
+          ctx.beginPath();
+          ctx.moveTo(x0 + skew + dx, y0 + dy);
+          ctx.lineTo(x0 + w + skew + dx, y0 + dy);
+          ctx.lineTo(x0 + w + dx, y0 + h + dy);
+          ctx.lineTo(x0 + dx, y0 + h + dy);
+          ctx.closePath();
+        };
+        ctx.save();
+        band(6, 6);
+        ctx.fillStyle = COLORS.violet;
+        ctx.fill();
+        band(0, 0);
+        ctx.fillStyle = COLORS.ink;
+        ctx.fill();
+        ctx.clip();
+        // speed lines, re-drawn every frame, rushing away from her
+        for (let i = 0; i < 9; i++) {
+          ctx.fillStyle = i % 3 ? COLORS.red : COLORS.paper;
+          ctx.fillRect(x0 + rand(-20, w), y0 + rand(0, h), rand(30, 110), rand(1, 3));
+        }
+        // her grin, pushed in a little more every frame, shaking on ones
+        const zoom = (h * 1.08) / GRIN.h * (1 + t * 0.08);
+        const fw = GRIN.w * zoom, fh = GRIN.h * zoom;
+        const cx = x0 + w / 2 + skew / 2 + rand(-2, 2), cy = y0 + h / 2 + rand(-2, 2);
+        ctx.drawImage(this.face, GRIN.x, GRIN.y, GRIN.w, GRIN.h, cx - fw / 2, cy - fh / 2, fw, fh);
+        ctx.fillStyle = COLORS.red;
+        ctx.fillRect(x0, y0, w + skew, 3);
+        ctx.restore();
         break;
       }
       case 'glyph': {

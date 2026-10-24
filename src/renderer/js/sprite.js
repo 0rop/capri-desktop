@@ -1,5 +1,5 @@
 // WebGL renderer for the Capri cut-out.
-// One texture, one quad: every bit of life (mane sway, arm swing, line boil, speckles,
+// One texture, one quad: every bit of life (head tilt, mane sway and flare, line boil, speckles,
 // the violet misregistration, glitch slices, teleport collapse) is done in the fragment shader.
 
 const VERT = `
@@ -22,8 +22,8 @@ uniform vec2 uSize;
 uniform float uSeed;
 uniform float uBoil;
 uniform float uHair;
-uniform float uArmL;
-uniform float uArmR;
+uniform float uHead;
+uniform float uMane;
 uniform float uGlitch;
 uniform float uGlitchSeed;
 uniform float uSplit;
@@ -37,28 +37,11 @@ uniform vec3 uRim;
 uniform float uAlpha;
 uniform float uPx; // sprite pixels per screen pixel
 
-// rig, in sprite pixels (capri-full.png is 220x420)
-const vec2 SHOULDER_L = vec2(98.0, 168.0);
-const vec2 SHOULDER_R = vec2(133.0, 172.0);
+// landmarks, in sprite pixels (capri-full.png is 220x420)
+const vec2 NECK = vec2(118.0, 152.0);   // the head tilts around this
+const vec2 MANE = vec2(116.0, 92.0);    // middle of the mane, it flares out from here
+const vec2 FACE = vec2(124.0, 132.0);   // her mask, kept rigid when the mane flares
 const float AXIS = 118.0;
-
-// Which source pixels belong to each arm. Measured on the cut-out:
-// the reaching arm sits between the hair spike above it and the hip below,
-// the hanging arm is everything right of the leg, minus the hair spike at x≈178.
-float armL(vec2 s) {
-  if (s.x > 101.0 || s.y > 234.0) return 0.0;
-  float top = 159.0 + (98.0 - s.x) * 0.5;
-  float bot = s.x < 50.0 ? 234.0 : 178.0 + (98.0 - s.x) * 0.62;
-  return step(top, s.y) * step(s.y, bot);
-}
-
-float armR(vec2 s) {
-  if (s.y < 168.0 || s.y > 292.0) return 0.0;
-  float sep = 128.0 + max(0.0, s.y - 190.0) * 0.2;
-  float m = step(sep, s.x);
-  if (s.y < 195.0) m *= step(s.x, 160.0);
-  return m;
-}
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -114,9 +97,8 @@ vec3 grade(vec3 c, out float red) {
   return hsv2rgb(h);
 }
 
-// One cel of the rig: graded, speckled, premultiplied. "keep" masks it out.
-vec4 cel(vec2 s, float keep) {
-  if (keep < 0.5) return vec4(0.0);
+// Graded, speckled, premultiplied sample of the figure.
+vec4 cel(vec2 s) {
   vec4 c = tex(s);
   if (c.a <= 0.0) return vec4(0.0);
   float red;
@@ -130,24 +112,6 @@ vec4 cel(vec2 s, float keep) {
     c.rgb = mix(c.rgb, vec3(1.0, 0.95, 0.97), clamp((star + tw) * red * uSparkle, 0.0, 1.0));
   }
   return vec4(c.rgb * c.a, c.a);
-}
-
-// Body with the arms lifted off, then each arm turned on its shoulder and laid back on top.
-vec4 rig(vec2 q) {
-  vec2 qL = rot(q, SHOULDER_L, -uArmL);
-  vec2 qR = rot(q, SHOULDER_R, -uArmR);
-  vec4 body = cel(q, 1.0 - max(armL(q), armR(q)));
-  vec4 r = cel(qR, armR(qR));
-  vec4 l = cel(qL, armL(qL));
-  vec4 c = r + body * (1.0 - r.a);
-  return l + c * (1.0 - l.a);
-}
-
-float rigAlpha(vec2 q) {
-  float b = tex(q).a * (1.0 - max(armL(q), armR(q)));
-  vec2 qL = rot(q, SHOULDER_L, -uArmL);
-  vec2 qR = rot(q, SHOULDER_R, -uArmR);
-  return max(b, max(tex(qL).a * armL(qL), tex(qR).a * armR(qR)));
 }
 
 vec2 warp(vec2 p) {
@@ -168,6 +132,17 @@ vec2 warp(vec2 p) {
   // boil: the line wobble you get when every drawing is redone by hand
   q += (vec2(vnoise(q * 0.075 + uSeed * 13.7), vnoise(q * 0.075 + uSeed * 7.3 + 31.0)) - 0.5) * 2.0 * uBoil;
 
+  // head tilt: everything above the collar bends around the neck, the body stays put
+  q = rot(q, NECK, -uHead * smoothstep(162.0, 138.0, q.y));
+
+  // mane flare: the shards bristle outward, unevenly, around a rigid face
+  if (uMane != 0.0) {
+    vec2 d = q - MANE;
+    float spikes = 0.55 + 0.9 * vnoise(vec2(atan(d.y, d.x) * 2.6, 4.0));
+    float w = smoothstep(182.0, 60.0, q.y) * smoothstep(16.0, 30.0, distance(q, FACE));
+    q = MANE + d / (1.0 + uMane * w * 0.32 * spikes);
+  }
+
   // mane sway, strongest at the tips
   float hw = smoothstep(175.0, 5.0, q.y);
   q.x -= uHair * hw * (0.65 + 0.35 * sin(q.y * 0.055));
@@ -186,14 +161,14 @@ void main() {
   }
 
   vec2 q = warp(p);
-  vec4 c = rig(q);
+  vec4 c = cel(q);
   vec3 col = c.rgb;
   float a = c.a;
 
   // chromatic split: red and blue channels pulled apart
   if (uSplit > 0.0) {
-    vec4 cr = rig(q + vec2(uSplit, 0.0));
-    vec4 cb = rig(q - vec2(uSplit, uSplit * 0.3));
+    vec4 cr = cel(q + vec2(uSplit, 0.0));
+    vec4 cb = cel(q - vec2(uSplit, uSplit * 0.3));
     col = vec3(cr.r, col.g, cb.b);
     a = max(a, max(cr.a, cb.a));
   }
@@ -202,7 +177,7 @@ void main() {
   col = mix(col, uSil.rgb * a, uSil.a);
 
   // violet misregistration behind the figure
-  float rim = rigAlpha(q - uMisreg) * (1.0 - a);
+  float rim = tex(q - uMisreg).a * (1.0 - a);
   col += uRim * rim;
   a += rim;
 
@@ -210,7 +185,7 @@ void main() {
 }`;
 
 const UNIFORMS = [
-  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uArmL', 'uArmR', 'uGlitch', 'uGlitchSeed',
+  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uGlitch', 'uGlitchSeed',
   'uSplit', 'uCollapse', 'uDissolve', 'uSparkle', 'uGrade', 'uSil', 'uMisreg', 'uRim', 'uAlpha', 'uPx',
 ];
 
@@ -286,8 +261,8 @@ export class SpriteRenderer {
     gl.uniform1f(u.uSeed, s.seed);
     gl.uniform1f(u.uBoil, s.boil);
     gl.uniform1f(u.uHair, s.hair);
-    gl.uniform1f(u.uArmL, s.armL);
-    gl.uniform1f(u.uArmR, s.armR);
+    gl.uniform1f(u.uHead, s.head);
+    gl.uniform1f(u.uMane, s.mane);
     gl.uniform1f(u.uGlitch, s.glitch);
     gl.uniform1f(u.uGlitchSeed, s.glitchSeed);
     gl.uniform1f(u.uSplit, s.split);

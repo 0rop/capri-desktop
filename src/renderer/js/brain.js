@@ -73,7 +73,7 @@ export class Brain {
     if (evt.source === 'clear' || evt.source === 'compact') return;
     const lines = evt.source === 'resume' ? this.t.resume : this.t.hello;
     this.voice.play('hello');
-    this.capri.gestureFor('wave', 1200);
+    this.capri.gestureFor('curious', 1400, this.capri.towardCenter());
     this.say('info', fmt(pick(lines), { project: s.project }), s, { hold: 5000 });
   }
 
@@ -133,7 +133,8 @@ export class Brain {
       this.say('alert', pick(this.t.permission), s, { quote: evt.message || '', hold: null });
       const cursor = await this.host.cursor().catch(() => null);
       if (cursor?.inside) await this.capri.summon(cursor);
-      this.capri.gestureFor('point', 2500);
+      const toward = cursor?.inside ? Math.sign(cursor.x - this.capri.pos.x) || 1 : this.capri.towardCenter();
+      this.capri.gestureFor('alarm', 2600, toward);
       return;
     }
     if (type === 'idle_prompt') {

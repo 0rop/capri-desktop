@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star'];
 
 export class Voice {
   constructor() {
@@ -82,6 +82,7 @@ export class Voice {
       hello: () => this.hello(),
       blip: () => this.blip(opts.mood),
       tick: () => this.tick(),
+      star: () => this.star(),
     }[cue];
     fn?.();
   }
@@ -155,6 +156,14 @@ export class Voice {
   tick() {
     const t = this.ctx.currentTime;
     this.noiseBurst(t, 0.03, 0.06, 3000, 9000, 8);
+  }
+
+  // the satellite: two soft, high pings and a shimmer
+  star() {
+    const t = this.ctx.currentTime;
+    this.osc('sine', midi(93), t, 0.9, 0.05);
+    this.osc('sine', midi(100), t + 0.14, 1.2, 0.035);
+    this.noiseBurst(t + 0.05, 0.6, 0.015, 9000, 12000, 6);
   }
 
   hello() {

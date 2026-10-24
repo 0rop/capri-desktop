@@ -1,4 +1,6 @@
-// Capri herself: where she stands, how she moves, what she does with her hands.
+// Capri herself: where she floats, how she moves, how she reacts.
+// She acts with her head and her mane, like in the show: the cocked head, the bristling
+// shards, the manic laugh, looking up at the satellite.
 // The body is drawn "on twos" (12 drawings a second) like cel animation,
 // and "on ones" (24) for the teleport, which is the action beat.
 
@@ -33,10 +35,11 @@ export class Capri {
     this.dragging = false;
 
     this.p = {
-      seed: 0, boil: 0.9, hair: 0, armL: 0, armR: 0, glitch: 0, glitchSeed: 0, split: 0,
+      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, glitch: 0, glitchSeed: 0, split: 0,
       collapse: 0, dissolve: 0, sparkle: 1, grade: 1, sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
     };
     this.bob = 0;
+    this.tilt = 0; // whole-body lean, degrees
     this.gesture = null;
     this.frameMs = ON_TWOS;
     this.lastDraw = 0;
@@ -45,6 +48,8 @@ export class Capri {
     this.lastActivity = now;
     this.nextTwitch = now + rand(4000, 9000);
     this.nextWander = now + rand(50000, 100000);
+    this.nextGaze = now + rand(40000, 90000);
+    this.nextShed = now + rand(3000, 8000);
     this.nextNotice = 0;
     this.lastGlyph = 0;
 
@@ -73,8 +78,10 @@ export class Capri {
   setScale(scale) {
     this.scale = scale;
     this.sprite.resize(scale);
+    // flip and lean both pivot on her feet
     const fx = (SPRITE.pad + SPRITE.feet.x) * scale;
-    this.canvas.style.transformOrigin = `${fx}px 50%`;
+    const fy = (SPRITE.pad + SPRITE.feet.y) * scale;
+    this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
     this.place();
   }
 
@@ -90,7 +97,7 @@ export class Capri {
     const left = this.pos.x - (SPRITE.pad + SPRITE.feet.x) * s;
     const top = this.pos.y - (SPRITE.pad + SPRITE.feet.y) * s + this.bob;
     this.root.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
-    this.canvas.style.transform = this.facing === -1 ? 'scaleX(-1)' : '';
+    this.canvas.style.transform = `rotate(${this.tilt.toFixed(2)}deg)${this.facing === -1 ? ' scaleX(-1)' : ''}`;
     this.onMove?.(this.head());
   }
 
@@ -162,30 +169,68 @@ export class Capri {
   animate(now) {
     const t = now / 1000;
     const p = this.p;
-    const calm = this.mode === 'sleep' ? 0.3 : 1;
+    const sleeping = this.mode === 'sleep';
+    const calm = sleeping ? 0.3 : 1;
+    const odd = Math.floor(t * 12) % 2 === 1; // alternates every drawing
     p.seed = Math.random() * 100;
 
+    // weightless: she's a projection, she never quite touches the ground
     p.hair = (3.4 * Math.sin(t * 1.25) + 1.6 * Math.sin(t * 2.9 + 1)) * calm;
-    let armL = 0.05 * Math.sin(t * 0.9) * calm;
-    let armR = 0.035 * Math.sin(t * 1.15 + 1.2) * calm;
-    let bob = Math.sin(t * 1.6) * 4 * calm;
+    let bob = Math.sin(t * 1.6) * 5 * calm;
+    let tilt = Math.sin(t * 0.7) * 1.2 * calm;
+    let head = 0.025 * Math.sin(t * 0.55 + 0.8) * calm;
+    let mane = 0;
+    if (sleeping) {
+      head += 0.1;   // head drops to one side
+      mane -= 0.12;  // and the mane settles
+    }
 
+    // Head turns are given in screen direction (-1 left, 1 right); the sprite may be mirrored.
     const g = this.gesture;
     if (g && now < g.until) {
+      const k = (now - g.start) / (g.until - g.start);
+      const lean = g.dir * this.facing;
       switch (g.name) {
-        case 'talk': armL += 0.1 + 0.07 * Math.sin(t * 9); break;
-        case 'wave': armL += 0.38 + 0.22 * Math.sin(t * 15); break;
-        case 'cheer': armL += 0.42; armR -= 0.45; bob -= 12 * Math.abs(Math.sin(t * 7)); break;
-        case 'point': armL += 0.22 + 0.025 * Math.sin(t * 22); break;
-        case 'flinch': armL -= 0.12; armR += 0.08; bob += 5; break;
+        case 'talk': // little nods, the mane breathing with the words
+          head += 0.035 * Math.sin(t * 13);
+          mane += 0.05 + 0.05 * Math.abs(Math.sin(t * 9));
+          break;
+        case 'curious': // the cocked head
+          head += 0.16 * lean * Math.min(1, k * 6);
+          mane += 0.12;
+          tilt += 2 * g.dir;
+          break;
+        case 'laugh': // manic: head shaking on every drawing, mane blown wide
+          head += odd ? 0.07 : -0.07;
+          mane += 0.55 * (1 - k * 0.6);
+          bob -= 10 * Math.abs(Math.sin(t * 7));
+          break;
+        case 'alarm': // bristling and flickering, leaning toward you
+          mane += odd ? 0.32 : 0.12;
+          head += 0.1 * lean;
+          tilt += 3 * g.dir;
+          break;
+        case 'flinch': // snapped back by the hit
+          head += 0.18 * (1 - k);
+          tilt += 3 * this.facing * (1 - k);
+          mane -= 0.1;
+          bob += 4;
+          break;
+        case 'gaze': // looking up at the satellite, very still
+          head += 0.2 * lean * Math.min(1, k * 4);
+          mane += 0.1;
+          p.hair *= 0.4;
+          tilt += 1.5 * g.dir;
+          break;
       }
     } else {
       this.gesture = null;
     }
 
-    p.armL = armL;
-    p.armR = armR;
+    p.head = head;
+    p.mane = mane;
     this.bob = this.dragging ? 0 : bob;
+    this.tilt = this.dragging ? 0 : tilt;
     if (this.debug) Object.assign(p, this.debug); // --dev pose overrides
   }
 
@@ -195,6 +240,17 @@ export class Capri {
     if (now > this.nextTwitch) {
       this.nextTwitch = now + rand(5000, 13000);
       if (!reducedMotion.matches && this.mode !== 'sleep') this.twitch();
+    }
+
+    // a shard of her mane breaks off now and then and drifts away
+    if (now > this.nextShed) {
+      this.nextShed = now + rand(4000, 11000) * (this.mode === 'sleep' ? 2.5 : 1);
+      if (!reducedMotion.matches) this.shed();
+    }
+
+    if (this.mode === 'idle' && now > this.nextGaze) {
+      this.nextGaze = now + rand(90000, 180000);
+      this.gaze();
     }
 
     if (this.mode === 'idle' && now - this.lastActivity > SLEEP_AFTER) this.setMode('sleep');
@@ -218,6 +274,7 @@ export class Capri {
     if (mode !== 'sleep') this.lastActivity = now;
     // after anything happens, stay put a while (so she doesn't wander off right after "done")
     this.nextWander = Math.max(this.nextWander, now + rand(55000, 120000));
+    this.nextGaze = Math.max(this.nextGaze, now + rand(30000, 70000));
     if (this.mode === mode) return;
     this.mode = mode;
     const p = this.p;
@@ -235,9 +292,42 @@ export class Capri {
     this.lastActivity = performance.now();
   }
 
-  gestureFor(name, ms) {
+  // dir: screen direction the gesture leans to (-1 left, 1 right), for the head turns
+  gestureFor(name, ms, dir = 0) {
     const now = performance.now();
-    this.gesture = { name, start: now, until: now + ms };
+    this.gesture = { name, start: now, until: now + ms, dir };
+  }
+
+  // Which way is the middle of the screen from her, -1 or 1.
+  towardCenter() {
+    return this.pos.x > this.view.w / 2 ? -1 : 1;
+  }
+
+  // the reaching side of the cut-out points toward screen x
+  faceToward(x) {
+    this.facing = x < this.pos.x ? 1 : -1;
+  }
+
+  shed() {
+    const s = this.scale;
+    const h = this.head();
+    const a = rand(-Math.PI * 0.95, -Math.PI * 0.05); // somewhere on the upper rim of the mane
+    const r = rand(70, 100) * s;
+    this.fx.drift(h.x + Math.cos(a) * r, h.y - 40 * s + Math.sin(a) * r * 0.85, a);
+  }
+
+  // She looks up at a star (the satellite) above the open side of the screen, and holds it.
+  gaze() {
+    if (this.busy || this.hidden || this.gesture) return;
+    const h = this.head();
+    const dir = this.towardCenter();
+    const x = clamp(h.x + dir * rand(140, 300), 40, this.view.w - 40);
+    const y = rand(40, Math.max(60, Math.min(160, h.top - 120)));
+    this.faceToward(x);
+    this.fx.star(x, y, { life: 4400 });
+    this.voice.play('star');
+    this.gestureFor('gaze', 4200, dir);
+    this.onGaze?.();
   }
 
   twitch() {
@@ -275,11 +365,14 @@ export class Capri {
     await tween(p, { glitch: 0, split: 0 }, 450, ease.out);
   }
 
+  // The manic laugh: mane blown wide and shedding shards, flash frames, then a cut-in of her grin.
   async celebrate() {
-    this.gestureFor('cheer', 1600);
+    const dir = this.towardCenter();
+    this.gestureFor('laugh', 1500, dir);
     if (reducedMotion.matches) return;
+    const s = this.scale;
     const h = this.head();
-    this.fx.burst(h.x, h.y - 20, { count: 26, power: 1.1, spread: 60 });
+    this.fx.burst(h.x, h.y - 40 * s, { count: 30, power: 1.1, spread: 130 * s });
     const p = this.p;
     for (const color of [GREEN, INK, GREEN]) {
       p.sil = color;
@@ -288,6 +381,7 @@ export class Capri {
       await sleep(ON_ONES);
     }
     p.silAmount = 0;
+    await this.fx.cutin(h.x + dir * (85 * s + 24), h.y - 18, dir);
   }
 
   // Leave in a column of light, reappear somewhere else.
@@ -472,6 +566,7 @@ export class Capri {
       this.facing = facing;
       this.twitch();
     }
-    if (this.mode === 'idle') this.gestureFor('wave', 1100);
+    // she cocks her head at you
+    if (this.mode === 'idle' && !this.gesture) this.gestureFor('curious', 1400, x < h.x ? -1 : 1);
   }
 }

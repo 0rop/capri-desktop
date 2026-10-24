@@ -18,14 +18,16 @@ function loadImage(src) {
 }
 
 async function boot() {
-  const [config, image] = await Promise.all([
+  const [config, image, face] = await Promise.all([
     host.getConfig(),
     loadImage('../../assets/capri/capri-full.png'),
+    loadImage('../../assets/capri/capri-face.png'),
     document.fonts.load('600 16px "Chakra Petch"'),
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
+  document.documentElement.lang = config.lang;
 
-  const fx = new FxLayer(document.getElementById('fx'));
+  const fx = new FxLayer(document.getElementById('fx'), { face });
   fx.resize(innerWidth, innerHeight);
 
   const voice = new Voice();
@@ -81,6 +83,10 @@ async function boot() {
     refreshHit();
   };
   capri.onTeleport = (phase) => (phase === 'start' ? panel.suspend() : panel.resume());
+  // now and then she says something while staring at the satellite
+  capri.onGaze = () => {
+    if (!panel.visible && Math.random() < 0.4) panel.say({ kind: 'info', line: pick(brain.t.gaze), hold: 3800 });
+  };
   capri.onClick = () => {
     if (panel.visible) panel.hide();
     else brain.status();
@@ -106,6 +112,7 @@ async function boot() {
     if (cfg.lang !== brain.lang) {
       brain.lang = cfg.lang;
       panel.labels = LINES[cfg.lang] || LINES.fr;
+      document.documentElement.lang = cfg.lang;
     }
   });
 
@@ -137,6 +144,13 @@ async function boot() {
         break;
       case 'freeze':
         capri.hidden = Boolean(cmd.on);
+        break;
+      case 'act':
+        if (cmd.act === 'gaze') capri.gaze();
+        if (cmd.act === 'celebrate') capri.celebrate();
+        if (cmd.act === 'hurt') capri.hurt();
+        if (cmd.act === 'shed') capri.shed();
+        if (cmd.gesture) capri.gestureFor(cmd.gesture, cmd.ms || 2000, cmd.dir || 0);
         break;
       default:
         break;
