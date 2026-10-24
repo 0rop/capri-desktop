@@ -1,6 +1,7 @@
 // WebGL renderer for the Capri cut-out.
-// One texture, one quad: every bit of life (head tilt, mane sway and flare, line boil, speckles,
-// the violet misregistration, glitch slices, teleport collapse) is done in the fragment shader.
+// One texture, one quad: every bit of life (head tilt, mane sway and flare, sitting with dangling
+// legs, smear frames, afterimages, line boil, speckles, the violet misregistration, glitch slices,
+// teleport collapse) is done in the fragment shader.
 
 const VERT = `
 attribute vec2 aPos;
@@ -24,6 +25,11 @@ uniform float uBoil;
 uniform float uHair;
 uniform float uHead;
 uniform float uMane;
+uniform float uSit;
+uniform float uKickL;
+uniform float uKickR;
+uniform vec2 uSmear;
+uniform vec2 uEcho;
 uniform float uGlitch;
 uniform float uGlitchSeed;
 uniform float uSplit;
@@ -42,6 +48,10 @@ const vec2 NECK = vec2(118.0, 152.0);   // the head tilts around this
 const vec2 MANE = vec2(116.0, 92.0);    // middle of the mane, it flares out from here
 const vec2 FACE = vec2(124.0, 132.0);   // her mask, kept rigid when the mane flares
 const float AXIS = 118.0;
+const float HIP = 232.0;                // bottom of the torso
+const float KNEE = 305.0;               // both knees sit around here
+const float KNEE_LX = 106.0;
+const float KNEE_RX = 142.0;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -114,6 +124,43 @@ vec4 cel(vec2 s) {
   return vec4(c.rgb * c.a, c.a);
 }
 
+// Lower legs, in source pixels; the line between them leans with the stance.
+float legSep(float y) { return 117.0 + max(0.0, y - 300.0) * 0.15; }
+float legL(vec2 s) { return step(KNEE - 6.0, s.y) * (1.0 - step(legSep(s.y), s.x)); }
+float legR(vec2 s) { return step(KNEE - 6.0, s.y) * step(legSep(s.y), s.x); }
+
+// Sitting, seen from the front: the thighs come toward us so they shrink,
+// and everything below them rides up.
+float thighScale() { return mix(1.0, 0.3, uSit); }
+
+vec2 unsit(vec2 q) {
+  if (uSit <= 0.0 || q.y <= HIP) return q;
+  float c = thighScale();
+  if (q.y <= HIP + (KNEE - HIP) * c) q.y = HIP + (q.y - HIP) / c;
+  else q.y += (KNEE - HIP) * (1.0 - c);
+  return q;
+}
+
+bool rigged() { return uSit > 0.0 || uKickL != 0.0 || uKickR != 0.0; }
+
+// Body, then each lower leg swung on its knee (outward for positive kicks).
+vec4 rig(vec2 q) {
+  if (!rigged()) return cel(q);
+  float kneeY = HIP + (KNEE - HIP) * thighScale();
+  vec2 qB = unsit(q);
+  vec2 qL = unsit(rot(q, vec2(KNEE_LX, kneeY), -uKickL));
+  vec2 qR = unsit(rot(q, vec2(KNEE_RX, kneeY), uKickR));
+  vec4 body = legL(qB) + legR(qB) > 0.0 ? vec4(0.0) : cel(qB);
+  vec4 l = legL(qL) > 0.0 ? cel(qL) : vec4(0.0);
+  vec4 r = legR(qR) > 0.0 ? cel(qR) : vec4(0.0);
+  vec4 c = l + body * (1.0 - l.a);
+  return r + c * (1.0 - r.a);
+}
+
+float rigAlpha(vec2 q) {
+  return rigged() ? rig(q).a : tex(q).a;
+}
+
 vec2 warp(vec2 p) {
   vec2 q = p;
 
@@ -161,23 +208,43 @@ void main() {
   }
 
   vec2 q = warp(p);
-  vec4 c = cel(q);
+  vec4 c = rig(q);
   vec3 col = c.rgb;
   float a = c.a;
 
   // chromatic split: red and blue channels pulled apart
   if (uSplit > 0.0) {
-    vec4 cr = cel(q + vec2(uSplit, 0.0));
-    vec4 cb = cel(q - vec2(uSplit, uSplit * 0.3));
+    vec4 cr = rig(q + vec2(uSplit, 0.0));
+    vec4 cb = rig(q - vec2(uSplit, uSplit * 0.3));
     col = vec3(cr.r, col.g, cb.b);
     a = max(a, max(cr.a, cb.a));
+  }
+
+  // smear frame: two multiples of the head trailing where it came from
+  if (uSmear != vec2(0.0)) {
+    float hw = smoothstep(178.0, 140.0, q.y);
+    for (int i = 1; i <= 2; i++) {
+      vec4 m = rig(q - uSmear * hw * float(i) * 0.5);
+      col += m.rgb * (1.0 - a);
+      a += m.a * (1.0 - a);
+    }
   }
 
   // impact frame: flat silhouette
   col = mix(col, uSil.rgb * a, uSil.a);
 
+  // afterimages: the other minds in her, a green and a red copy pulled apart
+  if (uEcho != vec2(0.0)) {
+    float e1 = rigAlpha(q - uEcho) * (1.0 - a);
+    col += vec3(0.21, 1.0, 0.48) * e1;
+    a += e1;
+    float e2 = rigAlpha(q + uEcho) * (1.0 - a);
+    col += vec3(1.0, 0.13, 0.32) * e2;
+    a += e2;
+  }
+
   // violet misregistration behind the figure
-  float rim = tex(q - uMisreg).a * (1.0 - a);
+  float rim = rigAlpha(q - uMisreg) * (1.0 - a);
   col += uRim * rim;
   a += rim;
 
@@ -185,11 +252,17 @@ void main() {
 }`;
 
 const UNIFORMS = [
-  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uGlitch', 'uGlitchSeed',
+  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uSit', 'uKickL', 'uKickR',
+  'uSmear', 'uEcho', 'uGlitch', 'uGlitchSeed',
   'uSplit', 'uCollapse', 'uDissolve', 'uSparkle', 'uGrade', 'uSil', 'uMisreg', 'uRim', 'uAlpha', 'uPx',
 ];
 
-export const SPRITE = { width: 220, height: 420, pad: 56, head: { x: 116, y: 132 }, feet: { x: 128, y: 418 } };
+export const SPRITE = {
+  width: 220, height: 420, pad: 56,
+  head: { x: 116, y: 132 },
+  feet: { x: 128, y: 418 },
+  hip: 232, // where she sits
+};
 
 export class SpriteRenderer {
   constructor(canvas, image) {
@@ -263,6 +336,11 @@ export class SpriteRenderer {
     gl.uniform1f(u.uHair, s.hair);
     gl.uniform1f(u.uHead, s.head);
     gl.uniform1f(u.uMane, s.mane);
+    gl.uniform1f(u.uSit, s.sit);
+    gl.uniform1f(u.uKickL, s.kickL);
+    gl.uniform1f(u.uKickR, s.kickR);
+    gl.uniform2f(u.uSmear, s.smear[0], s.smear[1]);
+    gl.uniform2f(u.uEcho, s.echo[0], s.echo[1]);
     gl.uniform1f(u.uGlitch, s.glitch);
     gl.uniform1f(u.uGlitchSeed, s.glitchSeed);
     gl.uniform1f(u.uSplit, s.split);
