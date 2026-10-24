@@ -1,136 +1,139 @@
+**English** · [Français](README.fr.md)
+
 # Capri
 
-Capri, le construct du *Project Capricorn* (Cyberpunk: Edgerunners, saison 2), vit sur ton bureau
-et te raconte ce que fait **Claude Code** : elle se téléporte, glitche, commente chaque action,
-vient te chercher quand Claude attend ta permission et fait la fête quand la tâche est finie.
+Capri, the *Project Capricorn* construct from Cyberpunk: Edgerunners season 2, lives on your desktop
+and tells you what **Claude Code** is up to. She teleports, glitches, comments on every action,
+comes to find you when Claude needs your permission, and loses it when the job is done.
 
-![Capri annonce que Claude a terminé](docs/done.png)
+![Capri telling you Claude is done](docs/done.png)
 
-![Téléportation, image par image](docs/teleport.png)
+![Teleport, frame by frame](docs/teleport.png)
 
-## Ce qu'elle fait
+## What she does
 
-- **Pendant que Claude bosse** : un ticker au-dessus d'elle affiche l'action en cours
-  (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
-- **Quand Claude a besoin de toi** (permission, question) : elle se téléporte à côté de ta souris et insiste.
-- **Quand une commande plante** : image d'impact rouge, gros glitch, et la ligne d'erreur utile.
-- **Quand c'est fini** : téléportation au milieu de l'écran, célébration, résumé
-  (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
-- **Le reste du temps** : elle flotte, sa crinière bouge, elle se balade d'un coin à l'autre de l'écran,
-  te fait signe quand ta souris approche, et s'endort si rien ne se passe pendant 10 minutes.
+- **While Claude works**: a ticker over her head shows the current action
+  (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
+- **When Claude needs you** (permission, question): she teleports next to your mouse, mane bristling, and won't let it go.
+- **When a command fails**: red impact frame, she gets knocked back, heavy glitch, and the error line that actually matters.
+- **When it's done**: she teleports to the middle of the screen, laughs with her mane blown wide,
+  an anime cut-in of her grin, then a summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
+- **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
+  cocks her head when your mouse comes near, sometimes looks up at a star (the satellite), and falls asleep after 10 quiet minutes.
 
-Elle est cliquable uniquement sur son corps (pixel près) : tout le reste de l'écran reste utilisable normalement.
+![The laugh and the cut-in](docs/laugh.png)
 
-- **Clic** sur elle : elle te dit où en est Claude.
-- **Glisser** : tu la déplaces.
-- **Clic** sur le panneau : il se ferme.
-- **Ctrl+Alt+C** : la cacher / la faire revenir.
-- **Icône près de l'horloge** : téléporter, démo, taille, son, écran, langue (FR/EN), lancement au démarrage, hooks.
+She only catches the mouse on her actual body (pixel-precise): the rest of the screen works as usual.
 
-## Installation
+- **Click** her: she tells you where Claude is at.
+- **Drag** her: move her around.
+- **Click** the panel: it closes.
+- **Ctrl+Alt+C**: hide her / bring her back.
+- **Tray icon** (next to the clock): teleport, demo, size, sound, screen, language, start with Windows, hooks.
 
-Il faut [Node.js](https://nodejs.org) 20 ou plus.
+She speaks **French or English and picks the language of your system** on her own. You can force one from the tray menu.
+
+## Install
+
+You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
-git clone <ce-repo> capri
+git clone <this-repo> capri
 cd capri
 npm install
 npm start
 ```
 
-### La brancher sur Claude Code
+### Hook her up to Claude Code
 
-Clique sur l'icône de Capri près de l'horloge, puis **Installer les hooks Claude Code**. Ou en ligne de commande :
+Click Capri's tray icon, then **Install Claude Code hooks**. Or from the command line:
 
 ```bash
 npm run hooks:install
 ```
 
-Ça ajoute un hook à `~/.claude/settings.json` (une sauvegarde est faite à côté, tes hooks existants sont gardés).
-Relance tes sessions Claude Code ensuite. Pour retirer : `npm run hooks:uninstall`.
+This adds a hook to `~/.claude/settings.json` (a backup is written next to it, your existing hooks are kept).
+Restart your Claude Code sessions afterwards. To remove it: `npm run hooks:uninstall`.
 
-Les hooks sont lancés en `async` : ils ne ralentissent jamais Claude, et si Capri n'est pas lancée ils ne font rien.
+The hooks run `async`: they never slow Claude down, and when Capri isn't running they do nothing.
 
-### Tester sans Claude
+### Try it without Claude
 
 ```bash
 npm run demo
 ```
 
-Rejoue une fausse session complète (lecture, écriture, test qui plante, demande de permission, fin).
-C'est aussi dans le menu de l'icône.
+Replays a fake session from start to finish (reads, writes, a failing test, a permission prompt, the end).
+It's also in the tray menu.
 
-## Sons
+## Sounds
 
-Tous les sons sont synthétisés en direct (Web Audio), rien n'est fourni sous droits.
-Tu peux mettre tes propres fichiers dans le dossier des sons perso (menu › Son › *Ouvrir le dossier des sons perso*),
-avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
+Every sound is synthesized live (Web Audio), nothing copyrighted ships with the repo.
+You can drop your own files in the custom sounds folder (tray › Sound › *Open custom sounds folder*),
+named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 
-| Fichier | Quand |
+| File | When |
 |---|---|
-| `teleport-out` | elle disparaît |
-| `teleport-in` | elle réapparaît |
-| `done` | Claude a fini |
-| `alert` | Claude attend ta permission |
-| `error` | une commande a planté |
-| `hello` | une session démarre |
-| `blip` | chaque syllabe quand elle parle |
-| `tick` | petit rappel discret |
+| `teleport-out` | she vanishes |
+| `teleport-in` | she reappears |
+| `done` | Claude is done |
+| `alert` | Claude is waiting for your permission |
+| `error` | a command failed |
+| `hello` | a session starts |
+| `star` | she looks up at the satellite |
+| `blip` | every syllable while she talks |
+| `tick` | a quiet reminder |
 
-## Ce qui part de ta machine
+## What leaves your machine
 
-Rien. Le hook ne garde que ce qui sert à l'affichage (nom de l'outil, chemin du fichier, commande lancée,
-début de ton prompt et du dernier message de Claude, le tout tronqué) et l'envoie à `127.0.0.1` uniquement.
-Le contenu de tes fichiers n'est jamais transmis : pour une écriture, seule sa taille passe.
+Nothing. The hook only keeps what the display needs (tool name, file path, command, the start of your prompt and
+of Claude's last message, all truncated) and sends it to `127.0.0.1` only.
+Your file contents are never sent: for a write, only its size goes through.
 
-## Direction artistique
+## Art direction
 
-Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
+The goal: she should feel like she stepped out of the anime, not like a widget.
 
-- **Cel animation** : le corps est redessiné 12 fois par seconde (« on twos ») comme un anime,
-  24 pendant les téléportations. Chaque dessin a un léger *boil* (le tremblement du trait redessiné à la main).
-- **Un vrai rig** : la découpe est séparée en corps + deux bras articulés aux épaules, la crinière ondule par le haut.
-- **Sa texture** : la crinière rouge est remise au rouge de la série et couverte de points blancs qui scintillent.
-- **Le décalage violet** : comme dans l'anime, une copie violette décalée sous elle, sous le panneau, sous les éclats.
-- **Glitch « relic »** : tranches horizontales décalées et séparation RGB, dans la lignée des apparitions de Johnny Silverhand.
-- **Téléportation** : charge, éclats, effondrement en ligne, colonne de lumière rouge vers le ciel
-  (clin d'œil à la fin de la saison), éclair jusqu'à la destination, retour avec deux *impact frames*.
-- **Typo** : Chakra Petch (coupes en biseau, comme ses éclats) + JetBrains Mono pour les données.
+- **Cel animation**: her body is redrawn 12 times a second ("on twos") like anime, 24 during teleports.
+  Every drawing has a slight *boil* (the wobble of a line redrawn by hand).
+- **She acts with her head and her mane**, like in the show: the cocked head, the shards bristling or
+  blowing wide, the manic laugh with the head shaking on every drawing, the slump when she sleeps.
+  The cut-out is rigged so her head tilts around the neck and her mane flares unevenly around a rigid face.
+- **The satellite**: now and then she stares at a star above the screen, a nod to the season's ending.
+- **Her texture**: the red mane is pushed back to the show's hot red and covered in twinkling white specks.
+  Shards come loose from it and drift away.
+- **The violet offset**: like in the anime, a misregistered violet copy under her, under the panel, under the shards.
+- **"Relic" glitch**: shifted horizontal slices and RGB split, in the spirit of Johnny Silverhand's appearances.
+- **Teleport**: charge, shards, collapse into a line, a red column of light to the sky,
+  a bolt to the destination, back with two *impact frames*.
+- **Cut-in**: her real grin, pushed in, with speed lines, when Claude finishes a job.
+- **Type**: Chakra Petch (bevelled cuts, like her shards) + JetBrains Mono for data.
 
-Si Windows est réglé sur « Afficher les animations : non », elle se contente de fondus.
+If Windows is set to "Show animations: off", she sticks to fades.
 
-## Comment c'est fait
+## How it's built
 
 ```
-hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
-scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
-src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
+hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
+scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
+src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
 src/renderer/js/
-  sprite.js              shader WebGL : rig, couleurs, paillettes, glitch, effondrement
-  capri.js               le personnage : position, gestes, téléportation, drag, sommeil
-  fx.js                  éclats, colonnes de lumière, éclairs, glyphes
-  panel.js               le panneau « transmission » et le ticker
-  brain.js               traduit les événements Claude en répliques et en actions
-  lines.js               ce qu'elle dit (FR / EN)
-  voice.js               les sons
+  sprite.js              WebGL shader: head tilt, mane flare, colors, specks, glitch, collapse
+  capri.js               the character: position, gestures, teleport, drag, sleep, the satellite
+  fx.js                  shards, light columns, bolts, glyphs, the star, the cut-in
+  panel.js               the "transmission" panel and the ticker
+  brain.js               turns Claude events into lines and actions
+  lines.js               what she says (FR / EN)
+  voice.js               the sounds
 ```
 
-Pour bosser dessus : `npm run dev` active des routes de debug sur le bridge (`/debug/capture` enregistre une image de la fenêtre dans `captures/`).
+To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/capture` saves a frame of the window to `captures/`).
 
-## Crédits et droits
+## Credits and rights
 
-Capri / Project Capricorn, Cyberpunk et Cyberpunk: Edgerunners appartiennent à CD PROJEKT RED, Studio Trigger et Netflix.
-Projet de fan, non commercial, sans lien avec eux. Les images du personnage dans `assets/capri/` viennent d'images de la série
-et d'une découpe faite par des fans ; elles ne sont **pas** couvertes par la licence MIT du code.
-Si un ayant droit veut qu'elles soient retirées, ouvre une issue.
+Capri / Project Capricorn, Cyberpunk and Cyberpunk: Edgerunners belong to CD PROJEKT RED, Studio Trigger and Netflix.
+This is a non-commercial fan project with no affiliation. The character images in `assets/capri/` come from frames of
+the show and a fan-made cut-out; they are **not** covered by the code's MIT license.
+If a rights holder wants them removed, open an issue.
 
-Polices : Chakra Petch et JetBrains Mono, sous licence SIL Open Font License, via Fontsource.
-
----
-
-### English
-
-A desktop companion for Claude Code. Capri, the personality construct from *Cyberpunk: Edgerunners* season 2,
-floats on your desktop, teleports around, narrates what Claude is doing (via Claude Code hooks), comes to your
-cursor when Claude needs permission and celebrates when the task is done.
-`npm install && npm start`, then tray icon › *Install Claude Code hooks* (switch the language to English in the same menu).
+Fonts: Chakra Petch and JetBrains Mono, under the SIL Open Font License, via Fontsource.
