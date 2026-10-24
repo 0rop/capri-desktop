@@ -39,8 +39,8 @@ Elle parle **français ou anglais et choisit toute seule la langue de ton systè
 Il faut [Node.js](https://nodejs.org) 20 ou plus.
 
 ```bash
-git clone <ce-repo> capri
-cd capri
+git clone https://github.com/mochiiwuff/capri-desktop.git
+cd capri-desktop
 npm install
 npm start
 ```

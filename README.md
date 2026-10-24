@@ -38,8 +38,8 @@ She speaks **French or English and picks the language of your system** on her ow
 You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
-git clone <this-repo> capri
-cd capri
+git clone https://github.com/mochiiwuff/capri-desktop.git
+cd capri-desktop
 npm install
 npm start
 ```
