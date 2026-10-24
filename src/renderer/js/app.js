@@ -1,0 +1,158 @@
+import { Capri } from './capri.js';
+import { FxLayer } from './fx.js';
+import { Panel } from './panel.js';
+import { Voice } from './voice.js';
+import { Brain } from './brain.js';
+import { LINES } from './lines.js';
+import { pick, fmt } from './util.js';
+
+const host = window.host;
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function boot() {
+  const [config, image] = await Promise.all([
+    host.getConfig(),
+    loadImage('../../assets/capri/capri-full.png'),
+    document.fonts.load('600 16px "Chakra Petch"'),
+    document.fonts.load('400 11px "JetBrains Mono"'),
+  ]);
+
+  const fx = new FxLayer(document.getElementById('fx'));
+  fx.resize(innerWidth, innerHeight);
+
+  const voice = new Voice();
+  voice.configure(config);
+  host.listSounds().then((list) => list.length && voice.loadCustom(list));
+
+  const panel = new Panel({
+    panel: document.getElementById('panel'),
+    ticker: document.getElementById('ticker'),
+    labels: LINES[config.lang] || LINES.fr,
+  });
+
+  const capri = new Capri({
+    root: document.getElementById('capri'),
+    canvas: document.getElementById('sprite'),
+    image,
+    fx,
+    voice,
+  });
+  capri.wander = config.wander;
+  capri.setScale(config.scale);
+
+  const brain = new Brain({ capri, panel, voice, host, lang: config.lang });
+
+  // wiring
+  capri.onMove = (head) => panel.setAnchor(head, capri.view);
+  capri.onTeleport = (phase) => (phase === 'start' ? panel.suspend() : panel.resume());
+  capri.onClick = () => {
+    if (panel.visible) panel.hide();
+    else brain.status();
+  };
+  panel.onChar = (kind) => voice.play('blip', { mood: kind });
+  panel.onTalk = (talking) => talking && capri.gestureFor('talk', 900);
+
+  // Click-through everywhere except on her body and the panel.
+  let interactive = false;
+  const setInteractive = (on) => {
+    if (on === interactive) return;
+    interactive = on;
+    host.setInteractive(on);
+  };
+  window.addEventListener('mousemove', (e) => {
+    if (capri.dragging) return setInteractive(true);
+    const r = panel.rect();
+    const onPanel = r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    setInteractive(onPanel || capri.hit(e.clientX, e.clientY));
+  });
+  document.addEventListener('mouseleave', () => !capri.dragging && setInteractive(false));
+
+  host.onClaudeEvent((evt) => brain.handle(evt));
+
+  host.onResize(({ width, height }) => {
+    fx.resize(width, height);
+    capri.setView(width, height);
+  });
+  window.addEventListener('resize', () => {
+    fx.resize(innerWidth, innerHeight);
+    capri.setView(innerWidth, innerHeight);
+  });
+
+  host.onConfig((cfg) => {
+    voice.configure(cfg);
+    capri.wander = cfg.wander;
+    if (cfg.scale !== capri.scale) capri.setScale(cfg.scale);
+    if (cfg.lang !== brain.lang) {
+      brain.lang = cfg.lang;
+      panel.labels = LINES[cfg.lang] || LINES.fr;
+    }
+  });
+
+  host.onCommand(async (cmd) => {
+    const t = brain.t;
+    switch (cmd.name) {
+      case 'teleport':
+        capri.teleport(capri.spot('random'));
+        break;
+      case 'status':
+        brain.status();
+        break;
+      case 'hooks':
+        if (cmd.ok) panel.say({ kind: 'info', line: cmd.action === 'install' ? t.hooksOk : t.hooksRemoved, hold: 6000 });
+        else panel.say({ kind: 'error', line: fmt(t.hooksFail, { error: cmd.error }), hold: 9000 });
+        break;
+      // --dev helpers
+      case 'pose':
+        capri.debug = cmd.params || null;
+        if (cmd.hush) {
+          panel.setTicker(null);
+          panel.hide();
+        }
+        if (cmd.scale) capri.setScale(cmd.scale);
+        if (cmd.at) capri.pos = cmd.at;
+        if (cmd.facing) capri.facing = cmd.facing;
+        if (cmd.gesture) capri.gestureFor(cmd.gesture, cmd.ms || 2000);
+        capri.drawFrame();
+        break;
+      case 'freeze':
+        capri.hidden = Boolean(cmd.on);
+        break;
+      default:
+        break;
+    }
+  });
+
+  // entrance
+  await capri.materialize(capri.spot('post'));
+  const hooks = await host.hooksStatus();
+  if (!hooks.installed) {
+    panel.say({ kind: 'info', line: t0(config.lang).noHooks, hold: 9000 });
+  } else {
+    panel.say({ kind: 'info', line: pick(t0(config.lang).online), hold: 4000 });
+  }
+}
+
+// boot-time lines that only make sense here
+function t0(lang) {
+  return lang === 'en'
+    ? {
+      online: ['Capri online.', 'Back on your desktop, choom.'],
+      noHooks: 'I can’t see Claude yet. Tray icon › “Install Claude Code hooks”.',
+    }
+    : {
+      online: ['Capri en ligne.', 'De retour sur ton bureau, choom.'],
+      noHooks: 'Je ne vois pas encore Claude. Clique sur mon icône près de l’horloge, puis « Installer les hooks ».',
+    };
+}
+
+boot().catch((err) => {
+  console.error('[capri] boot failed', err);
+});
