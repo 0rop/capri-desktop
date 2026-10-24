@@ -155,17 +155,6 @@ body {
   );
 }
 
-/* accent sliver on the left edge */
-.panel__plate::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 22px;
-  bottom: 30px;
-  width: 4px;
-  background: var(--accent);
-}
-
 .panel__face {
   margin: 2px 0 0;
   width: 58px;
