@@ -1,7 +1,7 @@
 // WebGL renderer for the Capri cut-out.
-// One texture, one quad: every bit of life (head tilt, mane sway and flare, sitting with dangling
-// legs, smear frames, afterimages, line boil, speckles, the violet misregistration, glitch slices,
-// teleport collapse) is done in the fragment shader.
+// One texture, one quad: every bit of life (head tilt, mane sway and flare, both arms, sitting with
+// dangling legs, smear frames, afterimages, line boil, speckles, the violet misregistration, glitch
+// slices, teleport collapse) is done in the fragment shader.
 
 const VERT = `
 attribute vec2 aPos;
@@ -25,6 +25,8 @@ uniform float uBoil;
 uniform float uHair;
 uniform float uHead;
 uniform float uMane;
+uniform float uArmL;
+uniform float uArmR;
 uniform float uSit;
 uniform float uKickL;
 uniform float uKickR;
@@ -43,8 +45,11 @@ uniform vec3 uRim;
 uniform float uAlpha;
 uniform float uPx; // sprite pixels per screen pixel
 
-// landmarks, in sprite pixels (capri-full.png is 220x420)
+// landmarks, in sprite pixels (capri-full.png is 240x420, see tools/build-sprite.py)
 const vec2 NECK = vec2(118.0, 152.0);   // the head tilts around this
+const vec2 SHOULDER_L = vec2(98.0, 168.0);
+const float MIRROR = 234.0;             // the right arm is the left one flipped around x = 117
+const vec2 SHOULDER_R = vec2(136.0, 168.0);
 const vec2 MANE = vec2(116.0, 92.0);    // middle of the mane, it flares out from here
 const vec2 FACE = vec2(124.0, 132.0);   // her mask, kept rigid when the mane flares
 const float AXIS = 118.0;
@@ -141,24 +146,61 @@ vec2 unsit(vec2 q) {
   return q;
 }
 
-bool rigged() { return uSit > 0.0 || uKickL != 0.0 || uKickR != 0.0; }
+// The reaching arm, on the left of the cut-out, between the hair spike above it and the hip
+// below. The right arm is this same drawing mirrored (the original hanging one was removed).
+float armL(vec2 s) {
+  if (s.x > 101.0 || s.y > 234.0) return 0.0;
+  float top = 159.0 + (98.0 - s.x) * 0.5;
+  float bot = s.x < 50.0 ? 234.0 : 178.0 + (98.0 - s.x) * 0.62;
+  return step(top, s.y) * step(s.y, bot);
+}
 
-// Body, then each lower leg swung on its knee (outward for positive kicks).
-vec4 rig(vec2 q) {
-  if (!rigged()) return cel(q);
+vec2 mirrorArm(vec2 s) { return vec2(MIRROR - s.x, s.y); }
+
+bool legsRigged() { return uSit > 0.0 || uKickL != 0.0 || uKickR != 0.0; }
+
+// Everything but the arms, with each lower leg swung on its knee (outward for positive kicks).
+vec4 torso(vec2 q) {
+  if (!legsRigged()) return armL(q) > 0.0 ? vec4(0.0) : cel(q);
   float kneeY = HIP + (KNEE - HIP) * thighScale();
   vec2 qB = unsit(q);
   vec2 qL = unsit(rot(q, vec2(KNEE_LX, kneeY), -uKickL));
   vec2 qR = unsit(rot(q, vec2(KNEE_RX, kneeY), uKickR));
-  vec4 body = legL(qB) + legR(qB) > 0.0 ? vec4(0.0) : cel(qB);
+  vec4 b = legL(qB) + legR(qB) + armL(qB) > 0.0 ? vec4(0.0) : cel(qB);
   vec4 l = legL(qL) > 0.0 ? cel(qL) : vec4(0.0);
   vec4 r = legR(qR) > 0.0 ? cel(qR) : vec4(0.0);
-  vec4 c = l + body * (1.0 - l.a);
+  vec4 c = l + b * (1.0 - l.a);
   return r + c * (1.0 - r.a);
 }
 
+// Both arms turned on their shoulders (positive raises them). They pass in front of the body
+// and the mane (a hand reaching up stays visible), except right at the shoulders, which cover the joints.
+float armAlpha(vec2 q) {
+  vec2 qL = rot(q, SHOULDER_L, -uArmL);
+  vec2 qR = mirrorArm(rot(q, SHOULDER_R, uArmR));
+  return max(armL(qL) * tex(qL).a, armL(qR) * tex(qR).a);
+}
+
+vec4 rig(vec2 q) {
+  vec2 qL = rot(q, SHOULDER_L, -uArmL);
+  vec2 qR = mirrorArm(rot(q, SHOULDER_R, uArmR));
+  vec4 l = armL(qL) > 0.0 ? cel(qL) : vec4(0.0);
+  vec4 r = armL(qR) > 0.0 ? cel(qR) : vec4(0.0);
+  vec4 arms = l + r * (1.0 - l.a);
+  vec4 b = torso(q);
+  bool joint = distance(q, SHOULDER_L) < 18.0 || distance(q, SHOULDER_R) < 18.0;
+  if (joint) return b + arms * (1.0 - b.a);
+  // where an arm crosses the body or the mane, ink a violet line around it so it reads
+  if (arms.a < 0.5 && b.a > 0.5 && (uArmL != 0.0 || uArmR != 0.0)) {
+    float edge = max(max(armAlpha(q + vec2(1.8, 0.0)), armAlpha(q - vec2(1.8, 0.0))),
+                     max(armAlpha(q + vec2(0.0, 1.8)), armAlpha(q - vec2(0.0, 1.8))));
+    if (edge > 0.5) return vec4(uRim, 1.0);
+  }
+  return arms + b * (1.0 - arms.a);
+}
+
 float rigAlpha(vec2 q) {
-  return rigged() ? rig(q).a : tex(q).a;
+  return rig(q).a;
 }
 
 vec2 warp(vec2 p) {
@@ -252,16 +294,26 @@ void main() {
 }`;
 
 const UNIFORMS = [
-  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uSit', 'uKickL', 'uKickR',
+  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uArmL', 'uArmR', 'uSit', 'uKickL', 'uKickR',
   'uSmear', 'uEcho', 'uGlitch', 'uGlitchSeed',
   'uSplit', 'uCollapse', 'uDissolve', 'uSparkle', 'uGrade', 'uSil', 'uMisreg', 'uRim', 'uAlpha', 'uPx',
 ];
 
 export const SPRITE = {
-  width: 220, height: 420, pad: 56,
+  width: 240, height: 420, pad: 56,
   head: { x: 116, y: 132 },
   feet: { x: 128, y: 418 },
   hip: 232, // where she sits
+  // the reaching arm, as in the shader; the right arm is it mirrored around x = mirror / 2
+  shoulder: { x: 98, y: 168 },
+  hand: { x: 24, y: 212 },
+  mirror: 234,
+  armL(x, y) {
+    if (x > 101 || y > 234) return false;
+    const top = 159 + (98 - x) * 0.5;
+    const bot = x < 50 ? 234 : 178 + (98 - x) * 0.62;
+    return y >= top && y <= bot;
+  },
 };
 
 export class SpriteRenderer {
@@ -336,6 +388,8 @@ export class SpriteRenderer {
     gl.uniform1f(u.uHair, s.hair);
     gl.uniform1f(u.uHead, s.head);
     gl.uniform1f(u.uMane, s.mane);
+    gl.uniform1f(u.uArmL, s.armL);
+    gl.uniform1f(u.uArmR, s.armR);
     gl.uniform1f(u.uSit, s.sit);
     gl.uniform1f(u.uKickL, s.kickL);
     gl.uniform1f(u.uKickR, s.kickR);
