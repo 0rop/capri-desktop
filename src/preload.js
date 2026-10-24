@@ -1,0 +1,22 @@
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+const on = (channel) => (fn) => {
+  const listener = (_e, payload) => fn(payload);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
+contextBridge.exposeInMainWorld('host', {
+  onClaudeEvent: on('claude:event'),
+  onCommand: on('capri:command'),
+  onConfig: on('capri:config'),
+  onResize: on('overlay:resize'),
+  setInteractive: (on) => ipcRenderer.send('overlay:interactive', Boolean(on)),
+  cursor: () => ipcRenderer.invoke('overlay:cursor'),
+  getConfig: () => ipcRenderer.invoke('config:get'),
+  setConfig: (patch) => ipcRenderer.invoke('config:set', patch),
+  listSounds: () => ipcRenderer.invoke('sounds:list'),
+  hooksStatus: () => ipcRenderer.invoke('hooks:status'),
+});
