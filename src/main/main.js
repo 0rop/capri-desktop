@@ -9,6 +9,7 @@ const {
 
 const config = require('./config');
 const { createBridge } = require('./bridge');
+const { startWindowWatch } = require('./windows');
 const hooks = require('../../scripts/install-hooks');
 const demoSteps = require('../../scripts/demo-sequence');
 
@@ -24,6 +25,7 @@ protocol.registerSchemesAsPrivileged([
 let overlay = null;
 let tray = null;
 let demoTimer = null;
+let windowWatch = null;
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
 
@@ -294,6 +296,26 @@ async function debugHandler(route, body) {
     overlay.webContents.reloadIgnoringCache();
     return { ok: true };
   }
+  if (route === 'testwin') {
+    // a plain window to sit on, opened without stealing focus
+    debugHandler.win?.destroy();
+    debugHandler.win = null;
+    if (body.open) {
+      const b = overlay.getBounds();
+      debugHandler.win = new BrowserWindow({
+        x: b.x + (body.x ?? 300), y: b.y + (body.y ?? 380), width: body.w ?? 720, height: body.h ?? 380,
+        show: false, alwaysOnTop: true, title: 'Capri test window', backgroundColor: '#1b1726',
+      });
+      debugHandler.win.loadURL('data:text/html,<body style="background:%231b1726"></body>');
+      debugHandler.win.showInactive();
+    }
+    return { ok: true };
+  }
+  if (route === 'movewin' && debugHandler.win) {
+    const [x, y] = debugHandler.win.getPosition();
+    debugHandler.win.setPosition(x + (body.dx || 0), y + (body.dy || 0));
+    return { ok: true };
+  }
   if (route === 'capture') {
     const image = await overlay.webContents.capturePage();
     const dir = path.join(ROOT, 'captures');
@@ -318,6 +340,10 @@ function main() {
     registerIpc();
     createOverlay();
     createTray();
+    windowWatch = startWindowWatch({
+      overlay,
+      onUpdate: (data) => overlay?.webContents.send('windows:update', data),
+    });
     createBridge({
       port: PORT,
       onEvent: (evt) => overlay?.webContents.send('claude:event', evt),
@@ -329,7 +355,10 @@ function main() {
     screen.on('display-removed', () => { fitOverlay(); rebuildTray(); });
   });
 
-  app.on('will-quit', () => globalShortcut.unregisterAll());
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    windowWatch?.stop();
+  });
   app.on('window-all-closed', (e) => e.preventDefault());
 }
 
