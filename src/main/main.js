@@ -125,8 +125,28 @@ function playDemo() {
   next();
 }
 
+const LANGS = ['fr', 'en'];
+
+// 'auto' -> the first system language Capri speaks, English otherwise.
+function resolveLang(setting) {
+  if (LANGS.includes(setting)) return setting;
+  const preferred = [...app.getPreferredSystemLanguages(), app.getSystemLocale(), app.getLocale()];
+  for (const tag of preferred) {
+    const base = String(tag || '').toLowerCase().split(/[-_]/)[0];
+    if (LANGS.includes(base)) return base;
+  }
+  return 'en';
+}
+
+// What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
+function rendererConfig() {
+  const cfg = config.load();
+  return { ...cfg, lang: resolveLang(cfg.lang), langSetting: cfg.lang };
+}
+
 function updateConfig(patch) {
-  const cfg = config.save(patch);
+  config.save(patch);
+  const cfg = rendererConfig();
   overlay?.webContents.send('capri:config', cfg);
   rebuildTray();
   return cfg;
@@ -136,19 +156,19 @@ function rebuildTray() {
   if (!tray) return;
   const cfg = config.load();
   const hookState = hooks.status();
-  const t = cfg.lang === 'en'
+  const t = resolveLang(cfg.lang) === 'en'
     ? {
       online: `Capri — listening on ${PORT}`, teleport: 'Teleport', demo: 'Play demo', show: 'Show', hide: 'Hide',
       size: 'Size', small: 'Small', medium: 'Medium', large: 'Large', sound: 'Sound', mute: 'Mute',
       soundsDir: 'Open custom sounds folder', screen: 'Screen', wander: 'Wander around when idle',
-      lang: 'Language', startup: 'Start with Windows', hooksOn: 'Claude Code hooks: installed',
+      lang: 'Language', auto: 'Automatic (system)', startup: 'Start with Windows', hooksOn: 'Claude Code hooks: installed',
       hooksOff: 'Install Claude Code hooks', hooksRemove: 'Remove Claude Code hooks', quit: 'Quit',
     }
     : {
       online: `Capri — à l'écoute sur ${PORT}`, teleport: 'Téléporter', demo: 'Lancer la démo', show: 'Afficher', hide: 'Masquer',
       size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande', sound: 'Son', mute: 'Muet',
       soundsDir: 'Ouvrir le dossier des sons perso', screen: 'Écran', wander: 'Se balader quand rien ne se passe',
-      lang: 'Langue', startup: 'Lancer au démarrage', hooksOn: 'Hooks Claude Code : installés',
+      lang: 'Langue', auto: 'Automatique (système)', startup: 'Lancer au démarrage', hooksOn: 'Hooks Claude Code : installés',
       hooksOff: 'Installer les hooks Claude Code', hooksRemove: 'Retirer les hooks Claude Code', quit: 'Quitter',
     };
 
@@ -195,7 +215,7 @@ function rebuildTray() {
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
     {
       label: t.lang,
-      submenu: [['Français', 'fr'], ['English', 'en']].map(([label, lang]) => ({
+      submenu: [[t.auto, 'auto'], ['Français', 'fr'], ['English', 'en']].map(([label, lang]) => ({
         label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
       })),
     },
@@ -249,7 +269,7 @@ function registerIpc() {
     const b = overlay.getBounds();
     return { x: p.x - b.x, y: p.y - b.y, inside: p.x >= b.x && p.y >= b.y && p.x < b.x + b.width && p.y < b.y + b.height };
   });
-  ipcMain.handle('config:get', () => config.load());
+  ipcMain.handle('config:get', () => rendererConfig());
   ipcMain.handle('hooks:status', () => hooks.status());
   ipcMain.handle('config:set', (_e, patch) => updateConfig(patch));
   ipcMain.handle('sounds:list', () => {

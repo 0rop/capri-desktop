@@ -8,7 +8,7 @@ const DEFAULTS = {
   scale: 0.6,        // sprite scale, 0.6 ≈ 250px tall
   muted: false,
   volume: 0.7,
-  lang: 'fr',
+  lang: 'auto',      // 'auto' follows the system language, or 'fr' / 'en'
   displayId: null,   // null = primary display
   wander: true,      // random teleports when idle
   visible: true,
