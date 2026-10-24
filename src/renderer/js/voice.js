@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land'];
 
 export class Voice {
   constructor() {
@@ -83,6 +83,7 @@ export class Voice {
       blip: () => this.blip(opts.mood),
       tick: () => this.tick(),
       star: () => this.star(),
+      land: () => this.land(),
     }[cue];
     fn?.();
   }
@@ -156,6 +157,14 @@ export class Voice {
   tick() {
     const t = this.ctx.currentTime;
     this.noiseBurst(t, 0.03, 0.06, 3000, 9000, 8);
+  }
+
+  // touching down: a soft digital thump
+  land() {
+    const t = this.ctx.currentTime;
+    const o = this.osc('triangle', 150, t, 0.14, 0.22);
+    o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
+    this.noiseBurst(t, 0.06, 0.08, 1800, 400, 1.5);
   }
 
   // the satellite: two soft, high pings and a shimmer

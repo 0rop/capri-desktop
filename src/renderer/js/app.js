@@ -92,9 +92,10 @@ async function boot() {
     else brain.status();
   };
   panel.onChar = (kind) => voice.play('blip', { mood: kind });
-  panel.onTalk = (talking) => talking && capri.gestureFor('talk', 900);
+  panel.onTalk = (talking) => talking && capri.perform('talk');
 
   host.onClaudeEvent((evt) => brain.handle(evt));
+  host.onWindows((data) => capri.setWindows(data));
 
   host.onResize(({ width, height }) => {
     fx.resize(width, height);
@@ -137,20 +138,21 @@ async function boot() {
           panel.hide();
         }
         if (cmd.scale) capri.setScale(cmd.scale);
+        if (cmd.stance) capri.setStance(cmd.stance, cmd);
         if (cmd.at) capri.pos = cmd.at;
         if (cmd.facing) capri.facing = cmd.facing;
-        if (cmd.gesture) capri.gestureFor(cmd.gesture, cmd.ms || 2000);
         capri.drawFrame();
         break;
       case 'freeze':
         capri.hidden = Boolean(cmd.on);
         break;
       case 'act':
-        if (cmd.act === 'gaze') capri.gaze();
-        if (cmd.act === 'celebrate') capri.celebrate();
-        if (cmd.act === 'hurt') capri.hurt();
-        if (cmd.act === 'shed') capri.shed();
-        if (cmd.gesture) capri.gestureFor(cmd.gesture, cmd.ms || 2000, cmd.dir || 0);
+        // behaviours by method name (gaze, celebrate, hurt, shed, peek, fall, wanderStep...) or acts by name
+        if (cmd.act === 'sit') {
+          const seat = capri.pickSeat();
+          if (seat) capri.sitOn(seat);
+        } else if (typeof capri[cmd.act] === 'function') capri[cmd.act](...(cmd.args || []));
+        else capri.perform(cmd.act, cmd.dir || 0);
         break;
       default:
         break;

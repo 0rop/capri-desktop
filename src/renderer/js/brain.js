@@ -44,7 +44,9 @@ export class Brain {
   handle(evt) {
     const s = this.session(evt);
     const name = evt.hook_event_name;
-    this.capri.wake();
+    // these three put her somewhere themselves; anything else just brings her out of hiding
+    if (name === 'UserPromptSubmit' || name === 'Stop' || name === 'Notification') this.capri.wake();
+    else this.capri.attend();
 
     // anything happening after a permission prompt means it was answered
     if (s.waiting && name !== 'Notification') {
@@ -73,15 +75,13 @@ export class Brain {
     if (evt.source === 'clear' || evt.source === 'compact') return;
     const lines = evt.source === 'resume' ? this.t.resume : this.t.hello;
     this.voice.play('hello');
-    this.capri.gestureFor('curious', 1400, this.capri.towardCenter());
+    this.capri.perform('curious', this.capri.towardCenter());
     this.say('info', fmt(pick(lines), { project: s.project }), s, { hold: 5000 });
   }
 
   onPrompt(evt, s) {
     Object.assign(s, { taskStart: Date.now(), count: 0, files: new Set(), log: [], working: true });
-    this.capri.setMode('work');
-    const post = this.capri.spot('post');
-    if (Math.hypot(post.x - this.capri.pos.x, post.y - this.capri.pos.y) > 320) this.capri.teleport(post);
+    this.capri.goToWork(); // perched on the window in front if she can, else her corner
     const prompt = String(evt.prompt || '').replace(/\s+/g, ' ').trim();
     this.say('work', pick(this.t.prompt), s, { quote: prompt ? clip(prompt, 110) : '', hold: 4500 });
   }
@@ -134,7 +134,7 @@ export class Brain {
       const cursor = await this.host.cursor().catch(() => null);
       if (cursor?.inside) await this.capri.summon(cursor);
       const toward = cursor?.inside ? Math.sign(cursor.x - this.capri.pos.x) || 1 : this.capri.towardCenter();
-      this.capri.gestureFor('alarm', 2600, toward);
+      this.capri.perform('alarm', toward);
       return;
     }
     if (type === 'idle_prompt') {
