@@ -78,7 +78,9 @@ function write(file, settings) {
 
 function install() {
   const file = settingsPath();
-  const settings = strip(readSettings(file));
+  const original = readSettings(file);
+  const before = JSON.stringify(original);
+  const settings = strip(original);
   settings.hooks = settings.hooks || {};
   const command = hookCommand();
   for (const event of EVENTS) {
@@ -87,7 +89,7 @@ function install() {
       hooks: [{ type: 'command', command, async: true, timeout: 10 }],
     });
   }
-  write(file, settings);
+  if (JSON.stringify(settings) !== before) write(file, settings); // already up to date: no backup spam
   return { file, command, events: EVENTS.length };
 }
 

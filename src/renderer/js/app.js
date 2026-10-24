@@ -50,8 +50,36 @@ async function boot() {
 
   const brain = new Brain({ capri, panel, voice, host, lang: config.lang });
 
+  // Click-through everywhere except on her body and the panel.
+  let interactive = false;
+  let mouse = null;
+  const setInteractive = (on) => {
+    if (on === interactive) return;
+    interactive = on;
+    host.setInteractive(on);
+  };
+  const refreshHit = () => {
+    if (capri.dragging) return setInteractive(true);
+    if (!mouse) return setInteractive(false);
+    const r = panel.rect();
+    const onPanel = r && mouse.x >= r.left && mouse.x <= r.right && mouse.y >= r.top && mouse.y <= r.bottom;
+    return setInteractive(Boolean(onPanel || capri.hit(mouse.x, mouse.y)));
+  };
+  window.addEventListener('mousemove', (e) => {
+    mouse = { x: e.clientX, y: e.clientY };
+    refreshHit();
+  });
+  document.addEventListener('mouseleave', () => {
+    mouse = null;
+    refreshHit();
+  });
+
   // wiring
-  capri.onMove = (head) => panel.setAnchor(head, capri.view);
+  capri.onMove = (head) => {
+    panel.setAnchor(head, capri.view);
+    // she may have moved out from under a still pointer: never leave a dead click zone behind
+    refreshHit();
+  };
   capri.onTeleport = (phase) => (phase === 'start' ? panel.suspend() : panel.resume());
   capri.onClick = () => {
     if (panel.visible) panel.hide();
@@ -59,21 +87,6 @@ async function boot() {
   };
   panel.onChar = (kind) => voice.play('blip', { mood: kind });
   panel.onTalk = (talking) => talking && capri.gestureFor('talk', 900);
-
-  // Click-through everywhere except on her body and the panel.
-  let interactive = false;
-  const setInteractive = (on) => {
-    if (on === interactive) return;
-    interactive = on;
-    host.setInteractive(on);
-  };
-  window.addEventListener('mousemove', (e) => {
-    if (capri.dragging) return setInteractive(true);
-    const r = panel.rect();
-    const onPanel = r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-    setInteractive(onPanel || capri.hit(e.clientX, e.clientY));
-  });
-  document.addEventListener('mouseleave', () => !capri.dragging && setInteractive(false));
 
   host.onClaudeEvent((evt) => brain.handle(evt));
 

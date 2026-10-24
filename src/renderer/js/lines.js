@@ -30,7 +30,7 @@ export const LINES = {
       'Mission accomplie, choom.',
       'Claude a fini. Tu peux revenir.',
       'Livré. Plutôt nova, non ?',
-      'Fini. On était cinquante à surveiller, rien vu de travers.',
+      'Fini. On était des dizaines à surveiller, rien vu de travers.',
     ],
     permission: [
       'Hé ! Claude a besoin de ta permission.',
@@ -93,7 +93,7 @@ export const LINES = {
       'Gig complete, choom.',
       'Claude’s finished. You can come back.',
       'Delivered. Pretty nova, right?',
-      'Finished. Fifty of us watching, nothing looked off.',
+      'Finished. Dozens of us watching, nothing looked off.',
     ],
     permission: ['Hey! Claude needs your permission.', 'Choom, you need to approve something.', 'Waiting on your green light.'],
     waiting: ['Claude is waiting for your answer.', 'Your move, choom.'],

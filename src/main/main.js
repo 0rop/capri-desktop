@@ -202,8 +202,8 @@ function rebuildTray() {
     {
       label: t.startup,
       type: 'checkbox',
-      checked: app.getLoginItemSettings().openAtLogin,
-      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+      checked: app.getLoginItemSettings(loginItemOptions()).openAtLogin,
+      click: (item) => app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: item.checked }),
     },
     { type: 'separator' },
     hookState.installed
@@ -214,6 +214,12 @@ function rebuildTray() {
     { label: t.quit, click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
+}
+
+// Run from a clone (`npm start`), electron.exe alone would open the default Electron app at login:
+// it needs the project folder as argument.
+function loginItemOptions() {
+  return app.isPackaged ? {} : { path: process.execPath, args: [ROOT] };
 }
 
 function runHooks(action) {

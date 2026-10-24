@@ -113,7 +113,9 @@ export class Brain {
       this.say('info', pick(this.t.interrupted), s, { hold: 4000 });
       return;
     }
-    const firstLine = String(evt.error || '').split('\n').find((l) => l.trim()) || '';
+    // "Exit code 1" says nothing; the next line usually does
+    const lines = String(evt.error || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const firstLine = lines.find((l) => !/^exit code \d+$/i.test(l)) || lines[0] || '';
     this.capri.hurt();
     this.voice.play('error');
     this.say('error', fmt(pick(this.t.error), { tool: evt.tool_name || 'outil' }), s, {
@@ -162,7 +164,9 @@ export class Brain {
       this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), hold: 8000 });
       return;
     }
-    await this.capri.teleport(this.capri.spot('stage'));
+    // quick back-and-forth answers don't deserve the whole show
+    const bigJob = s.count >= 3 || (s.taskStart && Date.now() - s.taskStart > 20000);
+    if (bigJob) await this.capri.teleport(this.capri.spot('stage'));
     this.voice.play('done');
     this.capri.celebrate();
     this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), summary, hold: 14000 });

@@ -214,7 +214,10 @@ export class Capri {
   // ---------- acting ----------
 
   setMode(mode) {
-    if (mode !== 'sleep') this.lastActivity = performance.now();
+    const now = performance.now();
+    if (mode !== 'sleep') this.lastActivity = now;
+    // after anything happens, stay put a while (so she doesn't wander off right after "done")
+    this.nextWander = Math.max(this.nextWander, now + rand(55000, 120000));
     if (this.mode === mode) return;
     this.mode = mode;
     const p = this.p;
@@ -351,6 +354,7 @@ export class Capri {
     }
 
     this.busy = false;
+    this.nextWander = Math.max(this.nextWander, performance.now() + rand(55000, 120000));
     this.onTeleport?.('end');
     if (this.pending) {
       const next = this.pending;
