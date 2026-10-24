@@ -16,13 +16,17 @@ comes to find you when Claude needs your permission, and loses it when the job i
   (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
 - **When Claude needs you** (permission, question): she teleports next to your mouse, mane bristling, and won't let it go.
 - **When a command fails**: red impact frame, she gets knocked back, heavy glitch, and the error line that actually matters.
-- **When it's done**: she teleports to the middle of the screen, laughs with her mane blown wide,
-  an anime cut-in of her grin, then a summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
+- **When it's done**: she teleports to the middle of the screen and goes into her victory sequence:
+  a wind-up with her mane pulled in, a stretched smear frame, then arms flung up and mane exploding under
+  manga speed lines and a shockwave, a manic laugh with an anime cut-in of her grin. Once she's back down,
+  the summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
-  turns around and cocks her head when your mouse comes near, sometimes looks up at a star (the satellite),
-  and falls asleep after 10 quiet minutes.
+  turns around and cocks her head when your mouse comes near, sometimes spots a star (the satellite) and
+  reaches for it, and falls asleep after 10 quiet minutes.
 
-![The laugh and the cut-in](docs/laugh.png)
+![Victory: the key pose, then the laugh and the cut-in](docs/victory.png)
+
+![Reaching for the satellite](docs/star.png)
 
 ### She gets around
 
@@ -103,6 +107,7 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 | `hello` | a session starts |
 | `star` | she looks up at the satellite |
 | `land` | she lands after a fall |
+| `rise` | the launch into her victory pose |
 | `blip` | every syllable while she talks |
 | `tick` | a quiet reminder |
 
@@ -127,14 +132,20 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
   and her thighs fold (foreshortened, seen from the front) so she can sit with her lower legs swinging.
 - **Squash and stretch, afterimages**: the flat cut-out squashes to a sliver to turn around, stretches when
   she falls, flattens when she lands, and splits into green and red copies (the other minds in her) when she spins or laughs.
-- **The satellite**: now and then she stares at a star above the screen, a nod to the season's ending.
+- **The satellite**, a nod to the season's ending: a star glints above the screen; a beat later she notices
+  it and snaps to it, her specks catch its light, she reaches for it (the drawings bunch up as her hand gets
+  there), a dashed line of data runs from her fingertips to it. It flares, she's lifted a little, it goes out,
+  and her hand drops with a sigh.
+- **Both arms match**: the cut-out had one arm reaching and one hanging. The hanging one is removed
+  (`tools/build-sprite.py`) and the shader draws the reaching arm mirrored in its place, so both hands are the
+  same claws and both arms can act. Where an arm crosses her body or her mane it gets a violet line, so it reads.
 - **Her texture**: the red mane is pushed back to the show's hot red and covered in twinkling white specks.
   Shards come loose from it and drift away.
 - **The violet offset**: like in the anime, a misregistered violet copy under her, under the panel, under the shards.
 - **"Relic" glitch**: shifted horizontal slices and RGB split, in the spirit of Johnny Silverhand's appearances.
 - **Teleport**: charge, shards, collapse into a line, a red column of light to the sky,
   a bolt to the destination, back with two *impact frames*.
-- **Cut-in**: her real grin, pushed in, with speed lines, when Claude finishes a job.
+- **Cut-in**: her real grin, pushed in, with speed lines, when she laughs after a finished job.
 - **Type**: Chakra Petch (bevelled cuts, like her shards) + JetBrains Mono for data.
 
 If Windows is set to "Show animations: off", she sticks to fades.
@@ -144,13 +155,14 @@ If Windows is set to "Show animations: off", she sticks to fades.
 ```
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
+tools/build-sprite.py    rebuilds the sprite from the original cut-out (Python + Pillow, only if you change it)
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
   windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
 src/renderer/js/
   sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
   acting.js              the exposure sheets: every move, drawing by drawing
   capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
-  fx.js                  shards, light columns, bolts, glyphs, the star, the cut-in
+  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the star and its link, the cut-in
   panel.js               the "transmission" panel and the ticker
   brain.js               turns Claude events into lines and actions
   lines.js               what she says (FR / EN)

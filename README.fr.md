@@ -16,13 +16,17 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
 - **Quand Claude a besoin de toi** (permission, question) : elle se téléporte à côté de ta souris, crinière hérissée, et insiste.
 - **Quand une commande plante** : image d'impact rouge, elle encaisse le coup, gros glitch, et la ligne d'erreur utile.
-- **Quand c'est fini** : téléportation au milieu de l'écran, éclat de rire crinière déployée,
-  cut-in façon anime de son sourire, puis un résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
+- **Quand c'est fini** : téléportation au milieu de l'écran puis sa séquence de victoire : elle prend son élan
+  crinière ramassée, une image étirée (smear), puis bras jetés en l'air et crinière qui explose sous des lignes de
+  vitesse façon manga et une onde de choc, un rire hystérique avec un cut-in de son sourire. Une fois redescendue,
+  le résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
-  se retourne et penche la tête quand ta souris approche, regarde parfois une étoile au-dessus de l'écran (le satellite),
-  et s'endort si rien ne se passe pendant 10 minutes.
+  se retourne et penche la tête quand ta souris approche, repère parfois une étoile au-dessus de l'écran (le satellite)
+  et tend la main vers elle, et s'endort si rien ne se passe pendant 10 minutes.
 
-![Le rire et le cut-in](docs/laugh.png)
+![Victoire : la pose clé, puis le rire et le cut-in](docs/victory.png)
+
+![La main tendue vers le satellite](docs/star.png)
 
 ### Elle bouge partout
 
@@ -103,6 +107,7 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 | `hello` | une session démarre |
 | `star` | elle regarde le satellite |
 | `land` | elle atterrit après une chute |
+| `rise` | l'élan de sa pose de victoire |
 | `blip` | chaque syllabe quand elle parle |
 | `tick` | petit rappel discret |
 
@@ -127,14 +132,20 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
   et les cuisses se replient (en raccourci, vues de face) pour qu'elle puisse s'asseoir en balançant le bas des jambes.
 - **Écrasement, étirement, images rémanentes** : la découpe plate s'écrase en lame pour se retourner, s'étire quand elle tombe,
   s'aplatit à l'atterrissage, et se dédouble en copies verte et rouge (les autres esprits en elle) quand elle tourne ou rit.
-- **Le satellite** : de temps en temps elle fixe une étoile au-dessus de l'écran, clin d'œil à la fin de la saison.
+- **Le satellite**, clin d'œil à la fin de la saison : une étoile scintille au-dessus de l'écran ; un temps plus tard
+  elle la remarque et se tourne d'un coup, ses paillettes captent sa lumière, elle tend la main (les dessins se resserrent
+  à mesure que la main arrive), une ligne de données en pointillés part du bout de ses doigts vers l'étoile. L'étoile
+  s'embrase, elle est soulevée un peu, puis l'étoile s'éteint et sa main retombe dans un soupir.
+- **Deux bras identiques** : la découpe avait un bras tendu et un bras qui pendait. Celui qui pendait est retiré
+  (`tools/build-sprite.py`) et le shader dessine le bras tendu en miroir à sa place : les deux mains ont les mêmes griffes
+  et les deux bras peuvent jouer. Quand un bras passe devant son corps ou sa crinière, il est cerné de violet pour rester lisible.
 - **Sa texture** : la crinière rouge est remise au rouge de la série et couverte de points blancs qui scintillent.
   Des éclats s'en détachent et dérivent.
 - **Le décalage violet** : comme dans l'anime, une copie violette décalée sous elle, sous le panneau, sous les éclats.
 - **Glitch « relic »** : tranches horizontales décalées et séparation RGB, dans la lignée des apparitions de Johnny Silverhand.
 - **Téléportation** : charge, éclats, effondrement en ligne, colonne de lumière rouge vers le ciel,
   éclair jusqu'à la destination, retour avec deux *impact frames*.
-- **Cut-in** : son vrai sourire, en poussée de caméra, avec des lignes de vitesse, quand Claude termine une tâche.
+- **Cut-in** : son vrai sourire, en poussée de caméra, avec des lignes de vitesse, quand elle rit après une tâche terminée.
 - **Typo** : Chakra Petch (coupes en biseau, comme ses éclats) + JetBrains Mono pour les données.
 
 Si Windows est réglé sur « Afficher les animations : non », elle se contente de fondus.
@@ -144,13 +155,14 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 ```
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
+tools/build-sprite.py    reconstruit le sprite depuis la découpe d'origine (Python + Pillow, seulement si tu la changes)
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
   windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
 src/renderer/js/
   sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
   capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
-  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, l'étoile, le cut-in
+  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, l'étoile et son lien, le cut-in
   panel.js               le panneau « transmission » et le ticker
   brain.js               traduit les événements Claude en répliques et en actions
   lines.js               ce qu'elle dit (FR / EN)
