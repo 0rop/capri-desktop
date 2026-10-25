@@ -18,6 +18,8 @@ export class Brain {
     this.lang = lang;
     this.sessions = new Map();
     this.replyFor = null;    // the session whose answer she's holding up for you
+    this.linked = true;      // has a Claude Code event ever reached her (app.js sets it from the config)
+    this.onLinked = null;
     this.onShowcase = null; // the demo's second half (app.js)
   }
 
@@ -49,6 +51,11 @@ export class Brain {
   handle(evt) {
     // the demo's second half (scripts/demo-sequence.js), not a Claude event
     if (evt.hook_event_name === 'CapriShowcase') return this.onShowcase?.();
+    // the first real Claude Code event that ever reaches her (the demo's don't count)
+    if (!this.linked && !evt.demo) {
+      this.linked = true;
+      this.onLinked?.();
+    }
     const s = this.session(evt);
     const name = evt.hook_event_name;
     // these three put her somewhere themselves; anything else just brings her out of hiding
@@ -160,8 +167,8 @@ export class Brain {
     s.working = false;
     const { units } = this.t;
     const summary = [
-      s.count && plural(s.count, units.action),
-      s.files.size && plural(s.files.size, units.file),
+      s.count && plural(s.count, units.action, this.lang),
+      s.files.size && plural(s.files.size, units.file, this.lang),
       s.taskStart && duration(Date.now() - s.taskStart, this.lang),
     ].filter(Boolean).join(' · ');
     const quote = cleanMarkdown(evt.last_assistant_message || '');
@@ -294,8 +301,10 @@ export class Brain {
   }
 }
 
-function plural(n, [one, many]) {
-  return `${n} ${n === 1 ? one : many}`;
+// forms: [one, other], or by plural category ({ one, few, many, other }) for languages that need more
+function plural(n, forms, lang) {
+  const word = Array.isArray(forms) ? forms[n === 1 ? 0 : 1] : forms[new Intl.PluralRules(lang).select(n)] || forms.other;
+  return `${n} ${word}`;
 }
 
 function clip(text, max) {

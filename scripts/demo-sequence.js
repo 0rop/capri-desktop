@@ -7,7 +7,8 @@
 const SESSION = 'demo-session';
 const CWD = 'C:/Users/you/projects/night-city-api';
 
-const base = (name, extra = {}) => ({ hook_event_name: name, session_id: SESSION, cwd: CWD, ...extra });
+// demo: not a real Claude Code event (she doesn't count it as her first contact)
+const base = (name, extra = {}) => ({ hook_event_name: name, session_id: SESSION, cwd: CWD, demo: true, ...extra });
 const tool = (name, input) => base('PreToolUse', { tool_name: name, tool_input: input });
 const done = (name, input, ms) => base('PostToolUse', { tool_name: name, tool_input: input, duration_ms: ms });
 

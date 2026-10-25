@@ -84,6 +84,7 @@ export class Capri {
     this.onMove = null;     // her head moved on screen
     this.onTeleport = null; // ('start' | 'end')
     this.onClick = null;
+    this.onMenu = null;   // right-click on her
     this.onGaze = null;
     this.onMode = null;   // (mode, previous)
     this.onStow = null;   // she's in her biochip
@@ -1362,6 +1363,10 @@ export class Capri {
 
   bindPointer() {
     let down = null;
+    this.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (this.hit(e.clientX, e.clientY)) this.onMenu?.(); // right-click: her menu
+    });
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button !== 0 || this.busy || !this.hit(e.clientX, e.clientY)) return;
       down = { x: e.clientX, y: e.clientY, pos: { ...this.pos } };

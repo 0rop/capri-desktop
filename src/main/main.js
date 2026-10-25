@@ -8,6 +8,7 @@ const {
 } = require('electron');
 
 const config = require('./config');
+const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
 const hooks = require('../../scripts/install-hooks');
@@ -17,6 +18,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const DEV = process.argv.includes('--dev');
 const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
+const CLAUDE_CODE_HELP = 'https://code.claude.com/docs/en/quickstart';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'capri', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -24,6 +26,7 @@ protocol.registerSchemesAsPrivileged([
 
 let overlay = null;
 let tray = null;
+let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
 let windowWatch = null;
 
@@ -150,8 +153,6 @@ function demoWindow(open) {
   return true;
 }
 
-const LANGS = ['fr', 'en'];
-
 // 'auto' -> the first system language Capri speaks, English otherwise.
 function resolveLang(setting) {
   if (LANGS.includes(setting)) return setting;
@@ -181,31 +182,18 @@ function rebuildTray() {
   if (!tray) return;
   const cfg = config.load();
   const hookState = hooks.status();
-  const t = resolveLang(cfg.lang) === 'en'
-    ? {
-      online: `Capri — listening on ${PORT}`, teleport: 'Teleport', satellite: 'Look at the satellite', demo: 'Play demo', show: 'Bring her back', hide: 'Put her away',
-      size: 'Size', small: 'Small', medium: 'Medium', large: 'Large', sound: 'Sound', mute: 'Mute',
-      soundsDir: 'Open custom sounds folder', screen: 'Screen', wander: 'Wander around when idle', possess: 'Possess my windows',
-      lang: 'Language', auto: 'Automatic (system)', startup: 'Start with Windows', hooksOn: 'Claude Code hooks: installed',
-      hooksOff: 'Install Claude Code hooks', hooksRemove: 'Remove Claude Code hooks', quit: 'Quit',
-    }
-    : {
-      online: `Capri — à l'écoute sur ${PORT}`, teleport: 'Téléporter', satellite: 'Regarder le satellite', demo: 'Lancer la démo', show: 'La faire revenir', hide: 'La ranger',
-      size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande', sound: 'Son', mute: 'Muet',
-      soundsDir: 'Ouvrir le dossier des sons perso', screen: 'Écran', wander: 'Se balader quand rien ne se passe', possess: 'Posséder mes fenêtres',
-      lang: 'Langue', auto: 'Automatique (système)', startup: 'Lancer au démarrage', hooksOn: 'Hooks Claude Code : installés',
-      hooksOff: 'Installer les hooks Claude Code', hooksRemove: 'Retirer les hooks Claude Code', quit: 'Quitter',
-    };
+  const t = TRAY[resolveLang(cfg.lang)];
 
   const displays = screen.getAllDisplays();
   const current = targetDisplay().id;
 
   const menu = Menu.buildFromTemplate([
-    { label: t.online, enabled: false },
+    { label: t.online(PORT), enabled: false },
     { type: 'separator' },
     { label: t.teleport, click: () => sendCommand('teleport') },
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
+    { label: t.help, click: () => sendCommand('welcome') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
     {
@@ -242,7 +230,7 @@ function rebuildTray() {
     { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
     {
       label: t.lang,
-      submenu: [[t.auto, 'auto'], ['Français', 'fr'], ['English', 'en']].map(([label, lang]) => ({
+      submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
         label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
       })),
     },
@@ -261,6 +249,7 @@ function rebuildTray() {
     { label: t.quit, click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
+  trayMenu = menu;
 }
 
 // Run from a clone (`npm start`), electron.exe alone would open the default Electron app at login:
@@ -269,14 +258,18 @@ function loginItemOptions() {
   return app.isPackaged ? {} : { path: process.execPath, args: [ROOT] };
 }
 
-function runHooks(action) {
+// From the tray, she says how it went; from her welcome panel (quiet), the panel does.
+function runHooks(action, { quiet = false } = {}) {
+  let outcome;
   try {
     const result = action === 'install' ? hooks.install() : hooks.uninstall();
-    sendCommand('hooks', { action, ok: true, file: result.file });
+    outcome = { action, ok: true, file: result.file };
   } catch (err) {
-    sendCommand('hooks', { action, ok: false, error: err.message });
+    outcome = { action, ok: false, error: err.message };
   }
+  if (!quiet) sendCommand('hooks', outcome);
   rebuildTray();
+  return outcome;
 }
 
 function createTray() {
@@ -300,6 +293,12 @@ function registerIpc() {
   ipcMain.handle('hooks:status', () => hooks.status());
   ipcMain.handle('config:set', (_e, patch) => updateConfig(patch));
   ipcMain.handle('demo:window', (_e, open) => demoWindow(open));
+  // right-clicking her: the same menu as the tray icon (which Windows often hides behind the ^ by the clock)
+  ipcMain.on('menu:open', () => trayMenu?.popup({ window: overlay }));
+  // her welcome panel's buttons
+  ipcMain.handle('hooks:install', () => runHooks('install', { quiet: true }));
+  ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(hooks.status().file))); // Claude Code keeps its settings there
+  ipcMain.on('claude:help', () => shell.openExternal(CLAUDE_CODE_HELP));
   ipcMain.handle('sounds:list', () => {
     try {
       return fs.readdirSync(userSoundsDir())

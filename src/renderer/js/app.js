@@ -111,6 +111,10 @@ async function boot() {
     refreshHit();
     hoverChip();
   });
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (chip.visible && chip.contains(e.clientX, e.clientY, 0)) host.openMenu();
+  });
   window.addEventListener('click', (e) => {
     if (chip.visible && chip.contains(e.clientX, e.clientY, 0)) comeOut();
   });
@@ -151,6 +155,61 @@ async function boot() {
   };
   panel.onChar = (kind) => voice.play('blip', { mood: kind });
   panel.onTalk = (talking) => talking && capri.perform('talk');
+  capri.onMenu = () => host.openMenu();
+
+  // Her welcome: who she is, and plugging her into Claude Code in one click (first launch, and
+  // "How does it work?" in her menu). The questions people ask most: how do I use it, where's the
+  // tray icon, how do I know it worked.
+  async function welcome() {
+    const t = brain.t.welcome;
+    const guide = (msg) => panel.say({ kind: 'info', guide: true, hold: null, ...msg });
+    const [hooks, found] = await Promise.all([host.hooksStatus(), host.claudeFound()]);
+    if (hooks.installed) {
+      guide({ line: t.ready, quote: t.readyHow, hold: 15000, actions: [{ id: 'ok', label: t.ok, primary: true }] });
+    } else if (found) {
+      guide({
+        line: t.hi,
+        quote: `${t.about}
+${t.connect}
+${t.menu}`,
+        actions: [{ id: 'connect', label: t.connectBtn, primary: true }, { id: 'later', label: t.later }],
+      });
+    } else {
+      guide({
+        line: t.hi,
+        quote: `${t.noClaude}
+${t.menu}`,
+        actions: [{ id: 'claude', label: t.whatClaude, primary: true }, { id: 'later', label: t.justHang }],
+      });
+    }
+  }
+  panel.onAction = async (id) => {
+    const t = brain.t.welcome;
+    host.setConfig({ welcomed: true });
+    if (id === 'connect') {
+      const result = await host.installHooks();
+      if (result.ok) {
+        voice.play('hello');
+        capri.perform('hop');
+        panel.say({ kind: 'done', guide: true, hold: null, line: t.connected, quote: t.restart, actions: [{ id: 'ok', label: t.ok }] });
+      } else {
+        panel.say({ kind: 'error', hold: 9000, line: fmt(t.failed, { error: result.error }) });
+      }
+    } else if (id === 'claude') {
+      host.openClaudeHelp();
+      panel.say({ kind: 'info', guide: true, hold: null, line: t.hi, quote: t.afterInstall, actions: [{ id: 'ok', label: t.ok }] });
+    } else {
+      panel.hide();
+    }
+  };
+  // the first Claude Code event that ever reaches her: so you know it worked
+  brain.linked = config.linked;
+  brain.onLinked = () => {
+    host.setConfig({ linked: true, welcomed: true });
+    voice.play('hello');
+    capri.perform('hop');
+    panel.say({ kind: 'done', badge: 'LINK', line: brain.t.welcome.linked, hold: 6000 });
+  };
 
   // The demo's second half, after its fake Claude session: everything she does on her own, one
   // after the other, a line before each.
@@ -264,6 +323,9 @@ async function boot() {
       case 'status':
         brain.status();
         break;
+      case 'welcome': // "How does it work?" in her menu
+        welcome();
+        break;
       case 'stow': // Ctrl+Alt+C: into her biochip, or back out
         if (cmd.on) capri.stow();
         else capri.unstow();
@@ -295,6 +357,9 @@ async function boot() {
         if (cmd.facing) capri.facing = cmd.facing;
         capri.drawFrame();
         break;
+      case 'config': // a setting, as if changed from her menu
+        host.setConfig(cmd.patch || {});
+        break;
       case 'focus': // as if window `fg` had come to the front
         capri.windows = { ...capri.windows, fg: cmd.fg };
         brain.onWindows(capri.windows);
@@ -323,24 +388,8 @@ async function boot() {
   if (config.visible === false) capri.stowNow();
   else await capri.materialize(capri.spot('post'));
   const hooks = await host.hooksStatus();
-  if (!hooks.installed) {
-    panel.say({ kind: 'info', line: t0(config.lang).noHooks, hold: 9000 });
-  } else {
-    panel.say({ kind: 'info', line: pick(t0(config.lang).online), hold: 4000 });
-  }
-}
-
-// boot-time lines that only make sense here
-function t0(lang) {
-  return lang === 'en'
-    ? {
-      online: ['Capri online.', 'Back on your desktop, choom.'],
-      noHooks: 'I can’t see Claude yet. Tray icon › “Install Claude Code hooks”.',
-    }
-    : {
-      online: ['Capri en ligne.', 'De retour sur ton bureau, choom.'],
-      noHooks: 'Je ne vois pas encore Claude. Clique sur mon icône près de l’horloge, puis « Installer les hooks ».',
-    };
+  if (!config.welcomed || !hooks.installed) welcome();
+  else panel.say({ kind: 'info', line: pick(brain.t.online), hold: 4000 });
 }
 
 boot().catch((err) => {

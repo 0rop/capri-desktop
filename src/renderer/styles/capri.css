@@ -29,6 +29,29 @@
   font-display: block;
 }
 
+/* Russian: Chakra Petch has no Cyrillic, JetBrains Mono's stands in for it in the display type too */
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('../../../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-cyrillic-600-normal.woff2') format('woff2');
+  font-weight: 600 700;
+  font-display: block;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-cyrillic-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-cyrillic-600-normal.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
 :root {
   /* palette sampled from the show */
   --ink: oklch(0.17 0.035 300);
@@ -299,6 +322,55 @@ body {
   overflow-wrap: anywhere;
   scrollbar-width: thin;
   scrollbar-color: var(--violet) transparent;
+}
+
+/* her welcome / help panel: the explanation is read whole, and it has buttons */
+.panel.is-guide .panel__quote {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: pre-line; /* one idea per line */
+}
+
+.panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 2px;
+}
+
+.panel__action {
+  appearance: none;
+  border: 0;
+  padding: 7px 12px 6px;
+  background: var(--ink-2);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: background 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.panel__action:hover {
+  background: var(--violet);
+}
+
+.panel__action.is-primary {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.panel__action.is-primary:hover {
+  background: var(--paper);
+}
+
+.panel__action:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 2px;
 }
 
 .panel__summary {

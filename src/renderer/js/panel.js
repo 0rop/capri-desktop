@@ -23,6 +23,8 @@ export class Panel {
     this.portrait = panel.querySelector('.panel__face img');
     this.quote = panel.querySelector('.panel__quote');
     this.reply = panel.querySelector('.panel__reply');
+    this.actions = panel.querySelector('.panel__actions');
+    this.onAction = null; // (id) => void, a button of the message was clicked
     this.summary = panel.querySelector('.panel__summary');
     this.log = panel.querySelector('.panel__log');
     this.tag = panel.querySelector('.panel__tag');
@@ -48,8 +50,12 @@ export class Panel {
     return !this.el.hidden && !this.suspended && !this.leaving;
   }
 
-  // Message: { kind, line, tag, quote, reply, summary, log: [{verb, target, error}], hold (ms | null for sticky) }
+  // Message: { kind, line, tag, quote, reply, summary, log: [{verb, target, error}], actions, guide,
+  //            hold (ms | null for sticky) }
   // reply: Claude's whole answer, in a block that scrolls
+  // actions: buttons, [{ id, label, primary }]; clicking one calls onAction(id)
+  // guide: the quote is an explanation, shown whole
+  // badge: the word in the corner, instead of the one for its kind
   say(msg) {
     const cur = this.current;
     if (cur && this.visible && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
@@ -63,13 +69,26 @@ export class Panel {
     const face = PORTRAITS[msg.kind] || PORTRAITS.default;
     if (this.portrait.getAttribute('src') !== face) this.portrait.setAttribute('src', face);
     this.tag.textContent = msg.tag || '';
-    this.state.textContent = this.labels.state[msg.kind] || '';
+    this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
     this.quote.hidden = !msg.quote;
     this.reply.textContent = msg.reply || '';
     this.reply.hidden = !msg.reply;
     this.reply.scrollTop = 0;
     this.el.classList.toggle('has-reply', Boolean(msg.reply));
+    this.el.classList.toggle('is-guide', Boolean(msg.guide));
+    this.actions.replaceChildren(...(msg.actions || []).map(({ id, label, primary }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = primary ? 'panel__action is-primary' : 'panel__action';
+      button.textContent = label;
+      button.addEventListener('click', (e) => {
+        e.stopPropagation(); // a click on the panel itself closes it
+        this.onAction?.(id);
+      });
+      return button;
+    }));
+    this.actions.hidden = !msg.actions?.length;
     this.summary.textContent = msg.summary || '';
     this.summary.hidden = !msg.summary;
     this.renderLog(msg.log || []);
