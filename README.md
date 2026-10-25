@@ -78,21 +78,37 @@ She only catches the mouse on her actual body (pixel-precise): the rest of the s
 - **Ctrl+Alt+C**: she puts herself away (into her biochip, like in the show) and all that's left of her is her mask,
   eyes shut, in the bottom-left corner. Her eyes only open when Claude needs you. Click the mask (or Ctrl+Alt+C again)
   to bring her back.
-- **Tray icon** (next to the clock): teleport, look at the satellite, demo, size, sound, screen, wander, possess your windows,
-  language, start with Windows, hooks.
+- **Her menu**: right-click her (it's also on her tray icon, next to the clock): teleport, look at the satellite, demo,
+  how it works, size, sound, screen, wander, possess your windows, language, start with Windows, hooks.
 
-She speaks **French or English and picks the language of your system** on her own. You can force one from the tray menu.
+She speaks **French, English, Spanish, Brazilian Portuguese and Russian**, and picks the language of your system on her
+own. You can choose another one in her menu.
 
 ## Install
 
-### Windows
+### Quick start (Windows, no coding)
 
-Download **`Capri-Setup-x.y.z.exe`** from the [latest release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
-and run it. It installs for your user only (no admin rights), adds a desktop shortcut and starts Capri.
-The installer isn't signed, so Windows SmartScreen may say "Windows protected your PC": click **More info**,
-then **Run anyway**.
+1. Download **`Capri-Setup-x.y.z.exe`** from the [latest release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
+   and run it. It installs for your user only (no admin rights), adds a desktop shortcut and starts Capri.
+   You don't need Node.js or anything else.
+2. The installer isn't signed (a code-signing certificate costs money), so Windows SmartScreen may say
+   "Windows protected your PC": click **More info**, then **Run anyway**.
+3. Capri shows up and introduces herself. Click **Plug me in**: that connects her to Claude Code.
+4. Close Claude Code completely and open it again (it reads its hooks when a session starts). As soon as Claude does
+   something, she tells you **"I can see Claude!"**: that's how you know it worked.
 
-### From the source
+Her menu: **right-click her**. It's also on her tray icon, which Windows 11 often hides behind the **^** next to the clock.
+
+### What's Claude Code? Do I need it?
+
+[Claude Code](https://code.claude.com/docs/en/quickstart) is Anthropic's coding assistant: in a terminal, in VS Code,
+or in the Code tab of the Claude app. It needs a paid Claude plan (Pro or higher) or an API account. Capri only watches
+it: no API key, and nothing to pay for Capri herself.
+
+Without Claude Code she still lives on your desktop: she floats, sits on your windows, looks at the satellite, falls
+asleep. You can just leave her there.
+
+### From the source (macOS, Linux, developers)
 
 You need [Node.js](https://nodejs.org) 20 or newer.
 
@@ -103,9 +119,13 @@ npm install
 npm start
 ```
 
-### Hook her up to Claude Code
+Keep that terminal open while she runs. Not tested on macOS or Linux yet: she should start, but the window tricks
+(sitting on your windows, possessing them, showing Claude's answer when you're elsewhere) are Windows-only, and on Linux
+the transparent overlay works best on X11 (Wayland can struggle with click-through windows).
 
-Click Capri's tray icon, then **Install Claude Code hooks**. Or from the command line:
+### Hook her up to Claude Code by hand
+
+Right-click Capri, then **Install Claude Code hooks**. Or from the command line:
 
 ```bash
 npm run hooks:install
@@ -150,6 +170,25 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 | `possess` | the window she took over laughs |
 | `blip` | every syllable while she talks |
 | `tick` | a quiet reminder |
+
+## Is it safe?
+
+- All of the code is right here. The installer is built from it with `npm run dist`; you can build your own.
+- Nothing leaves your PC (see below): she only talks to Claude Code through a hook on `127.0.0.1`.
+- What she changes on your system: the hook in `~/.claude/settings.json` (a backup is written first, and you can remove
+  it from her menu), and a startup entry only if you tick "Start with Windows". She uninstalls like any app, from
+  Windows Settings › Apps.
+- The SmartScreen warning comes from the installer not being signed, not from anything it does.
+
+## FAQ
+
+- **Mac, Linux?** No installer yet, but you can run her from the source (see above).
+- **Phone, Android?** No, she needs a desktop.
+- **Other assistants (Codex, Cursor, Windsurf, Gemini…)?** Claude Code only for now.
+- **Can I turn her off?** Ctrl+Alt+C puts her away, **Quit** in her menu closes her. Claude Code works exactly the same
+  without her.
+- **She only floats around and says idle things.** That's normal until Claude Code does something. If it never reacts,
+  check her menu says "Claude Code hooks: installed", then close Claude Code completely and open it again.
 
 ## What leaves your machine
 

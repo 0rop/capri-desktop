@@ -80,21 +80,38 @@ Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l
 - **Ctrl+Alt+C** : elle se range (dans son biochip, comme dans la série) et il ne reste d'elle que son masque, les yeux
   fermés, en bas à gauche de l'écran. Ses yeux ne s'ouvrent que quand Claude a besoin de toi. Clique sur le masque
   (ou refais Ctrl+Alt+C) pour la faire revenir.
-- **Icône près de l'horloge** : téléporter, regarder le satellite, démo, taille, son, écran, se balader, posséder tes fenêtres,
-  langue, lancement au démarrage, hooks.
+- **Son menu** : clic droit sur elle (il est aussi sur son icône près de l'horloge) : téléporter, regarder le satellite,
+  démo, comment ça marche, taille, son, écran, se balader, posséder tes fenêtres, langue, lancement au démarrage, hooks.
 
-Elle parle **français ou anglais et choisit toute seule la langue de ton système**. Tu peux en forcer une dans le menu de l'icône.
+Elle parle **français, anglais, espagnol, portugais du Brésil et russe**, et choisit toute seule la langue de ton
+système. Tu peux en choisir une autre dans son menu.
 
 ## Installation
 
-### Windows
+### Démarrage rapide (Windows, sans coder)
 
-Télécharge **`Capri-Setup-x.y.z.exe`** dans la [dernière release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
-et lance-le. Il s'installe pour ton utilisateur seulement (pas besoin d'être administrateur), ajoute un raccourci
-sur le bureau et lance Capri. L'installeur n'est pas signé, donc Windows SmartScreen peut afficher « Windows a protégé
-votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+1. Télécharge **`Capri-Setup-x.y.z.exe`** dans la [dernière release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
+   et lance-le. Il s'installe pour ton utilisateur seulement (pas besoin d'être administrateur), ajoute un raccourci
+   sur le bureau et lance Capri. Pas besoin de Node.js ni de rien d'autre.
+2. L'installeur n'est pas signé (un certificat de signature, c'est payant), donc Windows SmartScreen peut afficher
+   « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+3. Capri apparaît et se présente. Clique sur **Me brancher** : ça la connecte à Claude Code.
+4. Ferme complètement Claude Code et rouvre-le (il lit ses hooks au début d'une session). Dès que Claude fait quelque
+   chose, elle te dit **« Je vois Claude ! »** : c'est comme ça que tu sais que ça marche.
 
-### Depuis le code
+Son menu : **clic droit sur elle**. Il est aussi sur son icône, que Windows 11 cache souvent derrière le **^** à côté
+de l'horloge.
+
+### C'est quoi Claude Code ? Il le faut ?
+
+[Claude Code](https://code.claude.com/docs/en/quickstart) est l'assistant de code d'Anthropic : dans un terminal, dans
+VS Code, ou dans l'onglet Code de l'app Claude. Il faut un abonnement Claude payant (Pro ou plus) ou un compte API.
+Capri ne fait que le regarder : pas de clé d'API, et rien à payer pour Capri elle-même.
+
+Sans Claude Code, elle vit quand même sur ton bureau : elle flotte, s'assoit sur tes fenêtres, regarde le satellite,
+s'endort. Tu peux juste la laisser là.
+
+### Depuis le code (macOS, Linux, développeurs)
 
 Il faut [Node.js](https://nodejs.org) 20 ou plus.
 
@@ -105,9 +122,14 @@ npm install
 npm start
 ```
 
-### La brancher sur Claude Code
+Garde ce terminal ouvert tant qu'elle tourne. Pas encore testé sur macOS ni Linux : elle devrait démarrer, mais les tours
+avec les fenêtres (s'asseoir dessus, les posséder, t'afficher la réponse de Claude quand tu es ailleurs) ne marchent que
+sous Windows, et sous Linux le calque transparent marche mieux sous X11 (Wayland a du mal avec les fenêtres qui laissent
+passer les clics).
 
-Clique sur l'icône de Capri près de l'horloge, puis **Installer les hooks Claude Code**. Ou en ligne de commande :
+### La brancher sur Claude Code à la main
+
+Clic droit sur Capri, puis **Installer les hooks Claude Code**. Ou en ligne de commande :
 
 ```bash
 npm run hooks:install
@@ -152,6 +174,26 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 | `possess` | la fenêtre qu'elle possède rit |
 | `blip` | chaque syllabe quand elle parle |
 | `tick` | petit rappel discret |
+
+## C'est sûr ?
+
+- Tout le code est ici. L'installeur est fabriqué à partir de lui avec `npm run dist` ; tu peux fabriquer le tien.
+- Rien ne quitte ton PC (voir plus bas) : elle ne parle à Claude Code que par un hook sur `127.0.0.1`.
+- Ce qu'elle change sur ton système : le hook dans `~/.claude/settings.json` (une sauvegarde est faite avant, et tu peux
+  le retirer depuis son menu), et une entrée au démarrage seulement si tu coches « Lancer au démarrage ». Elle se
+  désinstalle comme n'importe quelle app, depuis Paramètres Windows › Applications.
+- L'avertissement de SmartScreen vient du fait que l'installeur n'est pas signé, pas de ce qu'il fait.
+
+## FAQ
+
+- **Mac, Linux ?** Pas encore d'installeur, mais tu peux la lancer depuis le code (voir plus haut).
+- **Téléphone, Android ?** Non, il lui faut un ordinateur.
+- **D'autres assistants (Codex, Cursor, Windsurf, Gemini…) ?** Seulement Claude Code pour l'instant.
+- **Je peux l'éteindre ?** Ctrl+Alt+C la range, **Quitter** dans son menu la ferme. Claude Code marche exactement pareil
+  sans elle.
+- **Elle flotte et dit des petites phrases, mais rien d'autre.** C'est normal tant que Claude Code ne fait rien. S'il ne
+  se passe jamais rien, vérifie que son menu indique « Hooks Claude Code : installés », puis ferme complètement Claude
+  Code et rouvre-le.
 
 ## Ce qui part de ta machine
 
