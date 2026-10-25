@@ -43,7 +43,7 @@ export class Capri {
     this.dragging = false;
 
     this.p = {
-      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, sit: 0, kickL: 0, kickR: 0,
+      seed: 0, boil: 0.9, hair: 0, head: 0, mane: 0, armL: 0, armR: 0, longL: 1, longR: 1, sit: 0, kickL: 0, kickR: 0,
       smear: [0, 0], echo: [0, 0],
       glitch: 0, glitchSeed: 0, split: 0, collapse: 0, dissolve: 0, sparkle: 1, grade: 1,
       sil: INK, silAmount: 0, misreg: [-2.6, 2.2], alpha: 1,
@@ -65,6 +65,7 @@ export class Capri {
     this.nextNotice = 0;
     this.peekUntil = 0;
     this.lastGlyph = 0;
+    this.gazes = 0;
 
     this.onMove = null;     // her head moved on screen
     this.onTeleport = null; // ('start' | 'end')
@@ -311,6 +312,8 @@ export class Capri {
     p.hair = pose.hair;
     p.armL = pose.armL;
     p.armR = pose.armR;
+    p.longL = pose.longL;
+    p.longR = pose.longR;
     p.kickL = pose.kickL;
     p.kickR = pose.kickR;
     p.smear = pose.smear;
@@ -387,8 +390,8 @@ export class Capri {
   }
 
   flourish() {
-    if (this.stance === 'sit') this.perform('look');
-    else this.perform(pick(['spin', 'look', 'hop', 'curious']), this.towardCenter());
+    if (this.stance === 'sit') this.perform(pick(['look', 'look', 'split']));
+    else this.perform(pick(['spin', 'look', 'hop', 'curious', 'split']), this.towardCenter());
   }
 
   // ---------- acting ----------
@@ -515,7 +518,8 @@ export class Capri {
   limb(side) {
     const { shoulder, hand, mirror } = SPRITE;
     const a = side === 'L' ? this.p.armL : this.p.armR;
-    const vx = hand.x - shoulder.x, vy = hand.y - shoulder.y;
+    const k = side === 'L' ? this.p.longL : this.p.longR;
+    const vx = (hand.x - shoulder.x) * k, vy = (hand.y - shoulder.y) * k;
     let hx = shoulder.x + Math.cos(a) * vx - Math.sin(a) * vy;
     const hy = shoulder.y + Math.sin(a) * vx + Math.cos(a) * vy;
     let sx = shoulder.x;
@@ -526,29 +530,114 @@ export class Capri {
     return { shoulder: this.toScreen(sx, shoulder.y), hand: this.toScreen(hx, hy) };
   }
 
-  // She sees a star (the satellite) above the open side of the screen and reaches for it.
-  // The act (acting.js) times it; the cues below light the star, the link and the flare.
-  gaze() {
-    if (this.busy || this.hidden || this.act) return;
+  // The satellite. It crosses high over the open side of the screen, slowly, and her hand
+  // follows it. Mostly she just looks at it ("gaze"); the first time, and now and then after
+  // that, she sends the red light up to it ("uplink"). The cues in onCue do the sky.
+  gaze({ big } = {}) {
+    if (this.busy || this.hidden || this.act || this.stance === 'peek' || this.stance === 'fall') return false;
+    big ??= this.gazes === 0 || Math.random() < 0.5;
+    if (reducedMotion.matches) big = false; // no strobing bolt
+    this.gazes++;
     const dir = this.towardCenter();
-    const { shoulder } = this.limb(this.armToward(dir));
-    // off to the side and up, so the reach reads as a diagonal clear of her mane
-    const x = clamp(shoulder.x + dir * rand(380, 620), 40, this.view.w - 40);
-    const y = clamp(shoulder.y - Math.abs(x - shoulder.x) * rand(0.7, 1.05), 40, shoulder.y - 160);
-    // how far the arm has to come up to point at it: it hangs about 30° below horizontal at rest
-    const lift = Math.atan2(shoulder.y - y, Math.abs(x - shoulder.x)) + 0.52;
-    this.sky = { star: this.fx.star(x, y), link: null, x, y, dir };
-    this.voice.play('star');
-    this.onGaze?.();
-    this.perform('gaze', dir, { reach: clamp(lift, 0.5, 1.5) }).then(() => this.clearSky());
+    const { w } = this.view;
+    const side = this.armToward(dir);
+    const { shoulder } = this.limb(side);
+    // up and well off to the side, so her arm points at it clear of her mane
+    const y = clamp(shoulder.y - rand(280, 400), 50, shoulder.y - 180);
+    const x = clamp(shoulder.x + dir * rand(380, 520), 40, w - 40);
+    const to = { x: clamp(x + dir * rand(170, 260), 30, w - 30), y: y - rand(10, 40) };
+    const sat = this.fx.satellite({ x, y }, to, { duration: 9500 });
+    // how far up the arm must come to point at it right now (it hangs ~30 degrees low at rest)
+    const reach = () => {
+      const at = sat.pos();
+      const sh = this.limb(side).shoulder;
+      return clamp(Math.atan2(sh.y - at.y, Math.abs(at.x - sh.x)) + 0.52, 0.5, 1.6);
+    };
+    // from her fingertips to it
+    const road = () => [this.limb(side).hand, sat.pos()];
+    this.sky = { sat, road, dir, side, motes: null, surge: null, head: null };
+    if (!big) this.onGaze?.('start');
+    this.perform(big ? 'uplink' : 'gaze', dir, { reach }).then(() => {
+      this.clearSky();
+      if (big) this.onGaze?.('end');
+    });
+    return true;
   }
 
   clearSky() {
     if (!this.sky) return;
-    this.sky.star.fade();
-    this.sky.link?.fade();
+    const { sat, motes, surge } = this.sky;
+    surge?.break();
+    motes?.home(...this.moved());
+    sat.fade();
     this.sky = null;
     tween(this.p, { sparkle: this.mode === 'sleep' ? 0.35 : 1 }, 400, ease.out);
+  }
+
+  // How far her head has moved since her stars lifted off it.
+  moved() {
+    const was = this.sky?.head;
+    if (!was) return [0, 0];
+    const h = this.head();
+    return [h.x - was.x, h.y - was.y];
+  }
+
+  // Points on her mane, where her white specks are (for the stars that lift off it).
+  manePoints(n) {
+    const s = this.scale;
+    const h = this.head();
+    return Array.from({ length: n }, () => {
+      const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random());
+      return { x: h.x + Math.cos(a) * r * 92 * s, y: h.y - 44 * s + Math.sin(a) * r * 66 * s };
+    });
+  }
+
+  // Red sparks off her fingers: she's hacking something. On a window, she jacks into it:
+  // the sparks go down into the ledge and run along it.
+  spark() {
+    if (this.busy || this.hidden || reducedMotion.matches || this.stance === 'peek' || this.stance === 'fall') return;
+    const s = this.scale;
+    const side = Math.random() < 0.5 ? 'L' : 'R';
+    const { hand } = this.limb(side);
+    const out = (side === 'L' ? -1 : 1) * this.facing;
+    if (this.stance === 'sit') {
+      const ledge = this.pos.y - (SPRITE.feet.y - SPRITE.hip) * s - 3;
+      const at = { x: hand.x + out * rand(10, 40) * s, y: ledge };
+      const run = { x: at.x + out * rand(90, 200), y: ledge + rand(-2, 2) };
+      this.fx.bolt(hand, at, { life: 200, forks: 1, width: 2 });
+      this.fx.bolt(at, run, { life: 260, forks: 2, width: 2 });
+    } else {
+      for (let i = 0; i < 2; i++) {
+        const to = { x: hand.x + out * rand(30, 80) * s, y: hand.y + rand(-50, 30) * s };
+        this.fx.bolt(hand, to, { life: rand(140, 220), forks: 1, width: 2 });
+      }
+    }
+    this.voice.play('bolt', { soft: true });
+  }
+
+  // The menace: a jolt of red lightning at your pointer, and a grin.
+  zap(x, y) {
+    if (this.busy || this.hidden || this.act || reducedMotion.matches || this.stance !== 'stand') return false;
+    const dir = x < this.pos.x ? -1 : 1;
+    const side = this.armToward(dir);
+    const reach = () => {
+      const sh = this.limb(side).shoulder;
+      return clamp(Math.atan2(sh.y - y, Math.abs(x - sh.x)) + 0.52, -0.3, 1.6);
+    };
+    this.zapAt = { x, y, side, dir };
+    this.perform('zap', dir, { reach });
+    return true;
+  }
+
+  // Where a cut-in goes, as fx.cutin's (x, y, dir): next to her head on the `dir` side,
+  // or on the other side if it would run off the screen.
+  cutinAt(dir) {
+    const s = this.scale;
+    const h = this.head();
+    const gap = 85 * s + 24, width = 274; // the band plus its slant, see fx.js
+    const fits = (d) => (d > 0 ? h.x + gap + width < this.view.w - 8 : h.x - gap - width > 8);
+    const side = fits(dir) || !fits(-dir) ? dir : -dir;
+    return [h.x + side * gap, h.y - 18, side];
   }
 
   // Flat-colour impact frames, one drawing each.
@@ -586,32 +675,109 @@ export class Capri {
       case 'speak':
         this.fireSpeak();
         break;
-      case 'laugh': {
-        const dir = this.act?.player.dir || this.towardCenter();
-        this.fx.cutin(h.x + dir * (85 * s + 24), h.y - 18, dir);
+      case 'laugh':
+        this.fx.cutin(...this.cutinAt(this.act?.player.dir || this.towardCenter()), { kind: pick(['laugh', 'grin']) });
         break;
-      }
+      case 'stare': // every eye she has, on you
+        this.fx.cutin(...this.cutinAt(this.act?.player.dir || this.towardCenter()), { kind: 'many', life: 640 });
+        break;
       case 'notice':
         this.twitch();
         break;
-      case 'starlight': // her specks light up with it
+      case 'zap':
+        if (this.zapAt) {
+          const { x, y, side } = this.zapAt;
+          this.fx.bolt(this.limb(side).hand, { x, y }, { life: 240, forks: 2, width: 3 });
+          this.fx.burst(x, y, { count: 8, power: 0.35, spread: 16 });
+          this.fx.ring(x, y, { size: 0.22 });
+          this.voice.play('bolt');
+        }
+        break;
+      case 'grin':
+        if (this.zapAt && Math.random() < 0.6) this.fx.cutin(...this.cutinAt(-this.zapAt.dir), { kind: 'look', life: 560 });
+        this.zapAt = null;
+        break;
+      case 'minds':
+        this.twitch();
+        break;
+      case 'snap':
+        this.twitch();
+        this.voice.play('tick');
+        break;
+      default:
+        if (this.sky) this.skyCue(cue);
+        break;
+    }
+  }
+
+  // The satellite's cues (acting.js "gaze" and "uplink").
+  skyCue(cue) {
+    const s = this.scale;
+    const sky = this.sky;
+    const hand = () => this.limb(sky.side).hand;
+    switch (cue) {
+      case 'glint':
+        this.voice.play('star');
+        break;
+      case 'starlight': // her specks catch its light
         tween(this.p, { sparkle: 1.8 }, 500, ease.out);
         break;
-      case 'link':
-        if (this.sky) {
-          this.sky.link = this.fx.link(this.limb(this.armToward(this.sky.dir)).hand, this.sky);
-          this.voice.play('tick');
-        }
+      case 'stars': // they lift off and become a sky; her mane goes dark without them
+        sky.head = this.head();
+        sky.motes = this.fx.motes(this.manePoints(30), { lift: 230 * s + 60, spread: 320 * s + 80 });
+        tween(this.p, { sparkle: 0.15 }, 500, ease.out);
         break;
-      case 'flare':
-        if (this.sky) {
-          this.sky.star.flare();
-          this.fx.ring(this.sky.x, this.sky.y, { size: 0.45 });
-          this.voice.play('star');
-        }
+      case 'align': // into a road, from her fingers to it
+        sky.motes?.align(sky.road);
+        this.voice.play('tick');
         break;
-      case 'fade':
-        this.clearSky();
+      case 'charge': {
+        this.fx.crackle(hand, { life: 640, radius: 70 * s + 14, count: 3 });
+        const at = hand();
+        this.fx.burst(at.x, at.y, { count: 14, inward: true, power: 0.5, spread: 90 * s });
+        this.fx.cutin(...this.cutinAt(-sky.dir), { kind: 'eyes', life: 600 }); // away from the road
+        this.voice.play('charge');
+        break;
+      }
+      case 'surge': { // the red light goes up
+        const at = hand();
+        sky.surge = this.fx.surge(sky.road, {
+          onHit: () => {
+            const top = sky.sat.pos();
+            sky.sat.twinkle(1.25);
+            this.fx.ring(top.x, top.y, { size: 0.55 });
+            this.fx.lines(top.x, top.y, { inner: 60, life: 460 });
+            this.voice.play('star');
+          },
+        });
+        sky.motes?.light(125);
+        this.fx.ring(at.x, at.y, { size: 0.6 });
+        this.flash([INK, RED]);
+        this.voice.play('bolt');
+        this.voice.play('rise');
+        break;
+      }
+      case 'break':
+        sky.surge?.break();
+        sky.surge = null;
+        sky.motes?.dim();
+        this.voice.play('tick');
+        break;
+      case 'twinkle': { // and it answers
+        const at = sky.sat.pos();
+        sky.sat.twinkle(1);
+        this.fx.ring(at.x, at.y, { size: 0.4 });
+        this.voice.play('star');
+        break;
+      }
+      case 'glimmer':
+        sky.sat.twinkle(0.55);
+        if (!sky.motes) this.voice.play('star');
+        break;
+      case 'home': // her stars come back to her, and her mane lights up with them
+        sky.motes?.home(...this.moved());
+        sky.motes = null;
+        tween(this.p, { sparkle: 1.7 }, 400, ease.out).then(() => tween(this.p, { sparkle: 1 }, 700, ease.inOut));
         break;
     }
   }
@@ -658,6 +824,7 @@ export class Capri {
     const s = this.scale;
     const from = { ...this.pos };
     const head = this.head();
+    if (this.sky) this.endAct(false); // the satellite stays here, she doesn't
     if (reducedMotion.matches) {
       await tween(p, { alpha: 0 }, 160, ease.linear);
       return head;
@@ -669,7 +836,12 @@ export class Capri {
     this.fx.slices(head.x - 70 * s, head.y - 40 * s, 170 * s, 320 * s);
     await tween(p, { collapse: 1, glitch: 1, dissolve: 0.5, split: 9 }, 170, ease.in);
     p.alpha = 0;
-    if (beam && !this.upside) this.fx.beam(from.x, from.y - (this.p.sit ? (SPRITE.feet.y - SPRITE.hip) * s : 0), { width: 40 * s + 8 });
+    const ground = from.y - (this.p.sit ? (SPRITE.feet.y - SPRITE.hip) * s : 0);
+    if (!this.upside) {
+      // the void she leaves behind, like in the show: a black slit with a red line in it
+      this.fx.slit(from.x - 10 * s * this.facing, head.top, ground, { width: 56 * s + 10 });
+      if (beam) this.fx.beam(from.x, ground, { width: 40 * s + 8 });
+    }
     return head;
   }
 
@@ -696,6 +868,8 @@ export class Capri {
     }
     const ground = stance === 'sit' ? to.y - (SPRITE.feet.y - SPRITE.hip) * s : to.y;
     if (beam) this.fx.beam(to.x, ground, { down: true, width: 40 * s + 8 });
+    // her pieces spiral back in, mane shards and green eye-stars
+    this.fx.vortex(toHead.x, toHead.y + 30 * s, { radius: 170 * s + 40 });
     this.voice.play('teleport-in');
     await sleep(50);
 
@@ -851,6 +1025,7 @@ export class Capri {
 
   fall() {
     if (this.stance === 'fall') return;
+    if (this.sky) this.endAct(false);
     this.landingSpot = this.landing();
     this.setStance('fall');
     this.vy = 0;
@@ -1020,6 +1195,9 @@ export class Capri {
       this.perform('turn');
       return;
     }
-    if (this.mode === 'idle') this.perform('curious', x < h.x ? -1 : 1);
+    if (this.mode !== 'idle') return;
+    // now and then she's a little menace about it
+    if (Math.random() < 0.3 && this.zap(x, y)) return;
+    this.perform('curious', x < h.x ? -1 : 1);
   }
 }

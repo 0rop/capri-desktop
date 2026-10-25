@@ -7,7 +7,9 @@
 //   hair    mane sway, px                          tilt   whole-body lean, degrees, screen
 //   bob     vertical offset, px, - is up           sx/sy  squash & stretch (sx < 0 mirrors her)
 //   arms    both arms, radians, + raises them      armL / armR   one arm each
-//   reach   in directional acts: the arm on the side the act aims at (x the act's reach scale)
+//   reach   in directional acts: the arm on the side the act aims at (x the act's reach,
+//           a number or a function for a moving target)
+//   long    that same arm drawn longer than it is, 1 = as drawn (longL / longR for one arm)
 //   smear   [x, y] trail of head multiples, px     echo   [x, y] green/red afterimages, px
 //   kickL / kickR   lower legs swinging outward, radians (when sitting)
 //
@@ -19,7 +21,7 @@ export const SHEET_FPS = 12;
 const rep = (n, keys) => Array.from({ length: n }, () => keys).flat();
 
 export const NEUTRAL = {
-  head: 0, mane: 0, hair: 0, tilt: 0, bob: 0, sx: 1, sy: 1, armL: 0, armR: 0,
+  head: 0, mane: 0, hair: 0, tilt: 0, bob: 0, sx: 1, sy: 1, armL: 0, armR: 0, longL: 1, longR: 1,
   smear: [0, 0], echo: [0, 0], kickL: 0, kickR: 0,
 };
 
@@ -109,30 +111,77 @@ export const ACTS = {
     ],
   },
 
-  // The satellite. A glint appears; a beat later she sees it and snaps to it. The mane catches
-  // its light, she reaches for it, slow-in (the drawings bunch up near the end), a link of data
-  // reaches out from her fingers. It flares and she's lifted a little. It goes out; her hand drops.
+  // The satellite, the quiet way: a glint, a beat, she notices and snaps to it, her specks
+  // catch its light, she reaches for it (slow-in: the drawings bunch up as the hand gets there)
+  // and holds. It twinkles back. Her hand drops with a sigh.
   gaze: {
     priority: 1,
     directional: true,
     keys: [
-      [3, {}],
+      [3, {}, 'glint'],
       [1, { head: -0.05, bob: 1 }],
       [1, { head: 0.14, mane: 0.12, smear: [-8, 6] }, 'notice'],
-      [6, { head: 0.2, mane: 0.1 }],
-      [6, { head: 0.23, mane: 0.14, hair: 0 }, 'starlight'],
-      [3, { head: 0.23, mane: 0.15, hair: 0, reach: 0.25 }],
-      [3, { head: 0.24, mane: 0.16, hair: 0, reach: 0.55 }],
-      [2, { head: 0.24, mane: 0.16, hair: 0, reach: 0.8, bob: -1 }],
-      [2, { head: 0.25, mane: 0.17, hair: 0, reach: 0.93, bob: -2 }],
-      [10, { head: 0.25, mane: 0.17, hair: 0, reach: 1, bob: -3 }, 'link'],
-      [1, { head: 0.28, mane: 0.38, hair: 0, reach: 1.06, bob: -7, echo: [5, -2] }, 'flare'],
-      [2, { head: 0.27, mane: 0.3, hair: 0, reach: 1.04, bob: -9 }],
-      [9, { head: 0.25, mane: 0.22, hair: 0, reach: 1.02, bob: -9 }],
-      [1, { head: 0.2, mane: 0.15, reach: 0.8, bob: -6 }, 'fade'],
-      [2, { head: 0.14, mane: 0.1, reach: 0.45, bob: -3 }],
-      [2, { head: 0.08, mane: 0.04, reach: 0.12, bob: -1 }],
+      [6, { head: 0.2, mane: 0.1, hair: 0, bob: 0 }],
+      [6, { head: 0.23, mane: 0.14, hair: 0, bob: 0 }, 'starlight'],
+      [3, { head: 0.23, mane: 0.15, hair: 0, bob: 0, reach: 0.25, long: 1.1 }],
+      [3, { head: 0.24, mane: 0.16, hair: 0, bob: 0, reach: 0.55, long: 1.2 }],
+      [2, { head: 0.24, mane: 0.16, hair: 0, bob: -1, reach: 0.8, long: 1.3 }],
+      [2, { head: 0.25, mane: 0.17, hair: 0, bob: -2, reach: 0.93, long: 1.35 }],
+      [14, { head: 0.25, mane: 0.17, hair: 0, bob: -3, reach: 1, long: 1.38 }],
+      [1, { head: 0.27, mane: 0.22, hair: 0, bob: -4, reach: 1.02, long: 1.42 }, 'glimmer'],
+      [8, { head: 0.25, mane: 0.18, hair: 0, bob: -3, reach: 1, long: 1.38 }],
+      [2, { head: 0.14, mane: 0.1, bob: -2, reach: 0.45, long: 1.15 }],
+      [2, { head: 0.08, mane: 0.04, bob: -1, reach: 0.12, long: 1.03 }],
       [8, { head: 0.06, mane: -0.04, reach: -0.06 }], // a sigh
+      [1, {}],
+    ],
+  },
+
+  // The satellite, the whole way, after the season's ending: "could we make it up there?"
+  // I.   Hush. The glint; her float stops dead and the white specks of her mane lift off,
+  //      hanging over her like a sky of her own, linked up like a constellation.
+  // II.  She snaps to it and reaches; her stars line up into a road from her fingers to it.
+  // III. Anticipation: she sinks and coils, the mane bristles, sparks crawl out of her hand,
+  //      cut-in on her eyes.
+  // IV.  The red light goes up the road, she's lifted with it, it hits the satellite.
+  // V.   It snaps and falls apart. Silence. Then the satellite twinkles back, twice.
+  //      Her stars come home and her hand drops.
+  uplink: {
+    priority: 1,
+    directional: true,
+    keys: [
+      [2, { hair: 0, bob: -2 }, 'glint'],
+      [3, { hair: 0, bob: -2 }, 'stars'],
+      [3, { hair: 0, bob: -2, mane: 0.05 }],
+      [4, { hair: 0, bob: -2, mane: 0.1, head: 0.03 }],
+      [1, { hair: 0, bob: -1, head: -0.06 }],
+      [1, { hair: 0, bob: -2, head: 0.16, mane: 0.16, smear: [-8, 6] }, 'notice'],
+      [5, { hair: 0, bob: -2, head: 0.22, mane: 0.14 }],
+      [3, { hair: 0, bob: -2, head: 0.23, mane: 0.15, reach: 0.3, long: 1.15 }],
+      [3, { hair: 0, bob: -2, head: 0.24, mane: 0.16, reach: 0.6, long: 1.3 }, 'align'],
+      [2, { hair: 0, bob: -3, head: 0.25, mane: 0.17, reach: 0.85, long: 1.42 }],
+      [2, { hair: 0, bob: -4, head: 0.25, mane: 0.18, reach: 0.96, long: 1.5 }],
+      [9, { hair: 0, bob: -5, head: 0.25, mane: 0.18, reach: 1, long: 1.52 }],
+      // the arm pulls back a little as she coils, then shoots out
+      [1, { hair: 0, bob: 1, head: 0.24, mane: 0.26, reach: 0.98, long: 1.45, sy: 0.95, sx: 1.03 }, 'charge'],
+      [2, { hair: 0, bob: 3, head: 0.23, mane: 0.32, reach: 0.98, long: 1.42, sy: 0.93, sx: 1.04 }],
+      [2, { hair: 0, bob: 4, head: 0.23, mane: 0.38, reach: 0.99, long: 1.4, sy: 0.92, sx: 1.05 }],
+      [2, { hair: 0, bob: 5, head: 0.22, mane: 0.44, reach: 1, long: 1.4, sy: 0.91, sx: 1.06, echo: [2, 0] }],
+      [1, { hair: 0, bob: -10, head: 0.3, mane: 0.7, reach: 1.05, long: 1.78, sy: 1.14, sx: 0.9, echo: [10, -4], smear: [0, 14] }, 'surge'],
+      [1, { hair: 0, bob: -16, head: 0.31, mane: 0.86, reach: 1.06, long: 1.7, sy: 1.06, sx: 0.96, echo: [16, -6] }],
+      [2, { hair: 0, bob: -19, head: 0.3, mane: 0.8, reach: 1.06, long: 1.66, echo: [9, -3] }],
+      [2, { hair: 0, bob: -19, head: 0.28, mane: 0.74, reach: 1.06, long: 1.62, echo: [4, -1] }],
+      [5, { hair: 0, bob: -18, head: 0.28, mane: 0.62, reach: 1.05, long: 1.6 }],
+      [1, { hair: 0, bob: -15, head: 0.27, mane: 0.5, reach: 1.03, long: 1.55, smear: [0, -8] }, 'break'],
+      [7, { hair: 0, bob: -13, head: 0.26, mane: 0.36, reach: 1.02, long: 1.52 }],
+      [1, { hair: 0, bob: -13, head: 0.29, mane: 0.4, reach: 1.03, long: 1.54 }, 'twinkle'],
+      [4, { hair: 0, bob: -12, head: 0.28, mane: 0.32, reach: 1.02, long: 1.52 }],
+      [1, { hair: 0, bob: -12, head: 0.29, mane: 0.34, reach: 1.02, long: 1.53 }, 'glimmer'],
+      [7, { hair: 0, bob: -11, head: 0.27, mane: 0.28, reach: 1, long: 1.5 }],
+      [2, { bob: -7, head: 0.2, mane: 0.2, reach: 0.7, long: 1.3 }, 'home'],
+      [2, { bob: -4, head: 0.14, mane: 0.12, reach: 0.4, long: 1.12 }],
+      [2, { bob: -1, head: 0.08, mane: 0.04, reach: 0.12, long: 1.03 }],
+      [10, { bob: 1, head: 0.06, mane: -0.06, reach: -0.06 }], // a sigh
       [1, {}],
     ],
   },
@@ -162,11 +211,52 @@ export const ACTS = {
     ],
   },
 
-  // bristling, flickering, arms flared, leaning toward you
+  // The menace: arm pulled in, then jabbed at your pointer with a jolt of red lightning,
+  // held while she grins, and dropped.
+  zap: {
+    priority: 2,
+    fps: 24,
+    directional: true,
+    keys: [
+      [3, { reach: 0.2, long: 0.9, head: -0.06, mane: 0.1, bob: 1 }],
+      [1, { reach: 1, long: 1.6, head: 0.12, mane: 0.32, smear: [-10, 0], echo: [6, 0] }, 'zap'],
+      [6, { reach: 1, long: 1.52, head: 0.14, mane: 0.26 }],
+      [4, { reach: 0.96, long: 1.42, head: 0.18, mane: 0.2 }, 'grin'],
+      [10, { reach: 0.9, long: 1.36, head: 0.2, mane: 0.16 }],
+      [3, { reach: 0.5, long: 1.15, head: 0.14, mane: 0.08 }],
+      [3, { reach: 0.15, head: 0.06 }],
+      [1, {}],
+    ],
+  },
+
+  // The other minds in her: her green and red copies pull away from her, hang there
+  // flickering, and snap back in.
+  split: {
+    priority: 3,
+    fps: 24,
+    keys: [
+      [2, { echo: [3, 0], mane: 0.1 }],
+      [2, { echo: [10, -2], mane: 0.18, head: 0.05 }],
+      [2, { echo: [22, -4], mane: 0.22, head: -0.06 }, 'minds'],
+      [6, { echo: [34, -5], mane: 0.24, head: 0.06, bob: -3 }],
+      [2, { echo: [41, -6], mane: 0.26, head: -0.05, bob: -3 }],
+      [6, { echo: [36, -5], mane: 0.24, head: 0.07, bob: -3 }],
+      [1, { echo: [12, 0], sx: 1.08, sy: 0.94, bob: -1 }, 'snap'],
+      [1, { sx: 0.96, sy: 1.04, mane: 0.3 }],
+      [3, { mane: 0.1 }],
+      [1, {}],
+    ],
+  },
+
+  // bristling, flickering, arms flared, leaning toward you; she stares with all her eyes
   alarm: {
     priority: 2,
     directional: true,
-    keys: rep(15, [[1, { mane: 0.34, head: 0.1, tilt: 3, arms: 0.36 }], [1, { mane: 0.12, head: 0.1, tilt: 3, arms: 0.24 }]]),
+    keys: [
+      [1, { mane: 0.34, head: 0.1, tilt: 3, arms: 0.36 }, 'stare'],
+      [1, { mane: 0.12, head: 0.1, tilt: 3, arms: 0.24 }],
+      ...rep(14, [[1, { mane: 0.34, head: 0.1, tilt: 3, arms: 0.36 }], [1, { mane: 0.12, head: 0.1, tilt: 3, arms: 0.24 }]]),
+    ],
   },
 
   // knocked back by a failure, arms snapped in
@@ -311,11 +401,14 @@ export class Player {
       out.armR = pose.arms;
     }
     if (pose.reach !== undefined) {
-      // the left arm of the sprite points to sprite-left
-      out[lean < 0 ? 'armL' : 'armR'] = pose.reach * this.reach;
+      // the left arm of the sprite points to sprite-left; reach can follow a moving target
+      const scale = typeof this.reach === 'function' ? this.reach() : this.reach;
+      out[lean < 0 ? 'armL' : 'armR'] = pose.reach * scale;
     }
+    if (pose.long !== undefined) out[lean < 0 ? 'longL' : 'longR'] = pose.long;
     delete out.arms;
     delete out.reach;
+    delete out.long;
     return out;
   }
 }

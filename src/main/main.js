@@ -160,14 +160,14 @@ function rebuildTray() {
   const hookState = hooks.status();
   const t = resolveLang(cfg.lang) === 'en'
     ? {
-      online: `Capri — listening on ${PORT}`, teleport: 'Teleport', demo: 'Play demo', show: 'Show', hide: 'Hide',
+      online: `Capri — listening on ${PORT}`, teleport: 'Teleport', satellite: 'Look at the satellite', demo: 'Play demo', show: 'Show', hide: 'Hide',
       size: 'Size', small: 'Small', medium: 'Medium', large: 'Large', sound: 'Sound', mute: 'Mute',
       soundsDir: 'Open custom sounds folder', screen: 'Screen', wander: 'Wander around when idle',
       lang: 'Language', auto: 'Automatic (system)', startup: 'Start with Windows', hooksOn: 'Claude Code hooks: installed',
       hooksOff: 'Install Claude Code hooks', hooksRemove: 'Remove Claude Code hooks', quit: 'Quit',
     }
     : {
-      online: `Capri — à l'écoute sur ${PORT}`, teleport: 'Téléporter', demo: 'Lancer la démo', show: 'Afficher', hide: 'Masquer',
+      online: `Capri — à l'écoute sur ${PORT}`, teleport: 'Téléporter', satellite: 'Regarder le satellite', demo: 'Lancer la démo', show: 'Afficher', hide: 'Masquer',
       size: 'Taille', small: 'Petite', medium: 'Moyenne', large: 'Grande', sound: 'Son', mute: 'Muet',
       soundsDir: 'Ouvrir le dossier des sons perso', screen: 'Écran', wander: 'Se balader quand rien ne se passe',
       lang: 'Langue', auto: 'Automatique (système)', startup: 'Lancer au démarrage', hooksOn: 'Hooks Claude Code : installés',
@@ -181,6 +181,7 @@ function rebuildTray() {
     { label: t.online, enabled: false },
     { type: 'separator' },
     { label: t.teleport, click: () => sendCommand('teleport') },
+    { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: overlay?.isVisible() ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },

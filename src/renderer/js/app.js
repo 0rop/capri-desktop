@@ -17,17 +17,22 @@ function loadImage(src) {
   });
 }
 
+// close-ups of her for the cut-ins, frames of the show (tools/build-cutins.py)
+const CUTINS = ['grin', 'laugh', 'eyes', 'many', 'look'];
+
 async function boot() {
-  const [config, image, face] = await Promise.all([
+  const [config, image, ...cutins] = await Promise.all([
     host.getConfig(),
     loadImage('../../assets/capri/capri-full.png'),
-    loadImage('../../assets/capri/capri-face.png'),
+    ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`)),
     document.fonts.load('600 16px "Chakra Petch"'),
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
   document.documentElement.lang = config.lang;
 
-  const fx = new FxLayer(document.getElementById('fx'), { face });
+  const fx = new FxLayer(document.getElementById('fx'), {
+    cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i]])),
+  });
   fx.resize(innerWidth, innerHeight);
 
   const voice = new Voice();
@@ -83,9 +88,11 @@ async function boot() {
     refreshHit();
   };
   capri.onTeleport = (phase) => (phase === 'start' ? panel.suspend() : panel.resume());
-  // now and then she says something while staring at the satellite
-  capri.onGaze = () => {
-    if (!panel.visible && Math.random() < 0.4) panel.say({ kind: 'info', line: pick(brain.t.gaze), hold: 3800 });
+  // now and then she says something about the satellite: while she looks at it, or once
+  // the red light has gone up (never during, nothing should cover that)
+  capri.onGaze = (when) => {
+    const lines = when === 'end' ? brain.t.uplink : brain.t.gaze;
+    if (!panel.visible && Math.random() < (when === 'end' ? 0.6 : 0.4)) panel.say({ kind: 'info', line: pick(lines), hold: 3800 });
   };
   capri.onClick = () => {
     if (panel.visible) panel.hide();
@@ -125,6 +132,11 @@ async function boot() {
         break;
       case 'status':
         brain.status();
+        break;
+      case 'satellite': // the whole sequence, on demand (tray)
+        capri.wake();
+        if (capri.stance === 'peek') await capri.unpeek();
+        if (!capri.gaze({ big: true })) setTimeout(() => capri.gaze({ big: true }), 1500);
         break;
       case 'hooks':
         if (cmd.ok) panel.say({ kind: 'info', line: cmd.action === 'install' ? t.hooksOk : t.hooksRemoved, hold: 6000 });

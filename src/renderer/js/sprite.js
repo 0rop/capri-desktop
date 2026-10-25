@@ -27,6 +27,8 @@ uniform float uHead;
 uniform float uMane;
 uniform float uArmL;
 uniform float uArmR;
+uniform float uLongL;
+uniform float uLongR;
 uniform float uSit;
 uniform float uKickL;
 uniform float uKickR;
@@ -157,6 +159,19 @@ float armL(vec2 s) {
 
 vec2 mirrorArm(vec2 s) { return vec2(MIRROR - s.x, s.y); }
 
+// An arm drawn longer than it is (anime exaggeration, so a reach reads past the mane):
+// stretched along its length only, from the shoulder, so it stays as thin. In the left arm's
+// rest frame, which is where both arms are looked up.
+const vec2 ARM_DIR = vec2(-0.85954, 0.51108); // shoulder to hand at rest
+vec2 stretchArm(vec2 s, float k) {
+  if (k == 1.0) return s;
+  vec2 v = s - SHOULDER_L;
+  float along = dot(v, ARM_DIR);
+  return SHOULDER_L + ARM_DIR * (along / k) + (v - ARM_DIR * along);
+}
+vec2 armLeft(vec2 q) { return stretchArm(rot(q, SHOULDER_L, -uArmL), uLongL); }
+vec2 armRight(vec2 q) { return stretchArm(mirrorArm(rot(q, SHOULDER_R, uArmR)), uLongR); }
+
 bool legsRigged() { return uSit > 0.0 || uKickL != 0.0 || uKickR != 0.0; }
 
 // Everything but the arms, with each lower leg swung on its knee (outward for positive kicks).
@@ -176,18 +191,38 @@ vec4 torso(vec2 q) {
 // Both arms turned on their shoulders (positive raises them). They pass in front of the body
 // and the mane (a hand reaching up stays visible), except right at the shoulders, which cover the joints.
 float armAlpha(vec2 q) {
-  vec2 qL = rot(q, SHOULDER_L, -uArmL);
-  vec2 qR = mirrorArm(rot(q, SHOULDER_R, uArmR));
+  vec2 qL = armLeft(q);
+  vec2 qR = armRight(q);
   return max(armL(qL) * tex(qL).a, armL(qR) * tex(qR).a);
 }
 
+// The head and mane acting, on the body only: an arm raised up into the mane stays straight.
+vec2 bend(vec2 q) {
+  // head tilt: everything above the collar bends around the neck, the body stays put
+  q = rot(q, NECK, -uHead * smoothstep(162.0, 138.0, q.y));
+
+  // mane flare: the shards bristle outward, unevenly, around a rigid face
+  if (uMane != 0.0) {
+    vec2 d = q - MANE;
+    float spikes = 0.55 + 0.9 * vnoise(vec2(atan(d.y, d.x) * 2.6, 4.0));
+    float w = smoothstep(182.0, 60.0, q.y) * smoothstep(16.0, 30.0, distance(q, FACE));
+    q = MANE + d / (1.0 + uMane * w * 0.32 * spikes);
+  }
+
+  // mane sway, strongest at the tips
+  float hw = smoothstep(175.0, 5.0, q.y);
+  q.x -= uHair * hw * (0.65 + 0.35 * sin(q.y * 0.055));
+  q.y -= uHair * 0.22 * hw * sin(q.x * 0.045);
+  return q;
+}
+
 vec4 rig(vec2 q) {
-  vec2 qL = rot(q, SHOULDER_L, -uArmL);
-  vec2 qR = mirrorArm(rot(q, SHOULDER_R, uArmR));
+  vec2 qL = armLeft(q);
+  vec2 qR = armRight(q);
   vec4 l = armL(qL) > 0.0 ? cel(qL) : vec4(0.0);
   vec4 r = armL(qR) > 0.0 ? cel(qR) : vec4(0.0);
   vec4 arms = l + r * (1.0 - l.a);
-  vec4 b = torso(q);
+  vec4 b = torso(bend(q));
   bool joint = distance(q, SHOULDER_L) < 18.0 || distance(q, SHOULDER_R) < 18.0;
   if (joint) return b + arms * (1.0 - b.a);
   // where an arm crosses the body or the mane, ink a violet line around it so it reads
@@ -203,7 +238,8 @@ float rigAlpha(vec2 q) {
   return rig(q).a;
 }
 
-vec2 warp(vec2 p) {
+// What happens to the whole drawing: the teleport collapse, glitch slices, line boil.
+vec2 settle(vec2 p) {
   vec2 q = p;
 
   // teleport: squeeze into a vertical line of light
@@ -220,23 +256,6 @@ vec2 warp(vec2 p) {
 
   // boil: the line wobble you get when every drawing is redone by hand
   q += (vec2(vnoise(q * 0.075 + uSeed * 13.7), vnoise(q * 0.075 + uSeed * 7.3 + 31.0)) - 0.5) * 2.0 * uBoil;
-
-  // head tilt: everything above the collar bends around the neck, the body stays put
-  q = rot(q, NECK, -uHead * smoothstep(162.0, 138.0, q.y));
-
-  // mane flare: the shards bristle outward, unevenly, around a rigid face
-  if (uMane != 0.0) {
-    vec2 d = q - MANE;
-    float spikes = 0.55 + 0.9 * vnoise(vec2(atan(d.y, d.x) * 2.6, 4.0));
-    float w = smoothstep(182.0, 60.0, q.y) * smoothstep(16.0, 30.0, distance(q, FACE));
-    q = MANE + d / (1.0 + uMane * w * 0.32 * spikes);
-  }
-
-  // mane sway, strongest at the tips
-  float hw = smoothstep(175.0, 5.0, q.y);
-  q.x -= uHair * hw * (0.65 + 0.35 * sin(q.y * 0.055));
-  q.y -= uHair * 0.22 * hw * sin(q.x * 0.045);
-
   return q;
 }
 
@@ -249,7 +268,7 @@ void main() {
     if (hash(cell + floor(uGlitchSeed)) < uDissolve) discard;
   }
 
-  vec2 q = warp(p);
+  vec2 q = settle(p);
   vec4 c = rig(q);
   vec3 col = c.rgb;
   float a = c.a;
@@ -294,7 +313,8 @@ void main() {
 }`;
 
 const UNIFORMS = [
-  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uArmL', 'uArmR', 'uSit', 'uKickL', 'uKickR',
+  'uView', 'uPad', 'uTex', 'uSize', 'uSeed', 'uBoil', 'uHair', 'uHead', 'uMane', 'uArmL', 'uArmR', 'uLongL', 'uLongR',
+  'uSit', 'uKickL', 'uKickR',
   'uSmear', 'uEcho', 'uGlitch', 'uGlitchSeed',
   'uSplit', 'uCollapse', 'uDissolve', 'uSparkle', 'uGrade', 'uSil', 'uMisreg', 'uRim', 'uAlpha', 'uPx',
 ];
@@ -390,6 +410,8 @@ export class SpriteRenderer {
     gl.uniform1f(u.uMane, s.mane);
     gl.uniform1f(u.uArmL, s.armL);
     gl.uniform1f(u.uArmR, s.armR);
+    gl.uniform1f(u.uLongL, s.longL);
+    gl.uniform1f(u.uLongR, s.longR);
     gl.uniform1f(u.uSit, s.sit);
     gl.uniform1f(u.uKickL, s.kickL);
     gl.uniform1f(u.uKickR, s.kickR);

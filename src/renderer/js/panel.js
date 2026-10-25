@@ -3,6 +3,14 @@
 import { clamp, reducedMotion } from './util.js';
 
 const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
+
+// her face in the panel changes with what she's saying (frames of her from the show)
+const PORTRAITS = {
+  alert: '../../assets/capri/portrait-alert.png', // all her eyes on you
+  done: '../../assets/capri/portrait-done.png',
+  error: '../../assets/capri/portrait-error.png',
+  default: '../../assets/capri/capri-face.png',
+};
 const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, alert: 4 };
 const DECODE_STEP_MS = 28;
 
@@ -12,6 +20,7 @@ export class Panel {
     this.tickerEl = ticker;
     this.labels = labels;
     this.line = panel.querySelector('.panel__line');
+    this.portrait = panel.querySelector('.panel__face img');
     this.quote = panel.querySelector('.panel__quote');
     this.summary = panel.querySelector('.panel__summary');
     this.log = panel.querySelector('.panel__log');
@@ -48,6 +57,8 @@ export class Panel {
     clearTimeout(this.hideTimer);
 
     this.el.dataset.kind = msg.kind;
+    const face = PORTRAITS[msg.kind] || PORTRAITS.default;
+    if (this.portrait.getAttribute('src') !== face) this.portrait.setAttribute('src', face);
     this.tag.textContent = msg.tag || '';
     this.state.textContent = this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';

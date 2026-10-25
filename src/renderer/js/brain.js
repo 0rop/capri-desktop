@@ -4,6 +4,7 @@ import { LINES } from './lines.js';
 import { pick, fmt, duration, basename } from './util.js';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+const HACKING_TOOLS = new Set(['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Agent', 'Task']);
 const WORKING_EVERY = 20; // say something about progress every N tool calls
 
 export class Brain {
@@ -99,6 +100,7 @@ export class Brain {
     }
     if (this.capri.mode !== 'alert') this.capri.setMode('work');
     this.capri.pulse();
+    if (HACKING_TOOLS.has(evt.tool_name)) this.capri.spark(); // red sparks: she's in the system
     this.panel.setTicker(action);
     if (this.panel.current?.kind === 'work') this.panel.updateLog(s.log);
     if (s.count % WORKING_EVERY === 0) {

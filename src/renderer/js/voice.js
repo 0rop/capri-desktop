@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge'];
 
 export class Voice {
   constructor() {
@@ -85,6 +85,8 @@ export class Voice {
       star: () => this.star(),
       land: () => this.land(),
       rise: () => this.rise(),
+      bolt: () => this.bolt(opts.soft),
+      charge: () => this.charge(),
     }[cue];
     fn?.();
   }
@@ -158,6 +160,35 @@ export class Voice {
   tick() {
     const t = this.ctx.currentTime;
     this.noiseBurst(t, 0.03, 0.06, 3000, 9000, 8);
+  }
+
+  // red lightning: a buzz under a crackle of tiny bursts (soft: the small hacking sparks)
+  bolt(soft = false) {
+    const t = this.ctx.currentTime;
+    const k = soft ? 0.35 : 1;
+    const o = this.osc('sawtooth', 62, t, 0.3 * k + 0.05, 0.08 * k);
+    o.frequency.setValueAtTime(58, t + 0.05);
+    for (let i = 0; i < (soft ? 3 : 8); i++) {
+      this.noiseBurst(t + i * rand(0.02, 0.045), 0.025, 0.14 * k, rand(2500, 6000), rand(4000, 9000), 6);
+    }
+  }
+
+  // charging up before the red light goes up: a buzz swelling and climbing, crackling more and more
+  charge() {
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(55, t);
+    o.frequency.exponentialRampToValueAtTime(240, t + 0.6);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.07, t + 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.66);
+    o.connect(g).connect(this.master);
+    o.start(t);
+    o.stop(t + 0.7);
+    for (let i = 0; i < 6; i++) this.noiseBurst(t + 0.08 + i * 0.09, 0.02, 0.04 + i * 0.016, 3000, 7000, 6);
   }
 
   // the launch into the victory pose: a quick upward whoosh

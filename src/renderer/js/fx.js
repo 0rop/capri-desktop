@@ -1,6 +1,8 @@
-// Full-screen effect layer: shards, light beams, the zigzag streak between two
-// teleport points, the data glyphs Capri sheds while Claude works, mane shards drifting
-// off, the satellite she stares at, and the cut-in of her grin.
+// Full-screen effect layer: shards, light beams, the zigzag streak between two teleport
+// points, the void she collapses into and the swirl she comes back from, data glyphs,
+// mane shards drifting off, the stars rising out of her mane, the satellite and the red light
+// she sends up to it, red lightning, speed lines, shockwaves, and the cut-ins (real frames of
+// her from the show).
 // Drawn on whole frames (24 fps) and only while something is alive.
 
 import { rand, pick } from './util.js';
@@ -17,15 +19,16 @@ const COLORS = {
 const SHARD_PALETTE = ['red', 'red', 'red', 'red', 'ink', 'ink', 'green', 'green', 'violet', 'paper'];
 const GLYPHS = ['01', '10', '▚', '▞', '◢', '◣', '>_', '{}', '#', '⌁', '//', '0x'];
 const FRAME_MS = 1000 / 24;
+const CUTIN = { w: 360, h: 240 }; // assets/capri/cutin-*.png
 
-// eyes and grin, inside capri-face.png (256x256)
-const GRIN = { x: 20, y: 58, w: 216, h: 150 };
+const lerp = (a, b, t) => a + (b - a) * t;
+const onTwos = (ms) => Math.floor(ms / (FRAME_MS * 2)) * FRAME_MS * 2;
 
 export class FxLayer {
-  constructor(canvas, { face = null } = {}) {
+  constructor(canvas, { cutins = {} } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.face = face;
+    this.cutins = cutins;
     this.items = [];
     this.running = false;
     this.last = 0;
@@ -47,7 +50,10 @@ export class FxLayer {
       this.running = true;
       requestAnimationFrame((t) => this.frame(t));
     }
+    return item;
   }
+
+  // ---------- shards and light ----------
 
   // Shards thrown out (or sucked in) around a point.
   burst(x, y, { count = 22, power = 1, inward = false, spread = 70 } = {}) {
@@ -73,9 +79,9 @@ export class FxLayer {
     }
   }
 
-  // Vertical pillar of light, from the feet up to the top of the screen (or reversed).
+  // Vertical pillar of light, from the top of the screen down to `bottom` (shrinking or landing).
   beam(x, bottom, { down = false, life = 200, width = 30 } = {}) {
-    this.add({ type: 'beam', life, x, bottom, down, width, seed: Math.random() * 1000 });
+    this.add({ type: 'beam', life, x, bottom, down, width });
   }
 
   // Jagged line between two points, a frame or two long. It tells the eye where she went.
@@ -108,6 +114,40 @@ export class FxLayer {
     }
   }
 
+  // The void she collapses into, like in the show: a black slit with her as a red line inside.
+  slit(x, top, bottom, { width = 60, life = 210 } = {}) {
+    this.add({ type: 'slit', life, x, top, bottom, width });
+  }
+
+  // How she comes back in the show: her pieces spiralling in, mane shards and green eye-stars.
+  vortex(x, y, { radius = 170, life = 360, count = 18 } = {}) {
+    const ps = Array.from({ length: count }, (_, i) => ({
+      a: (i / count) * Math.PI * 2 + rand(-0.25, 0.25),
+      r: rand(0.65, 1.1),
+      eye: i % 4 === 0,
+      color: COLORS[pick(['red', 'red', 'red', 'ink', 'violet'])],
+      len: rand(14, 34),
+      wid: rand(4, 9),
+    }));
+    this.add({ type: 'vortex', life, x, y, radius, ps });
+  }
+
+  // Manga concentration lines closing in on a point, redrawn every other frame.
+  lines(x, y, { inner = 140, life = 480 } = {}) {
+    this.add({ type: 'lines', life, x, y, inner });
+  }
+
+  // A hard-edged shockwave.
+  ring(x, y, { size = 1 } = {}) {
+    this.add({ type: 'ring', life: 280, x, y, size });
+  }
+
+  // Red lightning, her hacking power: a jagged bolt with forks, re-struck every frame.
+  // `to` can be a function of time, for a moving target.
+  bolt(from, to, { life = 380, forks = 2, width = 3 } = {}) {
+    this.add({ type: 'bolt', life, from, to, forks, width });
+  }
+
   glyph(x, y) {
     this.add({ type: 'glyph', life: rand(900, 1400), x: x + rand(-40, 40), y, text: pick(GLYPHS), drift: rand(-12, 12) });
   }
@@ -129,40 +169,101 @@ export class FxLayer {
     });
   }
 
-  // The satellite: a star that blinks into view and twinkles until told to flare or go out.
-  star(x, y) {
-    const item = { type: 'star', life: 30000, x, y, flareAt: 0, fadeAt: 0 };
-    this.add(item);
+  // ---------- the satellite ----------
+
+  // The white specks of her mane lifting off as a sky of her own, linked up like a
+  // constellation (all the minds in her). Handle:
+  //   align(ends)  they line up into a road between the two points ends() returns
+  //   light(ms)    they flare one after the other, from her end up, over ms
+  //   dim()        back to plain specks
+  //   home(dx, dy) they fly back into her mane (shifted by how far she moved since)
+  motes(sources, { lift = 220, spread = 300 } = {}) {
+    const ps = sources.map((s) => ({
+      x0: s.x, y0: s.y,
+      x1: s.x + rand(-spread, spread) * 0.5,
+      y1: s.y - rand(lift * 0.45, lift * 1.3),
+      size: rand(2, 4),
+      phase: rand(0, 6),
+      delay: rand(0, 500),
+      u: 0,
+      off: rand(-7, 7),
+    }));
+    // each star linked to its nearest neighbour in the sky
+    const links = [];
+    ps.forEach((p, i) => {
+      let best = -1, d = Infinity;
+      ps.forEach((q, j) => {
+        const dd = Math.hypot(q.x1 - p.x1, q.y1 - p.y1);
+        if (j !== i && dd < d) [best, d] = [j, dd];
+      });
+      if (best >= 0 && !links.some(([a, b]) => a === best && b === i)) links.push([i, best]);
+    });
+    const item = this.add({
+      type: 'motes', life: 60000, ps, links,
+      ends: null, alignAt: 0, litAt: 0, litMs: 0, dimAt: 0, homeAt: 0, shift: [0, 0],
+    });
     return {
-      flare: () => { item.flareAt = performance.now(); },
+      align: (ends) => {
+        const [a, b] = ends();
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        // whoever is closest to her end goes first, so the stars don't cross each other's paths
+        const along = (p) => ((p.x1 - a.x) * (b.x - a.x) + (p.y1 - a.y) * (b.y - a.y)) / len;
+        [...ps].sort((p, q) => along(p) - along(q)).forEach((p, i) => { p.u = 0.1 + (0.82 * i) / Math.max(1, ps.length - 1); });
+        item.ends = ends;
+        item.alignAt = performance.now();
+      },
+      light: (ms = 125) => { item.litAt = performance.now(); item.litMs = ms; },
+      dim: () => { item.dimAt ||= performance.now(); },
+      home: (dx = 0, dy = 0) => {
+        if (item.homeAt) return;
+        item.homeAt = performance.now();
+        item.shift = [dx, dy];
+      },
+    };
+  }
+
+  // A satellite crossing the sky, slowly: it blinks into view, then glints on threes, with a
+  // short trail. Handle: pos(now), twinkle(size) (a big four-point flare, it answers her), fade().
+  satellite(from, to, { duration = 9000 } = {}) {
+    const item = this.add({ type: 'satellite', life: 60000, from, to, duration, flare: null, fadeAt: 0 });
+    const pos = (now = performance.now()) => {
+      const k = Math.min(1, Math.max(0, (now - item.born) / duration));
+      return { x: lerp(from.x, to.x, k), y: lerp(from.y, to.y, k) };
+    };
+    item.pos = pos;
+    return {
+      pos,
+      twinkle: (size = 1) => { item.flare = { at: performance.now(), size }; },
       fade: () => { item.fadeAt ||= performance.now(); },
     };
   }
 
-  // A dashed line of data from her fingertips to the star, drawn out over a few frames,
-  // dashes crawling toward it, little packets riding along.
-  link(from, to) {
-    const item = { type: 'link', life: 30000, x1: from.x, y1: from.y, x2: to.x, y2: to.y, fadeAt: 0 };
-    this.add(item);
-    return { fade: () => { item.fadeAt ||= performance.now(); } };
+  // The red light going up: a heavy bolt from her hand to the satellite (ends() returns both).
+  // Its head races up in three drawings, the first one in negative (an impact frame), then it
+  // holds, struck fresh on every drawing with light running up it, until break(): it snaps and
+  // the pieces fall. onHit runs when it reaches the top.
+  surge(ends, { onHit = null } = {}) {
+    const item = this.add({ type: 'surge', life: 60000, ends, onHit, pts: null, breakAt: 0, pieces: null });
+    return { break: () => { item.breakAt ||= performance.now(); } };
   }
 
-  // Manga concentration lines closing in on a point, redrawn every other frame.
-  lines(x, y, { inner = 140, life = 480 } = {}) {
-    this.add({ type: 'lines', life, x, y, inner });
+  // Little red sparks crawling out of a point (her hand charging up), wider as it goes.
+  // `at` can be a function, for a moving point.
+  crackle(at, { life = 700, radius = 46, count = 3 } = {}) {
+    this.add({ type: 'crackle', life, at, radius, count });
   }
 
-  // A hard-edged shockwave.
-  ring(x, y, { size = 1 } = {}) {
-    this.add({ type: 'ring', life: 280, x, y, size });
+  // ---------- cut-ins ----------
+
+  // Anime cut-in: a slanted band with a close-up of her (a real frame from the show),
+  // pushed in, speed lines behind. Kinds: grin, laugh, eyes, many, look. Resolves when gone.
+  cutin(x, y, dir = 1, { kind = 'grin', life = 760 } = {}) {
+    const image = this.cutins[kind] || this.cutins.grin;
+    if (!image) return Promise.resolve();
+    return new Promise((done) => this.add({ type: 'cutin', life, x, y, dir, image, done }));
   }
 
-  // Anime cut-in: a slanted band with her grin, pushed in, speed lines behind.
-  // Resolves when it's gone.
-  cutin(x, y, dir = 1, { life = 760 } = {}) {
-    if (!this.face) return Promise.resolve();
-    return new Promise((done) => this.add({ type: 'cutin', life, x, y, dir, done }));
-  }
+  // ---------- loop ----------
 
   frame(now) {
     if (now - this.last < FRAME_MS - 2) {
@@ -201,6 +302,111 @@ export class FxLayer {
     return 1 - Math.floor(k * 4) / 4;
   }
 
+  // A shard shape centred on the origin, with its violet copy.
+  shard(len, wid, color) {
+    const { ctx } = this;
+    const shape = (dx, dy) => {
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.5 + dx, dy);
+      ctx.lineTo(dx, -wid * 0.5 + dy);
+      ctx.lineTo(len * 0.5 + dx, wid * 0.15 + dy);
+      ctx.lineTo(-len * 0.1 + dx, wid * 0.5 + dy);
+      ctx.closePath();
+    };
+    shape(-2, 2);
+    ctx.fillStyle = COLORS.violet;
+    ctx.fill();
+    shape(0, 0);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // A four-point star (her eyes look like these when she comes apart), with its violet copy.
+  sparkle(x, y, s, fill, core = null) {
+    const { ctx } = this;
+    const path = (dx, dy, k) => {
+      const r = s * k, w = r * 0.24;
+      ctx.beginPath();
+      ctx.moveTo(x + dx, y - r + dy);
+      ctx.lineTo(x + w + dx, y - w + dy);
+      ctx.lineTo(x + r + dx, y + dy);
+      ctx.lineTo(x + w + dx, y + w + dy);
+      ctx.lineTo(x + dx, y + r + dy);
+      ctx.lineTo(x - w + dx, y + w + dy);
+      ctx.lineTo(x - r + dx, y + dy);
+      ctx.lineTo(x - w + dx, y - w + dy);
+      ctx.closePath();
+    };
+    path(-2, 2, 1);
+    ctx.fillStyle = COLORS.violet;
+    ctx.fill();
+    path(0, 0, 1);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (core) {
+      path(0, 0, 0.36);
+      ctx.fillStyle = core;
+      ctx.fill();
+    }
+  }
+
+  // A jagged polyline from a to b, rolled fresh each call. `zig` makes it swing from side to
+  // side (mostly) with uneven steps, like drawn lightning, instead of wandering.
+  jag(a, b, jitter, zig = false) {
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+    const n = Math.max(5, Math.round(len / (zig ? 34 : 26)));
+    let side = Math.random() < 0.5 ? 1 : -1;
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      let t = i / n, off = 0;
+      if (i > 0 && i < n) {
+        if (zig) {
+          t += rand(-0.3, 0.3) / n;
+          if (Math.random() < 0.8) side = -side;
+          off = side * rand(0.2, 1) * jitter;
+        } else {
+          off = rand(-1, 1) * jitter;
+        }
+      }
+      pts.push([lerp(a.x, b.x, t) + nx * off, lerp(a.y, b.y, t) + ny * off]);
+    }
+    return pts;
+  }
+
+  // A polyline thickened into a flat shape, w0 wide at its start tapering to w1 at its end.
+  ribbon(pts, w0, w1, dx = 0, dy = 0) {
+    const { ctx } = this;
+    const left = [], right = [];
+    pts.forEach(([x, y], i) => {
+      const [ax, ay] = pts[Math.max(0, i - 1)], [bx, by] = pts[Math.min(pts.length - 1, i + 1)];
+      const l = Math.hypot(bx - ax, by - ay) || 1;
+      const w = lerp(w0, w1, i / (pts.length - 1)) / 2;
+      const nx = (-(by - ay) / l) * w, ny = ((bx - ax) / l) * w;
+      left.push([x + nx + dx, y + ny + dy]);
+      right.push([x - nx + dx, y - ny + dy]);
+    });
+    ctx.beginPath();
+    [...left, ...right.reverse()].forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+  }
+
+  // The point a fraction u of the way along a polyline (by index, close enough for a bolt).
+  along(pts, u) {
+    const f = Math.min(pts.length - 1.001, Math.max(0, u * (pts.length - 1)));
+    const i = Math.floor(f), k = f - i;
+    return { x: lerp(pts[i][0], pts[i + 1][0], k), y: lerp(pts[i][1], pts[i + 1][1], k) };
+  }
+
+  stroke(pts, color, width, dx = 0, dy = 0) {
+    const { ctx } = this;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x + dx, y + dy) : ctx.moveTo(x + dx, y + dy)));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+  }
+
   draw(it, t, dt, now) {
     const { ctx } = this;
     switch (it.type) {
@@ -211,26 +417,10 @@ export class FxLayer {
         it.vy *= 0.86;
         it.rot += it.vr * dt;
         const k = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
-        const l = it.len * k, w = it.wid * k;
-        const shape = () => {
-          ctx.beginPath();
-          ctx.moveTo(-l * 0.5, 0);
-          ctx.lineTo(0, -w * 0.5);
-          ctx.lineTo(l * 0.5, w * 0.15);
-          ctx.lineTo(-l * 0.1, w * 0.5);
-          ctx.closePath();
-        };
         ctx.save();
         ctx.translate(it.x, it.y);
         ctx.rotate(it.rot);
-        ctx.translate(-2, 2);
-        shape();
-        ctx.fillStyle = COLORS.violet;
-        ctx.fill();
-        ctx.translate(2, -2);
-        shape();
-        ctx.fillStyle = it.color;
-        ctx.fill();
+        this.shard(it.len * k, it.wid * k, it.color);
         ctx.restore();
         break;
       }
@@ -266,22 +456,10 @@ export class FxLayer {
       case 'streak': {
         ctx.save();
         ctx.lineJoin = 'miter';
-        const path = (dx, dy) => {
-          ctx.beginPath();
-          it.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x + dx, y + dy) : ctx.moveTo(x + dx, y + dy)));
-        };
         ctx.globalAlpha = 1 - t * 0.6;
-        path(-3, 3);
-        ctx.strokeStyle = COLORS.violet;
-        ctx.lineWidth = 5;
-        ctx.stroke();
-        path(0, 0);
-        ctx.strokeStyle = COLORS.red;
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        ctx.strokeStyle = COLORS.paper;
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+        this.stroke(it.pts, COLORS.violet, 5, -3, 3);
+        this.stroke(it.pts, COLORS.red, 4);
+        this.stroke(it.pts, COLORS.paper, 1.2);
         ctx.restore();
         break;
       }
@@ -292,103 +470,284 @@ export class FxLayer {
         ctx.globalAlpha = 1;
         break;
       }
+      case 'slit': {
+        const k = Math.floor(t * 5) / 5; // closes in five drawings
+        const w = Math.max(3, it.width * (1 - k));
+        const h = it.bottom - it.top;
+        ctx.fillStyle = COLORS.violet;
+        ctx.fillRect(it.x - w / 2 - 3, it.top, w + 6, h);
+        ctx.fillStyle = COLORS.ink;
+        ctx.fillRect(it.x - w / 2, it.top, w, h);
+        ctx.fillStyle = COLORS.red;
+        ctx.fillRect(it.x - 1, it.top + h * 0.08, 2, h * 0.84);
+        break;
+      }
+      case 'vortex': {
+        const k = Math.floor(t * 8) / 8; // eight drawings
+        for (const p of it.ps) {
+          const ang = p.a + k * 4.2;
+          const rr = it.radius * p.r * (1 - k);
+          const px = it.x + Math.cos(ang) * rr, py = it.y + Math.sin(ang) * rr * 0.85;
+          if (p.eye) {
+            this.sparkle(px, py, 11 * (1 - k) + 3, COLORS.green, COLORS.ink);
+          } else {
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(ang + Math.PI / 2);
+            this.shard(p.len * (1 - k * 0.6), p.wid * (1 - k * 0.5), p.color);
+            ctx.restore();
+          }
+        }
+        break;
+      }
       case 'drift': {
         // moved on twos, like the body it came from
         const age = Math.floor((t * it.life) / 1000 * 12) / 12;
-        const x = it.x + it.vx * age;
-        const y = it.y + it.vy * age;
         const k = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
-        const l = it.len * (0.6 + 0.4 * k), w = it.wid * k;
         ctx.save();
-        ctx.translate(Math.round(x), Math.round(y));
+        ctx.translate(Math.round(it.x + it.vx * age), Math.round(it.y + it.vy * age));
         ctx.rotate(it.rot + it.vr * age);
-        for (const [dx, color] of [[-2, COLORS.violet], [0, it.color]]) {
-          ctx.beginPath();
-          ctx.moveTo(-l * 0.5 + dx, -dx);
-          ctx.lineTo(dx, -w * 0.5 - dx);
-          ctx.lineTo(l * 0.5 + dx, -dx);
-          ctx.lineTo(dx, w * 0.5 - dx);
-          ctx.closePath();
-          ctx.fillStyle = color;
-          ctx.fill();
+        this.shard(it.len * (0.6 + 0.4 * k), it.wid * k, it.color);
+        ctx.restore();
+        break;
+      }
+      case 'motes': {
+        const age = now - it.born;
+        const frame = Math.floor(age / FRAME_MS);
+        const step = (since, ms) => Math.min(1, Math.max(0, onTwos(since) / ms)); // 0..1, on twos
+        const road = it.ends?.();
+        let nx = 0, ny = 0;
+        if (road) {
+          const [a, b] = road;
+          const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+          nx = -(b.y - a.y) / l;
+          ny = (b.x - a.x) / l;
+        }
+        const pos = it.ps.map((p) => {
+          // up off her mane with a slow-in, then swaying
+          const e = 1 - Math.pow(1 - step(age - p.delay, 1100), 3);
+          let x = lerp(p.x0, p.x1, e) + Math.sin(onTwos(age) / 650 + p.phase) * 4 * e;
+          let y = lerp(p.y0, p.y1, e);
+          if (road) {
+            // into line, the ones nearest her first
+            const u = step(now - it.alignAt - p.u * 300, 450);
+            const k = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+            const [a, b] = road;
+            x = lerp(x, lerp(a.x, b.x, p.u) + nx * p.off, k);
+            y = lerp(y, lerp(a.y, b.y, p.u) + ny * p.off, k);
+          }
+          if (it.homeAt) {
+            const k = step(now - it.homeAt - p.u * 160, 330);
+            x = lerp(x, p.x0 + it.shift[0], k * k);
+            y = lerp(y, p.y0 + it.shift[1], k * k);
+          }
+          return { x, y };
+        });
+        if (it.homeAt && now - it.homeAt > 160 + 330 + FRAME_MS * 2) {
+          it.life = 0;
+          break;
+        }
+        ctx.save();
+        // the constellation, a line at a time once they're up, gone when they line up
+        if (!it.alignAt || now - it.alignAt < 160) {
+          ctx.strokeStyle = COLORS.violet;
+          ctx.lineWidth = 1;
+          it.links.forEach(([i, j], n) => {
+            if (onTwos(age) < 900 + n * 60) return;
+            ctx.beginPath();
+            ctx.moveTo(Math.round(pos[i].x) + 0.5, Math.round(pos[i].y) + 0.5);
+            ctx.lineTo(Math.round(pos[j].x) + 0.5, Math.round(pos[j].y) + 0.5);
+            ctx.stroke();
+          });
+        }
+        it.ps.forEach((p, i) => {
+          const { x, y } = pos[i];
+          let s = (frame + Math.round(p.phase * 3)) % 6 < 3 ? p.size : p.size * 0.6;
+          // the light going up lights them as it passes, and they stay bright while it holds
+          if (it.litAt && !it.homeAt && !(it.dimAt && now > it.dimAt)) {
+            const since = now - it.litAt - p.u * it.litMs;
+            if (since >= 0) s = since < FRAME_MS * 2 ? p.size * 3 : p.size * (frame % 2 ? 1.8 : 1.5);
+          }
+          ctx.fillStyle = COLORS.violet;
+          ctx.fillRect(Math.round(x - s / 2) - 1, Math.round(y - s / 2) + 1, s, s);
+          ctx.fillStyle = COLORS.paper;
+          ctx.fillRect(Math.round(x - s / 2), Math.round(y - s / 2), s, s);
+          if (s > 3) {
+            ctx.fillRect(Math.round(x - s), Math.round(y) - 0.5, s * 2, 1);
+            ctx.fillRect(Math.round(x) - 0.5, Math.round(y - s), 1, s * 2);
+          }
+        });
+        // her fingertip, where the road starts, glinting on threes
+        if (road && !it.homeAt) {
+          this.sparkle(road[0].x, road[0].y, [6, 9, 5, 10][Math.floor(frame / 3) % 4], COLORS.paper, COLORS.red);
         }
         ctx.restore();
         break;
       }
-      case 'star': {
+      case 'satellite': {
+        const fade = this.fadeStep(it, now, 500);
+        if (!fade) break;
         const age = now - it.born;
         const frame = Math.floor(age / FRAME_MS);
-        const sinceFlare = it.flareAt ? now - it.flareAt : Infinity;
-        let size;
-        if (age < 90) size = 24;                                // blink into view
-        else if (sinceFlare < 125) size = 36;                   // the flare, three drawings
-        else if (sinceFlare < 210) size = 20;
-        else size = [9, 12, 8, 13][Math.floor(frame / 3) % 4];  // twinkle, on threes
-        const fade = this.fadeStep(it, now, 420);
-        if (!fade) break;
-        if (sinceFlare < 210) {
-          // cross rays while it flares
-          ctx.save();
-          ctx.globalAlpha = fade;
-          ctx.fillStyle = COLORS.paper;
-          const ray = size * 2.4;
-          ctx.fillRect(it.x - ray, it.y - 1, ray * 2, 2);
-          ctx.fillRect(it.x - 1, it.y - ray, 2, ray * 2);
-          ctx.restore();
-        }
-        const spikes = (s, dx, dy) => {
-          const w = s * 0.22;
-          ctx.beginPath();
-          ctx.moveTo(it.x + dx, it.y - s + dy);
-          ctx.lineTo(it.x + w + dx, it.y - w + dy);
-          ctx.lineTo(it.x + s + dx, it.y + dy);
-          ctx.lineTo(it.x + w + dx, it.y + w + dy);
-          ctx.lineTo(it.x + dx, it.y + s + dy);
-          ctx.lineTo(it.x - w + dx, it.y + w + dy);
-          ctx.lineTo(it.x - s + dx, it.y + dy);
-          ctx.lineTo(it.x - w + dx, it.y - w + dy);
-          ctx.closePath();
+        const { x, y } = it.pos(now);
+        const rays = (ray, w) => {
+          for (const [dx, dy, color] of [[-2, 2, COLORS.violet], [0, 0, COLORS.paper]]) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x - ray + dx, y - w / 2 + dy, ray * 2, w);
+            ctx.fillRect(x - w / 2 + dx, y - ray + dy, w, ray * 2);
+          }
         };
         ctx.save();
         ctx.globalAlpha = fade;
-        spikes(size, -2, 2);
-        ctx.fillStyle = COLORS.violet;
-        ctx.fill();
-        spikes(size, 0, 0);
-        ctx.fillStyle = COLORS.paper;
-        ctx.fill();
-        spikes(size * 0.35, 0, 0);
-        ctx.fillStyle = COLORS.red;
-        ctx.fill();
+        // trail: where it was, a dot every few drawings back
+        for (let k = 1; k <= 5; k++) {
+          const p = it.pos(now - onTwos(k * 140));
+          ctx.fillStyle = k % 2 ? COLORS.violet : COLORS.paper;
+          const s = Math.max(1, 3.4 - k * 0.5);
+          ctx.fillRect(Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, s);
+        }
+        const since = it.flare ? now - it.flare.at : Infinity;
+        if (since < 460) {
+          // a big four-point flare with long rays, shrinking over seven drawings
+          const k = Math.floor(since / (FRAME_MS * 2));
+          const size = [44, 38, 32, 26, 20, 16, 13][Math.min(6, k)] * it.flare.size;
+          rays(size * 3, 2);
+          this.sparkle(x, y, size, COLORS.paper, COLORS.red);
+        } else {
+          // blinks in (a speck, a flash, settling), then glints on threes
+          const size = frame < 8 ? [2, 3, 20, 20, 14, 14, 11, 11][frame] : [8, 11, 7, 12][Math.floor(frame / 3) % 4];
+          if (size >= 14) rays(size * 2.4, 2);
+          this.sparkle(x, y, size, COLORS.paper);
+          ctx.fillStyle = COLORS.paper;
+          ctx.fillRect(Math.round(x) - 1.5, Math.round(y) - 1.5, 3, 3);
+        }
         ctx.restore();
         break;
       }
-      case 'link': {
-        const fade = this.fadeStep(it, now, 320);
-        if (!fade) break;
-        const age = now - it.born;
-        const grow = Math.min(1, (Math.floor(age / FRAME_MS) + 1) / 5);
-        const ex = it.x1 + (it.x2 - it.x1) * grow, ey = it.y1 + (it.y2 - it.y1) * grow;
-        const crawl = Math.floor(age / (FRAME_MS * 2)); // on twos
+      case 'surge': {
+        const [a, b] = it.ends();
         ctx.save();
-        ctx.globalAlpha = fade;
-        ctx.setLineDash([7, 6]);
-        ctx.lineDashOffset = -crawl * 4;
-        for (const [dx, color, width] of [[-2, COLORS.violet, 3], [0, COLORS.green, 1.6]]) {
-          ctx.beginPath();
-          ctx.moveTo(it.x1 + dx, it.y1 - dx);
-          ctx.lineTo(ex + dx, ey - dx);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = width;
-          ctx.stroke();
+        ctx.lineJoin = 'miter';
+        if (it.breakAt) {
+          // snapped: one white drawing, then the pieces fall, fading out in four steps
+          const pts = it.pts || [[a.x, a.y], [b.x, b.y]];
+          it.pieces ||= pts.slice(1).map((end, i) => ({
+            a: pts[i], b: end,
+            vx: rand(-50, 50), vy: rand(-80, 0), vr: rand(-4, 4),
+            w: lerp(22, 7, i / (pts.length - 1)),
+          }));
+          const since = now - it.breakAt;
+          const k = since / 620;
+          if (k >= 1) {
+            it.life = 0;
+            ctx.restore();
+            break;
+          }
+          if (since < FRAME_MS) this.stroke(pts, COLORS.paper, 7);
+          const tau = onTwos(since) / 1000;
+          ctx.globalAlpha = 1 - Math.floor(k * 4) / 4;
+          for (const pc of it.pieces) {
+            const mx = (pc.a[0] + pc.b[0]) / 2 + pc.vx * tau;
+            const my = (pc.a[1] + pc.b[1]) / 2 + pc.vy * tau + 450 * tau * tau;
+            const hx = ((pc.b[0] - pc.a[0]) / 2) * (1 - k * 0.4), hy = ((pc.b[1] - pc.a[1]) / 2) * (1 - k * 0.4);
+            const c = Math.cos(pc.vr * tau), s = Math.sin(pc.vr * tau);
+            const rx = hx * c - hy * s, ry = hx * s + hy * c;
+            const seg = [[mx - rx, my - ry], [mx + rx, my + ry]];
+            const w = pc.w * (1 - k * 0.5);
+            this.stroke(seg, COLORS.violet, w + 2, -2, 2);
+            this.stroke(seg, COLORS.red, w);
+            this.stroke(seg, COLORS.paper, Math.max(1, w * 0.2));
+          }
+          ctx.restore();
+          break;
         }
-        ctx.setLineDash([]);
-        ctx.fillStyle = COLORS.paper;
-        for (let i = 0; i < 3; i++) {
-          const u = (crawl * 0.07 + i / 3) % 1;
-          if (u > grow) continue;
-          const px = it.x1 + (it.x2 - it.x1) * u, py = it.y1 + (it.y2 - it.y1) * u;
-          ctx.fillRect(Math.round(px) - 2, Math.round(py) - 2, 4, 4);
+        const frame = Math.floor((now - it.born) / FRAME_MS);
+        const reach = [0.4, 0.74, 1][Math.min(2, frame)];
+        const end = { x: lerp(a.x, b.x, reach), y: lerp(a.y, b.y, reach) };
+        if (reach === 1 && it.onHit) {
+          const hit = it.onHit;
+          it.onHit = null;
+          hit();
+        }
+        const len = Math.hypot(end.x - a.x, end.y - a.y);
+        const pts = this.jag(a, end, Math.min(24, Math.max(10, len * 0.05)), true);
+        it.pts = pts;
+        if (frame === 0) {
+          // impact frame: the bolt in negative
+          this.ribbon(pts, 40, 22);
+          ctx.fillStyle = COLORS.ink;
+          ctx.fill();
+          this.ribbon(pts, 10, 4);
+          ctx.fillStyle = COLORS.paper;
+          ctx.fill();
+        } else {
+          const k = frame % 2 ? 1 : 0.75; // throbs on ones
+          this.ribbon(pts, 26 * k, 8 * k, -4, 4);
+          ctx.fillStyle = COLORS.violet;
+          ctx.fill();
+          this.ribbon(pts, 26 * k, 8 * k);
+          ctx.fillStyle = COLORS.red;
+          ctx.fill();
+          this.ribbon(pts, 8 * k, 2.5);
+          ctx.fillStyle = COLORS.paper;
+          ctx.fill();
+          for (let f = 0; f < 3; f++) {
+            const from = this.along(pts, rand(0.1, 0.9));
+            const ang = Math.atan2(b.y - a.y, b.x - a.x) + rand(-1.2, 1.2);
+            const l = rand(24, 70);
+            const fork = this.jag(from, { x: from.x + Math.cos(ang) * l, y: from.y + Math.sin(ang) * l }, 9, true);
+            this.stroke(fork, COLORS.violet, 4, -2, 2);
+            this.stroke(fork, COLORS.red, 3);
+            this.stroke(fork, COLORS.paper, 1);
+          }
+          // light running up it, toward the sky
+          if (reach === 1) {
+            for (let i = 0; i < 2; i++) {
+              const p = this.along(pts, ((frame - 2) * 0.11 + i * 0.5) % 1);
+              this.sparkle(p.x, p.y, 9, COLORS.paper, COLORS.red);
+            }
+          }
+        }
+        ctx.restore();
+        break;
+      }
+      case 'crackle': {
+        const frame = Math.floor((now - it.born) / FRAME_MS);
+        if (frame % 4 === 3) break;
+        const c = typeof it.at === 'function' ? it.at() : it.at;
+        const r = it.radius * (0.45 + t * 0.8);
+        ctx.save();
+        ctx.lineJoin = 'miter';
+        for (let i = 0; i < it.count; i++) {
+          const ang = rand(0, Math.PI * 2);
+          const from = { x: c.x + Math.cos(ang) * 4, y: c.y + Math.sin(ang) * 4 };
+          const to = { x: c.x + Math.cos(ang) * r * rand(0.5, 1), y: c.y + Math.sin(ang) * r * rand(0.5, 1) };
+          const pts = this.jag(from, to, 7, true);
+          this.stroke(pts, COLORS.violet, 3.5, -2, 2);
+          this.stroke(pts, COLORS.red, 2.5);
+          this.stroke(pts, COLORS.paper, 1);
+        }
+        ctx.restore();
+        break;
+      }
+      case 'bolt': {
+        const frame = Math.floor((now - it.born) / FRAME_MS);
+        if (frame % 3 === 2) break; // strobes
+        const b = typeof it.to === 'function' ? it.to(now) : it.to;
+        const len = Math.hypot(b.x - it.from.x, b.y - it.from.y);
+        const pts = this.jag(it.from, b, Math.min(22, Math.max(7, len * 0.06)), true);
+        ctx.save();
+        ctx.lineJoin = 'miter';
+        this.stroke(pts, COLORS.violet, it.width + 1, -1.5, 1.5);
+        this.stroke(pts, COLORS.red, it.width + 1);
+        this.stroke(pts, COLORS.paper, Math.max(0.8, it.width * 0.35));
+        for (let f = 0; f < it.forks; f++) {
+          const [fx, fy] = pts[1 + Math.floor(rand(0, pts.length - 2))];
+          const a = Math.atan2(b.y - it.from.y, b.x - it.from.x) + rand(-1.1, 1.1);
+          const l = rand(20, 55);
+          const fork = this.jag({ x: fx, y: fy }, { x: fx + Math.cos(a) * l, y: fy + Math.sin(a) * l }, 7);
+          this.stroke(fork, COLORS.red, Math.max(1, it.width * 0.6));
+          this.stroke(fork, COLORS.paper, 0.8);
         }
         ctx.restore();
         break;
@@ -463,11 +822,11 @@ export class FxLayer {
           ctx.fillStyle = i % 3 ? COLORS.red : COLORS.paper;
           ctx.fillRect(x0 + rand(-20, w), y0 + rand(0, h), rand(30, 110), rand(1, 3));
         }
-        // her grin, pushed in a little more every frame, shaking on ones
-        const zoom = (h * 1.08) / GRIN.h * (1 + t * 0.08);
-        const fw = GRIN.w * zoom, fh = GRIN.h * zoom;
+        // the close-up, pushed in a little more every frame, shaking on ones
+        const zoom = ((h * 1.1) / CUTIN.h) * (1 + t * 0.08);
+        const fw = CUTIN.w * zoom, fh = CUTIN.h * zoom;
         const cx = x0 + w / 2 + skew / 2 + rand(-2, 2), cy = y0 + h / 2 + rand(-2, 2);
-        ctx.drawImage(this.face, GRIN.x, GRIN.y, GRIN.w, GRIN.h, cx - fw / 2, cy - fh / 2, fw, fh);
+        ctx.drawImage(it.image, cx - fw / 2, cy - fh / 2, fw, fh);
         ctx.fillStyle = COLORS.red;
         ctx.fillRect(x0, y0, w + skew, 3);
         ctx.restore();
