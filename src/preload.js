@@ -25,4 +25,7 @@ contextBridge.exposeInMainWorld('host', {
   installHooks: () => ipcRenderer.invoke('hooks:install'),
   claudeFound: () => ipcRenderer.invoke('claude:found'),
   openClaudeHelp: () => ipcRenderer.send('claude:help'),
+  windowsNow: () => ipcRenderer.invoke('windows:get'),
+  trayPlace: () => ipcRenderer.invoke('guide:tray'),
+  openClaudeFolder: () => ipcRenderer.invoke('guide:claudeFolder'),
 });

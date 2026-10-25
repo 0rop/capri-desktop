@@ -66,6 +66,8 @@ export class Brain {
     if (s.waiting && name !== 'Notification') {
       s.waiting = false;
       this.panel.clearKind('alert');
+      if (s.pointedAt) this.capri.stopPointing(); // she was showing you Claude's window
+      s.pointedAt = false;
       if (this.capri.mode === 'alert') this.capri.setMode(s.working ? 'work' : 'idle');
     }
 
@@ -79,7 +81,7 @@ export class Brain {
       case 'StopFailure': return this.onStopFailure(evt, s);
       case 'SubagentStart': return this.onSubagent(evt, s, true);
       case 'SubagentStop': return this.onSubagent(evt, s, false);
-      case 'PreCompact': return this.say('info', pick(this.t.compact), s, { hold: 4000 });
+      case 'PreCompact': return this.say('info', pick(this.t.compact), s, { face: 'aside', hold: 4000 });
       case 'SessionEnd': return this.onSessionEnd(evt, s);
       default: return undefined;
     }
@@ -90,7 +92,7 @@ export class Brain {
     const lines = evt.source === 'resume' ? this.t.resume : this.t.hello;
     this.voice.play('hello');
     this.capri.perform('curious', this.capri.towardCenter());
-    this.say('info', fmt(pick(lines), { project: s.project }), s, { hold: 5000 });
+    this.say('info', fmt(pick(lines), { project: s.project }), s, { face: pick(['grin', 'look']), hold: 5000 });
   }
 
   onPrompt(evt, s) {
@@ -127,7 +129,7 @@ export class Brain {
     const action = { ...this.describe(evt), error: true };
     s.log.push(action);
     if (evt.is_interrupt) {
-      this.say('info', pick(this.t.interrupted), s, { hold: 4000 });
+      this.say('info', pick(this.t.interrupted), s, { face: 'wide', hold: 4000 });
       return;
     }
     // "Exit code 1" says nothing; the next line usually does
@@ -136,6 +138,7 @@ export class Brain {
     this.capri.hurt();
     this.voice.play('error');
     this.say('error', fmt(pick(this.t.error), { tool: evt.tool_name || 'outil' }), s, {
+      face: pick(['laugh', 'wide']), // a failure: she laughs at the chaos, or it caught her off guard
       log: [action, { verb: '✕', target: clip(firstLine, 70), error: true }],
       hold: 5500,
     });
@@ -147,6 +150,15 @@ export class Brain {
       s.waiting = true;
       this.capri.setMode('alert');
       this.voice.play('alert');
+      // you're on another window: she goes and points at Claude's, where the question is
+      const win = this.away(s) && this.capri.windows.wins.find((w) => w.id === s.window);
+      if (win && this.capri.canPoint(win)) {
+        const quote = [this.t.guide.permissionThere, evt.message].filter(Boolean).join('\n');
+        this.say('alert', pick(this.t.permission), s, { quote, hold: null });
+        s.pointedAt = await this.capri.pointAt(win, { label: this.t.guide.labels.claude });
+        if (!s.waiting && s.pointedAt) this.capri.stopPointing(); // answered while she was on her way
+        return;
+      }
       this.say('alert', pick(this.t.permission), s, { quote: evt.message || '', hold: null });
       const cursor = await this.host.cursor().catch(() => null);
       if (cursor?.inside) await this.capri.summon(cursor);
@@ -156,7 +168,7 @@ export class Brain {
     }
     if (type === 'idle_prompt') {
       this.voice.play('tick');
-      this.say('info', pick(this.t.waiting), s, { hold: 6000 });
+      this.say('info', pick(this.t.waiting), s, { face: 'smug', hold: 6000 });
       return;
     }
     if (evt.message) this.say('info', evt.message, s, { hold: 5000 });
@@ -225,7 +237,7 @@ export class Brain {
     this.capri.hurt();
     this.voice.play('error');
     const detail = evt.error || evt.message || '';
-    this.say('error', pick(this.t.crashed), s, { quote: clip(String(detail), 120), hold: 9000 });
+    this.say('error', pick(this.t.crashed), s, { face: 'wide', quote: clip(String(detail), 120), hold: 9000 });
   }
 
   onSubagent(evt, s, starting) {
@@ -242,14 +254,14 @@ export class Brain {
       this.panel.setTicker(null);
       this.capri.setMode('idle');
     }
-    this.say('info', fmt(pick(this.t.bye), { project: s.project }), s, { hold: 4000 });
+    this.say('info', fmt(pick(this.t.bye), { project: s.project }), s, { face: 'aside', hold: 4000 });
   }
 
   // What she says when you click her.
   status() {
     const busy = this.busySessions;
     if (!busy.length) {
-      this.say('idle', pick(this.t.idle), null, { hold: 4000 });
+      this.say('idle', pick(this.t.idle), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000 });
       return;
     }
     const s = busy.sort((a, b) => b.seen - a.seen)[0];

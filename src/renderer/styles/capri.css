@@ -225,6 +225,18 @@ body {
   68% { transform: none; }
 }
 
+/* her expression changing: three drawings, knocked sideways, squashed, back */
+.panel__face img.is-swapping {
+  animation: face-swap 170ms steps(1, end) 1;
+}
+
+@keyframes face-swap {
+  0% { transform: translateX(-6px) skewX(-10deg); opacity: 0.7; }
+  33% { transform: translateX(5px) scaleY(0.82); }
+  66% { transform: translateX(-2px); }
+  100% { transform: none; }
+}
+
 .panel__body {
   min-width: 0;
 }

@@ -17,6 +17,8 @@ comes to find you when Claude needs your permission, and loses it when the job i
   When Claude runs a command or goes on the web, red sparks fly off her fingers; sitting on a window,
   she jacks into it and the lightning runs along its edge.
 - **When Claude needs you** (permission, question): she teleports next to your mouse, mane bristling, and won't let it go.
+  If you're on another window, she goes to Claude's window instead and points at it with her finger (a dashed line,
+  brackets on its corners, `CLAUDE` on a tag): that's where the question is. She stops once you've answered.
 - **When a command fails**: red impact frame, she gets knocked back, heavy glitch, and the error line that actually matters.
 - **When it's done**: she teleports to the middle of the screen and goes into her victory sequence:
   a wind-up with her mane pulled in, a stretched smear frame, then arms flung up and mane exploding under
@@ -69,6 +71,25 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 Window tracking is Windows-only for now (a tiny PowerShell helper reads window positions, no titles, no contents).
 On macOS and Linux she still floats, peeks, falls and wanders.
+
+### She shows you around
+
+**How does it work?** in her menu: she asks what to show you, then takes you there and points at it with her finger
+(a dashed line from her fingertip, brackets blinking on its corners, a tag) while she explains.
+
+- **Where's my icon?** She goes down by the clock and points at her tray icon, or at the **^** when Windows hides it.
+- **Where's Claude?** She points at Claude's window: the one you typed your last prompt in.
+- **Claude's folder**: she opens `~/.claude` in Explorer with `settings.json` selected, points at the window, and
+  explains what her hook in there is and how to take it out.
+- **Plug me into Claude**: her hooks in one click. It's also her welcome the first time she starts.
+
+She pulls faces while she talks: eight expressions, all frames of her from the show (watching, turned away, the fang
+grin, eyes gone round, looking right at you, laughing with her mouth wide open, all her eyes at once, the zigzag grin).
+Each message picks the one that fits, and her portrait glitches from one face to the next.
+
+![Pointing at Claude's window during a permission prompt, and at her tray icon](docs/guide.png)
+
+![Her eight faces](docs/faces.png)
 
 She only catches the mouse on her actual body (pixel-precise): the rest of the screen works as usual.
 
@@ -251,7 +272,7 @@ If Windows is set to "Show animations: off", she sticks to fades.
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
 tools/build-sprite.py    rebuilds the sprite from the original cut-out (Python + Pillow, only if you change it)
-tools/build-cutins.py    cuts the cut-ins and the panel portraits out of frames of the show
+tools/build-cutins.py    cuts the cut-ins and her faces out of frames of the show
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
   windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
 src/renderer/js/
@@ -259,9 +280,10 @@ src/renderer/js/
   acting.js              the exposure sheets: every move, drawing by drawing
   capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
   fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, possessed windows, the cut-ins
-  panel.js               the "transmission" panel and the ticker
+  panel.js               the "transmission" panel, her faces, and the ticker
+  guide.js               her guide: the tutorials, going to things and pointing at them
   brain.js               turns Claude events into lines and actions
-  lines.js               what she says (FR / EN)
+  lines.js               what she says (FR / EN / ES / PT / RU)
   chip.js                her mask: while she sleeps, and bottom left when you put her away
   voice.js               the sounds
 ```

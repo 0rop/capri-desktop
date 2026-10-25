@@ -4,6 +4,7 @@ import { Chip, Mask } from './chip.js';
 import { Panel } from './panel.js';
 import { Voice } from './voice.js';
 import { Brain } from './brain.js';
+import { Guide } from './guide.js';
 import { LINES } from './lines.js';
 import { pick, fmt } from './util.js';
 
@@ -121,7 +122,8 @@ async function boot() {
 
   // wiring
   capri.onMove = (head) => {
-    panel.setAnchor(head, capri.view);
+    // pointing at something: the panel goes on her other side, so it doesn't cover it
+    panel.setAnchor({ ...head, lean: capri.pointing ? -capri.pointing.dir : 0 }, capri.view);
     // she may have moved out from under a still pointer: never leave a dead click zone behind
     refreshHit();
   };
@@ -157,51 +159,9 @@ async function boot() {
   panel.onTalk = (talking) => talking && capri.perform('talk');
   capri.onMenu = () => host.openMenu();
 
-  // Her welcome: who she is, and plugging her into Claude Code in one click (first launch, and
-  // "How does it work?" in her menu). The questions people ask most: how do I use it, where's the
-  // tray icon, how do I know it worked.
-  async function welcome() {
-    const t = brain.t.welcome;
-    const guide = (msg) => panel.say({ kind: 'info', guide: true, hold: null, ...msg });
-    const [hooks, found] = await Promise.all([host.hooksStatus(), host.claudeFound()]);
-    if (hooks.installed) {
-      guide({ line: t.ready, quote: t.readyHow, hold: 15000, actions: [{ id: 'ok', label: t.ok, primary: true }] });
-    } else if (found) {
-      guide({
-        line: t.hi,
-        quote: `${t.about}
-${t.connect}
-${t.menu}`,
-        actions: [{ id: 'connect', label: t.connectBtn, primary: true }, { id: 'later', label: t.later }],
-      });
-    } else {
-      guide({
-        line: t.hi,
-        quote: `${t.noClaude}
-${t.menu}`,
-        actions: [{ id: 'claude', label: t.whatClaude, primary: true }, { id: 'later', label: t.justHang }],
-      });
-    }
-  }
-  panel.onAction = async (id) => {
-    const t = brain.t.welcome;
-    host.setConfig({ welcomed: true });
-    if (id === 'connect') {
-      const result = await host.installHooks();
-      if (result.ok) {
-        voice.play('hello');
-        capri.perform('hop');
-        panel.say({ kind: 'done', guide: true, hold: null, line: t.connected, quote: t.restart, actions: [{ id: 'ok', label: t.ok }] });
-      } else {
-        panel.say({ kind: 'error', hold: 9000, line: fmt(t.failed, { error: result.error }) });
-      }
-    } else if (id === 'claude') {
-      host.openClaudeHelp();
-      panel.say({ kind: 'info', guide: true, hold: null, line: t.hi, quote: t.afterInstall, actions: [{ id: 'ok', label: t.ok }] });
-    } else {
-      panel.hide();
-    }
-  };
+  // Her guide (guide.js): her welcome on first launch, and "How does it work?" in her menu,
+  // where she takes you to things and points at them.
+  const guide = new Guide({ capri, panel, voice, host, brain });
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
   brain.onLinked = () => {
@@ -290,6 +250,8 @@ ${t.menu}`,
     capri.setWindows(data);
     brain.onWindows(data);
   });
+  // the windows as they are now: the watcher only speaks again when something changes
+  host.windowsNow().then((data) => data && capri.setWindows(data));
 
   host.onResize(({ width, height }) => {
     fx.resize(width, height);
@@ -324,7 +286,20 @@ ${t.menu}`,
         brain.status();
         break;
       case 'welcome': // "How does it work?" in her menu
-        welcome();
+        guide.menu();
+        break;
+      case 'fakeClaude': { // --dev: the topmost window (the test window) is where a prompt was typed, and you're elsewhere
+        const win = capri.windows.wins[0];
+        if (win) {
+          brain.sessions.set('dev', { id: 'dev', project: 'dev', taskStart: Date.now(), count: 0, files: new Set(), log: [], working: true, waiting: false, window: win.id, seen: Date.now() });
+          capri.windows = { ...capri.windows, fg: -1 };
+        }
+        break;
+      }
+      case 'guide': // --dev: one topic of her guide (welcome, menu, connect, icon, claude, folder)
+        if (cmd.topic === 'welcome') guide.welcome();
+        else if (cmd.topic === 'menu') guide.menu();
+        else if (typeof guide[cmd.topic] === 'function') guide.scene(() => guide[cmd.topic]());
         break;
       case 'stow': // Ctrl+Alt+C: into her biochip, or back out
         if (cmd.on) capri.stow();
@@ -388,7 +363,7 @@ ${t.menu}`,
   if (config.visible === false) capri.stowNow();
   else await capri.materialize(capri.spot('post'));
   const hooks = await host.hooksStatus();
-  if (!config.welcomed || !hooks.installed) welcome();
+  if (!config.welcomed || !hooks.installed) guide.welcome();
   else panel.say({ kind: 'info', line: pick(brain.t.online), hold: 4000 });
 }
 

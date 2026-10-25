@@ -229,6 +229,36 @@ export const ACTS = {
     ],
   },
 
+  // Showing you something: a look at it first, the arm drawn back, then snapped out at it with
+  // a smear and stretched long. The pointer (dashed line, brackets) comes in on that drawing.
+  point: {
+    priority: 2,
+    fps: 24,
+    directional: true,
+    keys: [
+      [3, { reach: 0.05, long: 0.92, head: 0.1, mane: 0.06 }],
+      [2, { reach: -0.1, long: 0.88, head: 0.14, mane: 0.1, bob: 1 }],
+      [1, { reach: 0.85, long: 1.5, head: 0.16, mane: 0.26, smear: [-10, 0] }, 'aim'],
+      [3, { reach: 1.03, long: 1.48, head: 0.17, mane: 0.22 }],
+      [2, { reach: 1, long: 1.4, head: 0.16, mane: 0.16 }],
+    ],
+  },
+
+  // ...and held while she explains: still, with a little jab at it every now and then,
+  // like she's tapping the screen. A stance: it lasts until the guide moves on.
+  pointing: {
+    loop: true,
+    directional: true,
+    keys: [
+      [14, { reach: 1, long: 1.4, head: 0.15, mane: 0.1 }],
+      [1, { reach: 1.04, long: 1.55, head: 0.18, mane: 0.16 }],
+      [2, { reach: 1, long: 1.42, head: 0.16, mane: 0.12 }],
+      [1, { reach: 1.04, long: 1.55, head: 0.18, mane: 0.16 }],
+      [8, { reach: 1, long: 1.4, head: 0.15, mane: 0.1, bob: -2 }],
+      [6, { reach: 1, long: 1.4, head: 0.12, mane: 0.08, bob: -1 }],
+    ],
+  },
+
   // Folding herself away into her biochip: a little cock of the head at you, then the mane
   // and the arms pulled in tight, crouching small.
   fold: {

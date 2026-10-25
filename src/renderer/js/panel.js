@@ -4,13 +4,20 @@ import { clamp, reducedMotion } from './util.js';
 
 const NOISE = '▚▞▙▟░▒#%&/\\<>01XZ';
 
-// her face in the panel changes with what she's saying (frames of her from the show)
-const PORTRAITS = {
-  alert: '../../assets/capri/portrait-alert.png', // all her eyes on you
-  done: '../../assets/capri/portrait-done.png',
-  error: '../../assets/capri/portrait-error.png',
-  default: '../../assets/capri/capri-face.png',
+// Her faces, frames of her from the show (tools/build-cutins.py). A message can ask for one;
+// otherwise it goes with what kind of message it is.
+const FACE_DIR = '../../assets/capri/';
+export const FACES = {
+  calm: 'face-calm.png',   // watching, mouth shut
+  aside: 'face-aside.png', // turned away: a sigh, thinking
+  smug: 'face-smug.png',   // the fang grin, head cocked
+  wide: 'face-wide.png',   // eyes gone round: surprised
+  look: 'face-look.png',   // looking right at you
+  laugh: 'face-laugh.png', // mouth wide open
+  many: 'face-many.png',   // all her eyes on you
+  grin: 'capri-face.png',
 };
+const KIND_FACE = { alert: 'many', done: 'look', error: 'laugh', work: 'calm', idle: 'calm' };
 const PRIORITY = { info: 1, idle: 1, work: 2, done: 3, error: 3, alert: 4 };
 const DECODE_STEP_MS = 28;
 
@@ -25,6 +32,7 @@ export class Panel {
     this.reply = panel.querySelector('.panel__reply');
     this.actions = panel.querySelector('.panel__actions');
     this.onAction = null; // (id) => void, a button of the message was clicked
+    this.onDismiss = null; // (message) => void, a message left: closed, timed out or replaced
     this.summary = panel.querySelector('.panel__summary');
     this.log = panel.querySelector('.panel__log');
     this.tag = panel.querySelector('.panel__tag');
@@ -44,6 +52,9 @@ export class Panel {
     this.tickerTimer = null;
 
     this.el.addEventListener('click', () => this.hide());
+    this.portrait.addEventListener('animationend', (e) => {
+      if (e.animationName === 'face-swap') this.portrait.classList.remove('is-swapping');
+    });
   }
 
   get visible() {
@@ -56,18 +67,19 @@ export class Panel {
   // actions: buttons, [{ id, label, primary }]; clicking one calls onAction(id)
   // guide: the quote is an explanation, shown whole
   // badge: the word in the corner, instead of the one for its kind
+  // face: her expression (a key of FACES), instead of the one for its kind
   say(msg) {
     const cur = this.current;
     if (cur && this.visible && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
       return false; // don't step on something more important that just appeared
     }
     if (cur?.reply && this.visible && PRIORITY[msg.kind] < 2) return false; // nor on an answer you may be reading
+    if (cur && this.visible) this.onDismiss?.(cur);
     this.current = { ...msg, at: performance.now() };
     clearTimeout(this.hideTimer);
 
     this.el.dataset.kind = msg.kind;
-    const face = PORTRAITS[msg.kind] || PORTRAITS.default;
-    if (this.portrait.getAttribute('src') !== face) this.portrait.setAttribute('src', face);
+    this.setFace(msg.face || KIND_FACE[msg.kind] || 'grin');
     this.tag.textContent = msg.tag || '';
     this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
@@ -105,6 +117,17 @@ export class Panel {
     return true;
   }
 
+  // Change her expression; the swap glitches across a couple of drawings.
+  setFace(name) {
+    const src = FACE_DIR + (FACES[name] || FACES.grin);
+    if (this.portrait.getAttribute('src') === src) return;
+    this.portrait.setAttribute('src', src);
+    if (reducedMotion.matches) return;
+    this.portrait.classList.remove('is-swapping');
+    void this.portrait.offsetWidth; // restart the animation
+    this.portrait.classList.add('is-swapping');
+  }
+
   // Refresh the log of the message on screen without re-announcing it.
   updateLog(log) {
     if (this.current && this.visible) this.renderLog(log);
@@ -131,8 +154,10 @@ export class Panel {
     clearInterval(this.decodeTimer);
     this.onTalk?.(false);
     if (this.el.hidden || this.leaving) return;
+    const gone = this.current;
     this.current = null;
     this.leaving = true;
+    if (gone) this.onDismiss?.(gone);
     if (reducedMotion.matches) {
       this.el.hidden = true;
     } else {
@@ -229,10 +254,11 @@ export class Panel {
 
   // Sit on the tips of her mane, leaning toward the middle of the screen; tail points at her.
   place() {
-    const { x, y, top: crown = y - 80 } = this.anchor;
+    const { x, y, top: crown = y - 80, lean = 0 } = this.anchor;
     const { w } = this.view;
     const margin = 14;
-    const towardLeft = x > w / 2;
+    // lean: the side she wants it on (away from what she's pointing at), else toward the middle
+    const towardLeft = lean ? lean < 0 : x > w / 2;
 
     if (!this.el.hidden) {
       const pw = this.el.offsetWidth;

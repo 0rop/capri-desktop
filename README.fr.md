@@ -17,6 +17,8 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   Quand Claude lance une commande ou va sur le web, des étincelles rouges partent de ses doigts ; assise sur une fenêtre,
   elle se branche dessus et l'éclair court le long du bord.
 - **Quand Claude a besoin de toi** (permission, question) : elle se téléporte à côté de ta souris, crinière hérissée, et insiste.
+  Si tu es sur une autre fenêtre, elle va plutôt à côté de celle de Claude et la montre du doigt (une ligne en pointillés,
+  des crochets sur ses coins, `CLAUDE` sur une étiquette) : c'est là qu'est la question. Elle arrête dès que tu as répondu.
 - **Quand une commande plante** : image d'impact rouge, elle encaisse le coup, gros glitch, et la ligne d'erreur utile.
 - **Quand c'est fini** : téléportation au milieu de l'écran puis sa séquence de victoire : elle prend son élan
   crinière ramassée, une image étirée (smear), puis bras jetés en l'air et crinière qui explose sous des lignes de
@@ -71,6 +73,27 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 Le suivi des fenêtres ne marche que sous Windows pour l'instant (un petit script PowerShell lit la position des fenêtres, pas leurs titres ni leur contenu).
 Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même.
+
+### Elle te fait visiter
+
+**Comment ça marche ?** dans son menu : elle te demande ce qu'elle te montre, puis t'y emmène et le montre du doigt
+(une ligne en pointillés depuis le bout de son doigt, des crochets qui clignotent sur ses coins, une étiquette) pendant
+qu'elle t'explique.
+
+- **Où est mon icône ?** Elle descend près de l'horloge et pointe son icône, ou le **^** quand Windows la cache.
+- **Où est Claude ?** Elle pointe la fenêtre de Claude : celle où tu as tapé ton dernier prompt.
+- **Le dossier de Claude** : elle ouvre `~/.claude` dans l'Explorateur avec `settings.json` sélectionné, pointe la
+  fenêtre, et t'explique ce qu'est son hook là-dedans et comment le retirer.
+- **Me brancher à Claude** : ses hooks en un clic. C'est aussi son accueil la première fois qu'elle démarre.
+
+Elle fait des têtes en parlant : huit expressions, toutes des images d'elle tirées de la série (elle observe, elle
+détourne la tête, le sourire avec le croc, les yeux tout ronds, elle te regarde droit dans les yeux, le fou rire bouche
+grande ouverte, tous ses yeux à la fois, le sourire en zigzag). Chaque message prend celle qui va avec, et son portrait
+glitche d'une expression à l'autre.
+
+![Elle pointe la fenêtre de Claude pendant une demande de permission, puis son icône](docs/guide.png)
+
+![Ses huit expressions](docs/faces.png)
 
 Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l'écran reste utilisable normalement.
 
@@ -257,7 +280,7 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
 tools/build-sprite.py    reconstruit le sprite depuis la découpe d'origine (Python + Pillow, seulement si tu la changes)
-tools/build-cutins.py    découpe les cut-ins et les portraits du panneau dans des images de la série
+tools/build-cutins.py    découpe les cut-ins et ses expressions dans des images de la série
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
   windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
 src/renderer/js/
@@ -265,9 +288,10 @@ src/renderer/js/
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
   capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
   fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les fenêtres possédées, les cut-ins
-  panel.js               le panneau « transmission » et le ticker
+  panel.js               le panneau « transmission », ses expressions et le ticker
+  guide.js               son guide : les tutos, aller jusqu'aux choses et les montrer du doigt
   brain.js               traduit les événements Claude en répliques et en actions
-  lines.js               ce qu'elle dit (FR / EN)
+  lines.js               ce qu'elle dit (FR / EN / ES / PT / RU)
   chip.js                son masque : quand elle dort, et en bas à gauche quand tu la ranges
   voice.js               les sons
 ```

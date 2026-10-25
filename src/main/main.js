@@ -29,6 +29,8 @@ let tray = null;
 let trayMenu = null; // also what she opens when you right-click her
 let demoTimer = null;
 let windowWatch = null;
+// the watcher only speaks when something changes: the overlay asks for this when it (re)loads
+let lastWindows = null;
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
 
@@ -299,6 +301,26 @@ function registerIpc() {
   ipcMain.handle('hooks:install', () => runHooks('install', { quiet: true }));
   ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(hooks.status().file))); // Claude Code keeps its settings there
   ipcMain.on('claude:help', () => shell.openExternal(CLAUDE_CODE_HELP));
+  ipcMain.handle('windows:get', () => lastWindows);
+  // her guide: where her tray icon is (it lives in the taskbar, off the overlay, hence overlay
+  // coordinates past its edge), and the corner by the clock in case Windows hid it behind the ^
+  ipcMain.handle('guide:tray', () => {
+    const o = overlay.getBounds();
+    const d = targetDisplay().bounds;
+    const b = tray?.getBounds();
+    const icon = b && b.width > 0 ? { x: b.x - o.x, y: b.y - o.y, w: b.width, h: b.height } : null;
+    const corner = { x: d.x + d.width - 150 - o.x, y: d.y + d.height - 44 - o.y, w: 140, h: 40 };
+    return { icon, corner };
+  });
+  // her guide: Claude Code's folder (~/.claude) in Explorer, its settings file selected
+  ipcMain.handle('guide:claudeFolder', () => {
+    const file = hooks.status().file;
+    const dir = path.dirname(file);
+    if (!fs.existsSync(dir)) return { found: false, dir };
+    if (fs.existsSync(file)) shell.showItemInFolder(file);
+    else shell.openPath(dir);
+    return { found: true, dir, file: fs.existsSync(file) };
+  });
   ipcMain.handle('sounds:list', () => {
     try {
       return fs.readdirSync(userSoundsDir())
@@ -389,7 +411,10 @@ function main() {
     createTray();
     windowWatch = startWindowWatch({
       overlay,
-      onUpdate: (data) => overlay?.webContents.send('windows:update', data),
+      onUpdate: (data) => {
+        lastWindows = data;
+        overlay?.webContents.send('windows:update', data);
+      },
     });
     createBridge({
       port: PORT,

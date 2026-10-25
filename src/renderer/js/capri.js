@@ -79,6 +79,7 @@ export class Capri {
     this.lastGlyph = 0;
     this.sleptAt = 0;
     this.uplinkDue = false;
+    this.pointing = null; // what she's showing you: { rect, aim, dir, side, reach, label, pointer }
     this.mouse = null; // last pointer position seen
 
     this.onMove = null;     // her head moved on screen
@@ -460,8 +461,15 @@ export class Capri {
     this.perch = perch;
     this.peekSide = peekSide;
     this.p.sit = stance === 'sit' ? 1 : 0;
-    this.base = new Player(this.baseAct(), { dir });
+    this.base = this.restBase(dir);
     this.pivot();
+  }
+
+  // The cycle under her acts: her stance's, or holding her arm out at what she's showing you.
+  restBase(dir = 0) {
+    const pt = this.pointing;
+    if (pt && (this.stance === 'stand' || this.stance === 'sit')) return new Player('pointing', { dir: pt.dir, reach: pt.reach });
+    return new Player(this.baseAct(), { dir });
   }
 
   baseAct() {
@@ -482,7 +490,7 @@ export class Capri {
     this.mode = mode;
     if (mode === 'sleep') this.sleptAt = now;
     this.onMode?.(mode, prev);
-    if (this.stance === 'stand') this.base = new Player(this.baseAct());
+    if (this.stance === 'stand') this.base = this.restBase();
     const p = this.p;
     if (mode === 'sleep') tween(p, { alpha: 0.55, sparkle: 0.35, boil: 0.4 }, 900, ease.inOut);
     else tween(p, { alpha: 1, sparkle: 1, boil: 0.9 }, 250, ease.out);
@@ -761,6 +769,14 @@ export class Capri {
         if (this.zapAt && Math.random() < 0.6) this.fx.cutin(...this.cutinAt(-this.zapAt.dir), { kind: 'look', life: 560 });
         this.zapAt = null;
         break;
+      case 'aim': { // the arm snaps out: the pointer comes with it
+        const pt = this.pointing;
+        if (pt && !pt.pointer) {
+          pt.pointer = this.fx.pointer(() => this.limb(pt.side).hand, pt.rect, pt.aim, { label: pt.label });
+          this.voice.play('tick');
+        }
+        break;
+      }
       case 'minds':
         this.twitch();
         break;
@@ -889,6 +905,7 @@ export class Capri {
     const from = { ...this.pos };
     const head = this.head();
     if (this.sky) this.endAct(false); // the satellite stays here, she doesn't
+    this.stopPointing(); // nor does what she was showing you
     if (reducedMotion.matches) {
       await tween(p, { alpha: 0 }, 160, ease.linear);
       return head;
@@ -1335,6 +1352,79 @@ export class Capri {
     await tween(p, { collapse: 0, dissolve: 0, glitch: 0.5, split: 5 }, 240, ease.out);
     await tween(p, { glitch: 0, split: 0 }, 260, ease.out);
     this.busy = false;
+  }
+
+  // ---------- showing you things ----------
+
+  // The point of `rect` (overlay coordinates) she aims at from where she is: its closest point,
+  // a little inside. Off her screen (the tray, down in the taskbar), the edge of her screen.
+  aimPoint(rect) {
+    const { w, h } = this.view;
+    const sh = this.limb(this.armToward(rect.x + rect.w / 2 < this.pos.x ? -1 : 1)).shoulder;
+    const inset = Math.min(24, rect.w / 3, rect.h / 3);
+    return {
+      x: clamp(clamp(sh.x, rect.x + inset, rect.x + rect.w - inset), 6, w - 6),
+      y: clamp(clamp(sh.y, rect.y + inset, rect.y + rect.h - inset), 6, h - 4),
+    };
+  }
+
+  // Where to stand to point at `rect`: beside it, on the side with more room, her shoulder a bit
+  // below its middle (on the floor for things low on the screen).
+  spotNear(rect) {
+    const s = this.scale;
+    const { w, h } = this.view;
+    const side = 150 * s + 30;
+    const reach = 120 * s + 60; // from her feet to what she points at
+    const roomLeft = rect.x, roomRight = w - (rect.x + rect.w);
+    let x;
+    if (Math.max(roomLeft, roomRight) >= side + 40) {
+      x = roomRight >= roomLeft ? rect.x + rect.w + reach : rect.x - reach;
+    } else {
+      x = rect.x + rect.w / 2 < w / 2 ? w - side : side; // nowhere beside it: the far side of the screen
+    }
+    x = clamp(x, side, w - side);
+    const cy = clamp(rect.y + rect.h / 2, 0, h);
+    const shoulderToFeet = (SPRITE.feet.y - SPRITE.shoulder.y) * s;
+    const y = cy > h * 0.6 ? this.floor : clamp(cy + shoulderToFeet + 50, SPRITE.height * s + 40, this.floor);
+    return { x, y, face: rect.x + rect.w / 2 < x ? 1 : -1 };
+  }
+
+  // Go and point at `rect`, and keep pointing (a dashed line from her finger, brackets, `label`)
+  // until stopPointing(). Resolves once she's there with her arm out.
+  async pointAt(rect, { label = '' } = {}) {
+    if (this.stowed) return false;
+    this.stopPointing();
+    const spot = this.spotNear(rect);
+    if (this.stance !== 'stand' || Math.hypot(spot.x - this.pos.x, spot.y - this.pos.y) > 140) {
+      await this.teleport({ x: spot.x, y: spot.y }, { face: spot.face });
+    }
+    if (this.stowed || this.hidden) return false;
+    const aim = this.aimPoint(rect);
+    const dir = aim.x < this.pos.x ? -1 : 1;
+    const side = this.armToward(dir);
+    // how far up the arm comes to point at it (it hangs ~30 degrees low at rest)
+    const reach = () => {
+      const sh = this.limb(side).shoulder;
+      return clamp(Math.atan2(sh.y - aim.y, Math.abs(aim.x - sh.x)) + 0.52, -0.6, 1.7);
+    };
+    this.pointing = { rect, aim, dir, side, reach, label, pointer: null };
+    this.base = this.restBase();
+    await this.perform('point', dir, { reach });
+    if (this.pointing && !this.pointing.pointer) this.onCue('aim'); // the act was cut short
+    return true;
+  }
+
+  stopPointing() {
+    const pt = this.pointing;
+    if (!pt) return;
+    this.pointing = null;
+    pt.pointer?.fade();
+    this.base = this.restBase();
+  }
+
+  // Can she point at this window so you'd see it: not maximized, its top not under other windows.
+  canPoint(win) {
+    return Boolean(win && !win.max && win.w > 120 && win.y > -10 && !this.covered(win, win.x + win.w / 2));
   }
 
   // Show up next to the mouse pointer (used when Claude needs you).
