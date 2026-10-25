@@ -22,6 +22,7 @@ export class Panel {
     this.line = panel.querySelector('.panel__line');
     this.portrait = panel.querySelector('.panel__face img');
     this.quote = panel.querySelector('.panel__quote');
+    this.reply = panel.querySelector('.panel__reply');
     this.summary = panel.querySelector('.panel__summary');
     this.log = panel.querySelector('.panel__log');
     this.tag = panel.querySelector('.panel__tag');
@@ -47,12 +48,14 @@ export class Panel {
     return !this.el.hidden && !this.suspended && !this.leaving;
   }
 
-  // Message: { kind, line, tag, quote, summary, log: [{verb, target, error}], hold (ms | null for sticky) }
+  // Message: { kind, line, tag, quote, reply, summary, log: [{verb, target, error}], hold (ms | null for sticky) }
+  // reply: Claude's whole answer, in a block that scrolls
   say(msg) {
     const cur = this.current;
     if (cur && this.visible && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
       return false; // don't step on something more important that just appeared
     }
+    if (cur?.reply && this.visible && PRIORITY[msg.kind] < 2) return false; // nor on an answer you may be reading
     this.current = { ...msg, at: performance.now() };
     clearTimeout(this.hideTimer);
 
@@ -63,6 +66,10 @@ export class Panel {
     this.state.textContent = this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
     this.quote.hidden = !msg.quote;
+    this.reply.textContent = msg.reply || '';
+    this.reply.hidden = !msg.reply;
+    this.reply.scrollTop = 0;
+    this.el.classList.toggle('has-reply', Boolean(msg.reply));
     this.summary.textContent = msg.summary || '';
     this.summary.hidden = !msg.summary;
     this.renderLog(msg.log || []);
@@ -219,6 +226,7 @@ export class Panel {
         top = y + 40;
         below = true;
       }
+      if (this.view.h) top = clamp(top, margin, this.view.h - ph - margin); // a tall one (an answer) stays on screen
       this.el.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
       this.el.style.setProperty('--tail-x', `${clamp(x - left, 24, pw - 24)}px`);
       this.el.dataset.below = below ? 'true' : 'false';

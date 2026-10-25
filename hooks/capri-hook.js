@@ -36,9 +36,14 @@ function trim(value, depth = 0) {
   return value;
 }
 
+// Claude's answer, long enough for Capri to show it to you when you're not on Claude's window
+const REPLY_MAX = 6000;
+
 function slim(evt) {
   const out = {};
   for (const key of KEEP) if (evt[key] !== undefined) out[key] = trim(evt[key]);
+  const reply = evt.last_assistant_message;
+  if (typeof reply === 'string') out.last_assistant_message = reply.length > REPLY_MAX ? reply.slice(0, REPLY_MAX) + '…' : reply;
   return out;
 }
 

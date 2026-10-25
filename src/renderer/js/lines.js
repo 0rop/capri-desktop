@@ -55,6 +55,8 @@ export const LINES = {
     idle: ['Rien en cours. Je flotte.', 'Pas de mission. Je m’ennuie un peu.', 'Calme plat sur le Net.'],
     gaze: ['Tu la vois, cette étoile ?', 'Il est toujours là, le satellite.', 'Chut. Je regarde.'],
     uplink: ['Un jour, j’irai là-haut.', 'Tu crois qu’on pourrait monter jusque-là ?', 'Il m’a répondu. Tu l’as vu ?'],
+    // over Claude's whole answer, when you weren't on its window
+    reply: ['Claude t’a répondu :', 'Voilà ce que Claude a dit :', 'Message de Claude :'],
     // the demo's second half, one line before each trick
     showcase: {
       minds: 'Y a du monde, là-dedans.',
@@ -118,6 +120,8 @@ export const LINES = {
     idle: ['Nothing running. Just floating.', 'No gig. Kinda bored.', 'Quiet night on the Net.'],
     gaze: ['See that star?', 'The satellite’s still up there.', 'Shh. I’m watching.'],
     uplink: ['Someday I’ll get up there.', 'Think we could make it up there?', 'It answered. Did you see?'],
+    // over Claude's whole answer, when you weren't on its window
+    reply: ['Claude answered:', 'Here’s what Claude said:', 'Message from Claude:'],
     // the demo's second half, one line before each trick
     showcase: {
       minds: 'There’s a crowd in here.',

@@ -279,6 +279,28 @@ body {
   overflow: hidden;
 }
 
+/* Claude's whole answer, when you weren't on its window to read it: wider panel, scrolls */
+.panel.has-reply {
+  width: clamp(340px, 30vw, 520px);
+}
+
+.panel__reply {
+  margin: 9px 0 0;
+  padding: 2px 10px 2px 9px;
+  max-height: min(44vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-left: 2px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-data) + 1px);
+  line-height: 1.6;
+  color: var(--paper-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  scrollbar-color: var(--violet) transparent;
+}
+
 .panel__summary {
   margin: 9px 0 0;
   font-family: var(--font-mono);

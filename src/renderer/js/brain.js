@@ -17,6 +17,8 @@ export class Brain {
     this.host = host;
     this.lang = lang;
     this.sessions = new Map();
+    this.replyFor = null;    // the session whose answer she's holding up for you
+    this.onShowcase = null; // the demo's second half (app.js)
   }
 
   get t() {
@@ -85,7 +87,9 @@ export class Brain {
   }
 
   onPrompt(evt, s) {
-    Object.assign(s, { taskStart: Date.now(), count: 0, files: new Set(), log: [], working: true });
+    // the window in front when you send a prompt is the one you typed it in: Claude's
+    const window = this.capri.windows.fg || null;
+    Object.assign(s, { taskStart: Date.now(), count: 0, files: new Set(), log: [], working: true, window });
     this.capri.goToWork(); // perched on the window in front if she can, else her corner
     const prompt = String(evt.prompt || '').replace(/\s+/g, ' ').trim();
     this.say('work', pick(this.t.prompt), s, { quote: prompt ? clip(prompt, 110) : '', hold: 4500 });
@@ -166,9 +170,17 @@ export class Brain {
       this.panel.setTicker(null);
       this.capri.setMode('idle');
     }
+    // Not on Claude's window any more: you can't see the answer, so she brings it to you, whole,
+    // and holds it up until you're back on Claude's window or click it away.
+    const reply = this.away(s) ? readable(evt.last_assistant_message || '') : '';
+    const done = (extra) => {
+      if (reply) this.replyFor = s;
+      if (reply) this.say('done', pick(this.t.reply), s, { ...extra, reply, hold: null });
+      else this.say('done', pick(this.t.done), s, { ...extra, quote: clip(quote, 150) });
+    };
     if (!wasWorking && !s.count) {
       // a Stop with nothing before it: just say it quietly
-      this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), hold: 8000 });
+      done({ hold: 8000 });
       return;
     }
     // clear the stage: nothing should cover her victory pose
@@ -177,11 +189,24 @@ export class Brain {
     const bigJob = s.count >= 3 || (s.taskStart && Date.now() - s.taskStart > 20000);
     if (bigJob) await this.capri.teleport(this.capri.spot('stage'));
     // the panel comes in once she's back down from her victory pose
-    this.capri.celebrate({
-      onSpeak: () => this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), summary, hold: 14000 }),
-    });
+    this.capri.celebrate({ onSpeak: () => done({ summary, hold: 14000 }) });
     // a long one: she'll send the red light up to the satellite once it's all quiet
     if ((s.taskStart && Date.now() - s.taskStart >= LONG_JOB_MS) || s.count >= LONG_JOB_ACTIONS) this.capri.earnUplink();
+  }
+
+  // Is the window you typed your prompt in (Claude's) no longer the one in front?
+  // Unknown (no window tracking, macOS / Linux) counts as no.
+  away(s) {
+    const { fg } = this.capri.windows;
+    return Boolean(s.window && fg && fg !== s.window);
+  }
+
+  // Back on Claude's window: the answer she was holding up for you can go.
+  onWindows({ fg }) {
+    const s = this.replyFor;
+    if (!s || fg !== s.window) return;
+    this.replyFor = null;
+    if (this.panel.current?.reply) this.panel.hide();
   }
 
   onStopFailure(evt, s) {
@@ -275,6 +300,22 @@ function plural(n, [one, many]) {
 
 function clip(text, max) {
   return text.length > max ? text.slice(0, max - 1).trimEnd() + '…' : text;
+}
+
+// Claude's answer as text you can read in the panel: paragraphs, lists and code kept,
+// the markdown marks dropped.
+function readable(text) {
+  return String(text)
+    .replace(/\r/g, '')
+    .replace(/^```.*$/gm, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^(\s*)[-*]\s+/gm, '$1• ')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function cleanMarkdown(text) {

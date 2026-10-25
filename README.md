@@ -22,6 +22,9 @@ comes to find you when Claude needs your permission, and loses it when the job i
   a wind-up with her mane pulled in, a stretched smear frame, then arms flung up and mane exploding under
   manga speed lines and a shockwave, a manic laugh with an anime cut-in of her grin. Once she's back down,
   the summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
+- **When Claude answers and you're on another window**: she shows you its whole answer, in a wider panel that
+  scrolls (paragraphs, lists and code kept). It goes away when you're back on Claude's window, or when you click it.
+  Claude's window is the one you typed your prompt in. Windows only, like the window tracking.
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
   turns around and cocks her head when your mouse comes near (or, little menace, zaps it with red lightning and a sly grin),
   looks up at the satellite, and falls asleep after 10 quiet minutes.
@@ -150,8 +153,8 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 
 ## What leaves your machine
 
-Nothing. The hook only keeps what the display needs (tool name, file path, command, the start of your prompt and
-of Claude's last message, all truncated) and sends it to `127.0.0.1` only.
+Nothing. The hook only keeps what the display needs (tool name, file path, command, the start of your prompt,
+Claude's last message up to 6,000 characters so she can show it to you, all truncated) and sends it to `127.0.0.1` only.
 Your file contents are never sent: for a write, only its size goes through.
 
 ## Art direction

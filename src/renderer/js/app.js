@@ -227,7 +227,10 @@ async function boot() {
   };
 
   host.onClaudeEvent((evt) => brain.handle(evt));
-  host.onWindows((data) => capri.setWindows(data));
+  host.onWindows((data) => {
+    capri.setWindows(data);
+    brain.onWindows(data);
+  });
 
   host.onResize(({ width, height }) => {
     fx.resize(width, height);
@@ -291,6 +294,10 @@ async function boot() {
         if (cmd.at) capri.pos = cmd.at;
         if (cmd.facing) capri.facing = cmd.facing;
         capri.drawFrame();
+        break;
+      case 'focus': // as if window `fg` had come to the front
+        capri.windows = { ...capri.windows, fg: cmd.fg };
+        brain.onWindows(capri.windows);
         break;
       case 'freeze':
         capri.hidden = Boolean(cmd.on);

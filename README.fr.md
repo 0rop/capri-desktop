@@ -22,6 +22,9 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   crinière ramassée, une image étirée (smear), puis bras jetés en l'air et crinière qui explose sous des lignes de
   vitesse façon manga et une onde de choc, un rire hystérique avec un cut-in de son sourire. Une fois redescendue,
   le résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
+- **Quand Claude te répond et que tu es sur une autre fenêtre** : elle t'affiche sa réponse en entier, dans un panneau
+  plus large qui défile (paragraphes, listes et code gardés). Il s'en va quand tu reviens sur la fenêtre de Claude, ou
+  quand tu cliques dessus. La fenêtre de Claude, c'est celle où tu as tapé ton message. Sous Windows, comme le suivi des fenêtres.
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
   se retourne et penche la tête quand ta souris approche (ou, petite peste, lui envoie un éclair rouge avec un sourire en coin),
   lève les yeux vers le satellite, et s'endort si rien ne se passe pendant 10 minutes.
@@ -153,7 +156,8 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 ## Ce qui part de ta machine
 
 Rien. Le hook ne garde que ce qui sert à l'affichage (nom de l'outil, chemin du fichier, commande lancée,
-début de ton prompt et du dernier message de Claude, le tout tronqué) et l'envoie à `127.0.0.1` uniquement.
+début de ton prompt, dernier message de Claude jusqu'à 6 000 caractères pour pouvoir te l'afficher, le tout tronqué)
+et l'envoie à `127.0.0.1` uniquement.
 Le contenu de tes fichiers n'est jamais transmis : pour une écriture, seule sa taille passe.
 
 ## Direction artistique
