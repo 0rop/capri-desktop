@@ -25,6 +25,10 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
   se retourne et penche la tête quand ta souris approche (ou, petite peste, lui envoie un éclair rouge avec un sourire en coin),
   lève les yeux vers le satellite, et s'endort si rien ne se passe pendant 10 minutes.
+- **Quand elle dort** : elle somnole un moment, puis sa crinière et son corps se défont et il ne reste que ce qu'elle est
+  au fond dans la série, son masque vert et ses yeux, qui flotte là où elle était, les yeux fermés. De temps en temps
+  elle entrouvre un œil. Approche ta souris (ou que Claude reprenne) et ses yeux bleus s'ouvrent d'un coup, et elle se
+  reforme autour.
 - **Le satellite** : la grande séquence, gardée pour les vrais moments. La première fois de la journée, un peu après
   que Claude a fini une longue tâche (8 minutes ou plus, ou 50 actions), ou quand tu veux depuis le menu de l'icône.
   Les points blancs de sa crinière s'envolent en constellation, s'alignent en chemin entre ses doigts et le satellite,
@@ -50,6 +54,7 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   et la fenêtre te regarde avec ses yeux et son sourire en zigzag, d'autres yeux s'ouvrent partout, toutes les pupilles
   sur ta souris, et elle rit. Puis elle ressort d'une autre fenêtre. Rien n'est dessiné sur les fenêtres posées devant,
   et le contenu de la fenêtre n'est jamais lu : c'est juste dessiné par-dessus, deux secondes.
+  Si ça te gêne, décoche *Posséder mes fenêtres* dans le menu de l'icône.
 - **Petites fioritures** : un tour complet avec des images rémanentes, un saut, un regard à gauche puis à droite, la tête penchée,
   et ses autres esprits (ses copies verte et rouge) qui se détachent d'elle, flottent un instant et reviennent d'un coup.
 
@@ -59,6 +64,8 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 ![Elle possède une fenêtre : la plongée, l'impact, la fenêtre pleine d'yeux](docs/possess.png)
 
+![Elle s'endort jusqu'à son masque, se réveille, et rangée en bas à gauche](docs/sleep.png)
+
 Le suivi des fenêtres ne marche que sous Windows pour l'instant (un petit script PowerShell lit la position des fenêtres, pas leurs titres ni leur contenu).
 Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même.
 
@@ -67,8 +74,11 @@ Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l
 - **Clic** sur elle : elle te dit où en est Claude.
 - **Glisser** : tu la déplaces.
 - **Clic** sur le panneau : il se ferme.
-- **Ctrl+Alt+C** : la cacher / la faire revenir.
-- **Icône près de l'horloge** : téléporter, regarder le satellite, démo, taille, son, écran, langue, lancement au démarrage, hooks.
+- **Ctrl+Alt+C** : elle se range (dans son biochip, comme dans la série) et il ne reste d'elle que son masque, les yeux
+  fermés, en bas à gauche de l'écran. Ses yeux ne s'ouvrent que quand Claude a besoin de toi. Clique sur le masque
+  (ou refais Ctrl+Alt+C) pour la faire revenir.
+- **Icône près de l'horloge** : téléporter, regarder le satellite, démo, taille, son, écran, se balader, posséder tes fenêtres,
+  langue, lancement au démarrage, hooks.
 
 Elle parle **français ou anglais et choisit toute seule la langue de ton système**. Tu peux en forcer une dans le menu de l'icône.
 
@@ -102,7 +112,10 @@ Les hooks sont lancés en `async` : ils ne ralentissent jamais Claude, et si Cap
 npm run demo
 ```
 
-Rejoue une fausse session complète (lecture, écriture, test qui plante, demande de permission, fin).
+Rejoue une fausse session complète (lecture, recherche web, sous-agent, écriture, test qui plante, demande de
+permission, fin), puis montre tout ce qu'elle fait toute seule, une phrase avant chaque numéro : ses autres esprits,
+l'éclair sur ta souris, la grande séquence du satellite, la possession d'une fenêtre (un petit terminal s'ouvre
+pour elle, puis se ferme sous elle et elle tombe), le sommeil jusqu'à son masque, et le rangement en bas à gauche.
 C'est aussi dans le menu de l'icône.
 
 ## Sons
@@ -176,6 +189,9 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
 - **Cut-ins** : des gros plans d'elle tirés de la série, en poussée de caméra avec des lignes de vitesse : son sourire
   ou son rire après une tâche terminée, tous ses yeux quand Claude t'attend, ses yeux juste avant la lumière rouge,
   son regard en coin après un éclair sur ta souris. Le visage du panneau change aussi selon ce qu'elle dit.
+- **Son masque** : dessiné en vecteurs d'après la série (et le visage « Capri Wink Face »), sur sa propre petite toile,
+  redessiné seulement quand il est à l'écran : le masque vert, la mèche en crochet, le croc blanc, les
+  yeux bleus en amande, et les yeux fermés en chevrons quand elle dort.
 - **Typo** : Chakra Petch (coupes en biseau, comme ses éclats) + JetBrains Mono pour les données.
 
 Si Windows est réglé sur « Afficher les animations : non », elle se contente de fondus.
@@ -197,10 +213,13 @@ src/renderer/js/
   panel.js               le panneau « transmission » et le ticker
   brain.js               traduit les événements Claude en répliques et en actions
   lines.js               ce qu'elle dit (FR / EN)
+  chip.js                son masque : quand elle dort, et en bas à gauche quand tu la ranges
   voice.js               les sons
 ```
 
-Pour bosser dessus : `npm run dev` active des routes de debug sur le bridge (`/debug/capture` enregistre une image de la fenêtre dans `captures/`).
+Pour bosser dessus : `npm run dev` active des routes de debug sur le bridge (`/debug/capture` enregistre une image de la fenêtre dans `captures/`,
+`/debug/testwin` ouvre des fenêtres de test sur lesquelles elle peut s'asseoir, une par nom, `/debug/mouse` bouge et clique un pointeur
+factice sur la fenêtre de Capri, sans toucher au vrai).
 
 ## Crédits et droits
 

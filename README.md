@@ -25,6 +25,9 @@ comes to find you when Claude needs your permission, and loses it when the job i
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
   turns around and cocks her head when your mouse comes near (or, little menace, zaps it with red lightning and a sly grin),
   looks up at the satellite, and falls asleep after 10 quiet minutes.
+- **When she sleeps**: she dozes a while, then her mane and her body come apart and all that's left is what she is at
+  heart in the show, her green mask and her eyes, floating where she was, eyes shut. Now and then she cracks one open.
+  Bring your mouse close (or let Claude start again) and her blue eyes snap open and she comes back together around it.
 - **The satellite**: the big sequence, kept for moments that matter. The first time of the day, a little while after
   Claude finishes a long job (8 minutes or more, or 50 actions), or whenever you like from the tray menu.
   The white specks of her mane lift off as a constellation, line up into a road from her fingers to the satellite,
@@ -49,7 +52,7 @@ comes to find you when Claude needs your permission, and loses it when the job i
   into the window she's sitting on. Red lightning races round its frame, slices of it glitch, and the window looks
   at you with her eyes and her zigzag grin, more eyes opening all over it, every pupil on your pointer, and she laughs.
   Then she comes out of another window. Nothing is drawn over the windows in front of it, and the window's contents
-  are never read: it's just drawn over, for two seconds.
+  are never read: it's just drawn over, for two seconds. If it bothers you, untick *Possess my windows* in the tray menu.
 - **Little flourishes**: a full spin with afterimages, a hop, looking left and right, the cocked head,
   and the other minds in her (her green and red copies) pulling away from her, hanging there, and snapping back in.
 
@@ -59,6 +62,8 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 ![Possessing a window: the dive, the hit, the window full of eyes](docs/possess.png)
 
+![Asleep down to her mask, waking up, and put away bottom left](docs/sleep.png)
+
 Window tracking is Windows-only for now (a tiny PowerShell helper reads window positions, no titles, no contents).
 On macOS and Linux she still floats, peeks, falls and wanders.
 
@@ -67,8 +72,11 @@ She only catches the mouse on her actual body (pixel-precise): the rest of the s
 - **Click** her: she tells you where Claude is at.
 - **Drag** her: move her around.
 - **Click** the panel: it closes.
-- **Ctrl+Alt+C**: hide her / bring her back.
-- **Tray icon** (next to the clock): teleport, look at the satellite, demo, size, sound, screen, language, start with Windows, hooks.
+- **Ctrl+Alt+C**: she puts herself away (into her biochip, like in the show) and all that's left of her is her mask,
+  eyes shut, in the bottom-left corner. Her eyes only open when Claude needs you. Click the mask (or Ctrl+Alt+C again)
+  to bring her back.
+- **Tray icon** (next to the clock): teleport, look at the satellite, demo, size, sound, screen, wander, possess your windows,
+  language, start with Windows, hooks.
 
 She speaks **French or English and picks the language of your system** on her own. You can force one from the tray menu.
 
@@ -102,7 +110,10 @@ The hooks run `async`: they never slow Claude down, and when Capri isn't running
 npm run demo
 ```
 
-Replays a fake session from start to finish (reads, writes, a failing test, a permission prompt, the end).
+Replays a fake session from start to finish (reads, a web fetch, a subagent, writes, a failing test, a permission
+prompt, the end), then shows everything she does on her own, a line before each trick: the other minds in her,
+zapping your pointer, the whole satellite sequence, possessing a window (a little terminal opens for her, then closes
+under her and she falls), sleeping down to her mask, and putting herself away in the bottom-left corner.
 It's also in the tray menu.
 
 ## Sounds
@@ -176,6 +187,9 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
 - **Cut-ins**: close-ups of her taken from the show, pushed in, with speed lines: her grin or her laugh after a
   finished job, all her eyes when Claude is waiting on you, her eyes right before the red light, her sideways look
   after zapping your pointer. Her face in the panel changes with what she's saying, too.
+- **Her mask**: a vector drawing after the show (and the "Capri Wink Face"), on its own small canvas, only redrawn
+  while on screen: the green slab of a face, the hooked spike, the white fang, the blue almond eyes,
+  and the eyes shut as chevrons while she sleeps.
 - **Type**: Chakra Petch (bevelled cuts, like her shards) + JetBrains Mono for data.
 
 If Windows is set to "Show animations: off", she sticks to fades.
@@ -197,10 +211,13 @@ src/renderer/js/
   panel.js               the "transmission" panel and the ticker
   brain.js               turns Claude events into lines and actions
   lines.js               what she says (FR / EN)
+  chip.js                her mask: while she sleeps, and bottom left when you put her away
   voice.js               the sounds
 ```
 
-To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/capture` saves a frame of the window to `captures/`).
+To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/capture` saves a frame of the window to `captures/`,
+`/debug/testwin` opens test windows she can sit on, one per name, `/debug/mouse` moves and clicks a stand-in pointer
+over Capri's window, without touching the real one).
 
 ## Credits and rights
 
