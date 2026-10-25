@@ -14,6 +14,8 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 - **While Claude works**: a ticker over her head shows the current action
   (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
+  When Claude runs a command or goes on the web, red sparks fly off her fingers; sitting on a window,
+  she jacks into it and the lightning runs along its edge.
 - **When Claude needs you** (permission, question): she teleports next to your mouse, mane bristling, and won't let it go.
 - **When a command fails**: red impact frame, she gets knocked back, heavy glitch, and the error line that actually matters.
 - **When it's done**: she teleports to the middle of the screen and goes into her victory sequence:
@@ -21,12 +23,15 @@ comes to find you when Claude needs your permission, and loses it when the job i
   manga speed lines and a shockwave, a manic laugh with an anime cut-in of her grin. Once she's back down,
   the summary (`12 actions · 3 files changed · 2m 14s`) and Claude's last sentence.
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
-  turns around and cocks her head when your mouse comes near, sometimes spots a star (the satellite) and
-  reaches for it, and falls asleep after 10 quiet minutes.
+  turns around and cocks her head when your mouse comes near (or, little menace, zaps it with red lightning and a sly grin),
+  looks up at the satellite, and falls asleep after 10 quiet minutes.
+- **The satellite**: now and then, or whenever you like from the tray menu, the big sequence. The white specks of her
+  mane lift off as a constellation, line up into a road from her fingers to the satellite, she coils up,
+  and the red light goes up to it. It answers her, twinkling twice.
 
 ![Victory: the key pose, then the laugh and the cut-in](docs/victory.png)
 
-![Reaching for the satellite](docs/star.png)
+![The satellite: her stars, the road, the red light, the answer](docs/star.png)
 
 ### She gets around
 
@@ -39,7 +44,8 @@ comes to find you when Claude needs your permission, and loses it when the job i
   On the way down, a window ledge can catch her.
 - **Drop her on a window**: drag her and let go with her hips on a window's top edge, she sits there.
   Let go anywhere else and she falls.
-- **Little flourishes**: a full spin with afterimages, a hop, looking left and right, the cocked head.
+- **Little flourishes**: a full spin with afterimages, a hop, looking left and right, the cocked head,
+  and the other minds in her (her green and red copies) pulling away from her, hanging there, and snapping back in.
 
 ![Sitting on a window](docs/sit.png)
 
@@ -54,7 +60,7 @@ She only catches the mouse on her actual body (pixel-precise): the rest of the s
 - **Drag** her: move her around.
 - **Click** the panel: it closes.
 - **Ctrl+Alt+C**: hide her / bring her back.
-- **Tray icon** (next to the clock): teleport, demo, size, sound, screen, language, start with Windows, hooks.
+- **Tray icon** (next to the clock): teleport, look at the satellite, demo, size, sound, screen, language, start with Windows, hooks.
 
 She speaks **French or English and picks the language of your system** on her own. You can force one from the tray menu.
 
@@ -107,7 +113,9 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 | `hello` | a session starts |
 | `star` | she looks up at the satellite |
 | `land` | she lands after a fall |
-| `rise` | the launch into her victory pose |
+| `rise` | the launch into her victory pose, the red light going up |
+| `bolt` | her red lightning |
+| `charge` | charging up before the red light goes up |
 | `blip` | every syllable while she talks |
 | `tick` | a quiet reminder |
 
@@ -132,10 +140,19 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
   and her thighs fold (foreshortened, seen from the front) so she can sit with her lower legs swinging.
 - **Squash and stretch, afterimages**: the flat cut-out squashes to a sliver to turn around, stretches when
   she falls, flattens when she lands, and splits into green and red copies (the other minds in her) when she spins or laughs.
-- **The satellite**, a nod to the season's ending: a star glints above the screen; a beat later she notices
-  it and snaps to it, her specks catch its light, she reaches for it (the drawings bunch up as her hand gets
-  there), a dashed line of data runs from her fingertips to it. It flares, she's lifted a little, it goes out,
-  and her hand drops with a sigh.
+- **The satellite**, after the season's ending, where she points at the light in the sky and wonders if they
+  could make it up there: a point of light crosses the top of the screen, slowly. Most of the time she just looks,
+  reaches, it twinkles, she sighs. The first time, then every other time, it's the whole sequence, in five beats:
+  1. **Hush**: she freezes, and the white specks of her mane lift off into a constellation over her.
+  2. **The reach**: she reaches out (the drawings bunch up as the hand gets there) and her stars line up into a road
+     from her fingertips to the satellite.
+  3. **Anticipation**: she coils up, the arm pulls back a little, sparks crawl in her hand, cut-in on her eyes.
+  4. **The red light goes up**: a heavy tapering bolt races up in three drawings, the first one in negative (an impact
+     frame), the stars light up as it passes, speed lines on the satellite, and she's lifted with it.
+  5. **The answer**: the bolt snaps and the pieces fall. A beat of silence, then the satellite twinkles twice.
+     Her stars come home, her mane flares bright for a moment, and her hand drops with a sigh.
+- **Her arms grow when she aims**: anime exaggeration, or a raised arm would get lost in her mane. It stretches
+  along its length only (it stays as thin) and no longer gets bent by the head and the mane.
 - **Both arms match**: the cut-out had one arm reaching and one hanging. The hanging one is removed
   (`tools/build-sprite.py`) and the shader draws the reaching arm mirrored in its place, so both hands are the
   same claws and both arms can act. Where an arm crosses her body or her mane it gets a violet line, so it reads.
@@ -143,9 +160,12 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
   Shards come loose from it and drift away.
 - **The violet offset**: like in the anime, a misregistered violet copy under her, under the panel, under the shards.
 - **"Relic" glitch**: shifted horizontal slices and RGB split, in the spirit of Johnny Silverhand's appearances.
-- **Teleport**: charge, shards, collapse into a line, a red column of light to the sky,
-  a bolt to the destination, back with two *impact frames*.
-- **Cut-in**: her real grin, pushed in, with speed lines, when she laughs after a finished job.
+- **Teleport**: charge, shards, collapse into a line, and where she was, a black slit with a red line in it,
+  like in the show. A red column of light to the sky, a bolt to the destination, her pieces (mane shards and the
+  green stars of her eyes) spiralling back in, back with two *impact frames*.
+- **Cut-ins**: close-ups of her taken from the show, pushed in, with speed lines: her grin or her laugh after a
+  finished job, all her eyes when Claude is waiting on you, her eyes right before the red light, her sideways look
+  after zapping your pointer. Her face in the panel changes with what she's saying, too.
 - **Type**: Chakra Petch (bevelled cuts, like her shards) + JetBrains Mono for data.
 
 If Windows is set to "Show animations: off", she sticks to fades.
@@ -156,13 +176,14 @@ If Windows is set to "Show animations: off", she sticks to fades.
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
 tools/build-sprite.py    rebuilds the sprite from the original cut-out (Python + Pillow, only if you change it)
+tools/build-cutins.py    cuts the cut-ins and the panel portraits out of frames of the show
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
   windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
 src/renderer/js/
   sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
   acting.js              the exposure sheets: every move, drawing by drawing
   capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
-  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the star and its link, the cut-in
+  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, the cut-ins
   panel.js               the "transmission" panel and the ticker
   brain.js               turns Claude events into lines and actions
   lines.js               what she says (FR / EN)

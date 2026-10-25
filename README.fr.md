@@ -14,6 +14,8 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 - **Pendant que Claude bosse** : un ticker au-dessus d'elle affiche l'action en cours
   (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
+  Quand Claude lance une commande ou va sur le web, des étincelles rouges partent de ses doigts ; assise sur une fenêtre,
+  elle se branche dessus et l'éclair court le long du bord.
 - **Quand Claude a besoin de toi** (permission, question) : elle se téléporte à côté de ta souris, crinière hérissée, et insiste.
 - **Quand une commande plante** : image d'impact rouge, elle encaisse le coup, gros glitch, et la ligne d'erreur utile.
 - **Quand c'est fini** : téléportation au milieu de l'écran puis sa séquence de victoire : elle prend son élan
@@ -21,12 +23,15 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   vitesse façon manga et une onde de choc, un rire hystérique avec un cut-in de son sourire. Une fois redescendue,
   le résumé (`12 actions · 3 fichiers modifiés · 2 min 14`) et la dernière phrase de Claude.
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
-  se retourne et penche la tête quand ta souris approche, repère parfois une étoile au-dessus de l'écran (le satellite)
-  et tend la main vers elle, et s'endort si rien ne se passe pendant 10 minutes.
+  se retourne et penche la tête quand ta souris approche (ou, petite peste, lui envoie un éclair rouge avec un sourire en coin),
+  lève les yeux vers le satellite, et s'endort si rien ne se passe pendant 10 minutes.
+- **Le satellite** : de temps en temps, ou quand tu veux depuis le menu de l'icône, la grande séquence. Les points blancs
+  de sa crinière s'envolent en constellation, s'alignent en chemin entre ses doigts et le satellite, elle se ramasse,
+  et la lumière rouge monte jusqu'à lui. Il lui répond en scintillant deux fois.
 
 ![Victoire : la pose clé, puis le rire et le cut-in](docs/victory.png)
 
-![La main tendue vers le satellite](docs/star.png)
+![Le satellite : ses étoiles, le chemin, la lumière rouge, la réponse](docs/star.png)
 
 ### Elle bouge partout
 
@@ -39,7 +44,8 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   En chemin, le rebord d'une fenêtre peut la rattraper.
 - **Pose-la sur une fenêtre** : attrape-la et lâche-la avec les hanches sur le bord du haut d'une fenêtre, elle s'y assoit.
   Lâchée ailleurs, elle tombe.
-- **Petites fioritures** : un tour complet avec des images rémanentes, un saut, un regard à gauche puis à droite, la tête penchée.
+- **Petites fioritures** : un tour complet avec des images rémanentes, un saut, un regard à gauche puis à droite, la tête penchée,
+  et ses autres esprits (ses copies verte et rouge) qui se détachent d'elle, flottent un instant et reviennent d'un coup.
 
 ![Assise sur une fenêtre](docs/sit.png)
 
@@ -54,7 +60,7 @@ Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l
 - **Glisser** : tu la déplaces.
 - **Clic** sur le panneau : il se ferme.
 - **Ctrl+Alt+C** : la cacher / la faire revenir.
-- **Icône près de l'horloge** : téléporter, démo, taille, son, écran, langue, lancement au démarrage, hooks.
+- **Icône près de l'horloge** : téléporter, regarder le satellite, démo, taille, son, écran, langue, lancement au démarrage, hooks.
 
 Elle parle **français ou anglais et choisit toute seule la langue de ton système**. Tu peux en forcer une dans le menu de l'icône.
 
@@ -107,7 +113,9 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 | `hello` | une session démarre |
 | `star` | elle regarde le satellite |
 | `land` | elle atterrit après une chute |
-| `rise` | l'élan de sa pose de victoire |
+| `rise` | l'élan de sa pose de victoire, la lumière rouge qui monte |
+| `bolt` | ses éclairs rouges |
+| `charge` | elle se charge avant d'envoyer la lumière rouge |
 | `blip` | chaque syllabe quand elle parle |
 | `tick` | petit rappel discret |
 
@@ -132,10 +140,19 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
   et les cuisses se replient (en raccourci, vues de face) pour qu'elle puisse s'asseoir en balançant le bas des jambes.
 - **Écrasement, étirement, images rémanentes** : la découpe plate s'écrase en lame pour se retourner, s'étire quand elle tombe,
   s'aplatit à l'atterrissage, et se dédouble en copies verte et rouge (les autres esprits en elle) quand elle tourne ou rit.
-- **Le satellite**, clin d'œil à la fin de la saison : une étoile scintille au-dessus de l'écran ; un temps plus tard
-  elle la remarque et se tourne d'un coup, ses paillettes captent sa lumière, elle tend la main (les dessins se resserrent
-  à mesure que la main arrive), une ligne de données en pointillés part du bout de ses doigts vers l'étoile. L'étoile
-  s'embrase, elle est soulevée un peu, puis l'étoile s'éteint et sa main retombe dans un soupir.
+- **Le satellite**, d'après la fin de la saison, où elle montre la lumière dans le ciel en se demandant s'ils
+  pourraient monter jusque-là : un point de lumière traverse lentement le haut de l'écran. La plupart du temps elle le regarde, tend la main, il scintille, elle soupire.
+  La première fois, puis une fois sur deux, c'est la séquence complète, en cinq temps :
+  1. **Le silence** : elle se fige, les points blancs de sa crinière s'envolent et forment une constellation au-dessus d'elle.
+  2. **Le geste** : elle tend le bras (les dessins se resserrent à mesure que la main arrive) et ses étoiles s'alignent
+     en chemin, du bout de ses doigts jusqu'au satellite.
+  3. **L'anticipation** : elle se ramasse, le bras recule un peu, des étincelles rampent dans sa main, cut-in sur ses yeux.
+  4. **La lumière rouge monte** : un gros éclair effilé file en trois dessins, le premier en négatif (une image d'impact),
+     les étoiles s'allument à son passage, lignes de vitesse sur le satellite, et elle est soulevée avec.
+  5. **La réponse** : l'éclair casse et ses morceaux tombent. Un temps de silence, puis le satellite scintille deux fois.
+     Ses étoiles reviennent dans sa crinière, qui brille plus fort un instant, et sa main retombe dans un soupir.
+- **Les bras s'allongent quand elle vise** : exagération d'anime, sinon un bras levé se perdrait dans sa crinière.
+  Il s'étire dans sa longueur seulement (il reste aussi fin) et n'est plus tordu par la tête et la crinière.
 - **Deux bras identiques** : la découpe avait un bras tendu et un bras qui pendait. Celui qui pendait est retiré
   (`tools/build-sprite.py`) et le shader dessine le bras tendu en miroir à sa place : les deux mains ont les mêmes griffes
   et les deux bras peuvent jouer. Quand un bras passe devant son corps ou sa crinière, il est cerné de violet pour rester lisible.
@@ -143,9 +160,12 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
   Des éclats s'en détachent et dérivent.
 - **Le décalage violet** : comme dans l'anime, une copie violette décalée sous elle, sous le panneau, sous les éclats.
 - **Glitch « relic »** : tranches horizontales décalées et séparation RGB, dans la lignée des apparitions de Johnny Silverhand.
-- **Téléportation** : charge, éclats, effondrement en ligne, colonne de lumière rouge vers le ciel,
-  éclair jusqu'à la destination, retour avec deux *impact frames*.
-- **Cut-in** : son vrai sourire, en poussée de caméra, avec des lignes de vitesse, quand elle rit après une tâche terminée.
+- **Téléportation** : charge, éclats, effondrement en ligne, et là où elle était, une fente noire avec un trait rouge
+  dedans, comme dans la série. Colonne de lumière rouge vers le ciel, éclair jusqu'à la destination, ses morceaux
+  (éclats de crinière et étoiles vertes de ses yeux) qui reviennent en spirale, retour avec deux *impact frames*.
+- **Cut-ins** : des gros plans d'elle tirés de la série, en poussée de caméra avec des lignes de vitesse : son sourire
+  ou son rire après une tâche terminée, tous ses yeux quand Claude t'attend, ses yeux juste avant la lumière rouge,
+  son regard en coin après un éclair sur ta souris. Le visage du panneau change aussi selon ce qu'elle dit.
 - **Typo** : Chakra Petch (coupes en biseau, comme ses éclats) + JetBrains Mono pour les données.
 
 Si Windows est réglé sur « Afficher les animations : non », elle se contente de fondus.
@@ -156,13 +176,14 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
 tools/build-sprite.py    reconstruit le sprite depuis la découpe d'origine (Python + Pillow, seulement si tu la changes)
+tools/build-cutins.py    découpe les cut-ins et les portraits du panneau dans des images de la série
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
   windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
 src/renderer/js/
   sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
   capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
-  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, l'étoile et son lien, le cut-in
+  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les cut-ins
   panel.js               le panneau « transmission » et le ticker
   brain.js               traduit les événements Claude en répliques et en actions
   lines.js               ce qu'elle dit (FR / EN)
