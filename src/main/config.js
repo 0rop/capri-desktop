@@ -11,6 +11,7 @@ const DEFAULTS = {
   lang: 'auto',      // 'auto' follows the system language, or 'fr' / 'en'
   displayId: null,   // null = primary display
   wander: true,      // random teleports when idle
+  possess: true,     // now and then she dives into the window she sits on and takes it over
   visible: true,
 };
 

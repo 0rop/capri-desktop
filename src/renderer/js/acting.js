@@ -229,6 +229,18 @@ export const ACTS = {
     ],
   },
 
+  // Folding herself away into her biochip: a little cock of the head at you, then the mane
+  // and the arms pulled in tight, crouching small.
+  fold: {
+    priority: 3,
+    fps: 24,
+    keys: [
+      [4, { head: 0.12, mane: 0.12 }],
+      [2, { head: 0.06, mane: -0.18, arms: -0.5, sy: 0.93, sx: 1.04 }],
+      [3, { mane: -0.36, arms: -0.72, sy: 0.84, sx: 1.08, bob: 4 }],
+    ],
+  },
+
   // Before she dives into the window she sits on: head cocked at it, the legs swing up, she
   // coils with the mane pulled in and the arms tucked, then stretches down into it.
   dive: {

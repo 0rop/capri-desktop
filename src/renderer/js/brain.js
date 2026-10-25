@@ -45,6 +45,8 @@ export class Brain {
   }
 
   handle(evt) {
+    // the demo's second half (scripts/demo-sequence.js), not a Claude event
+    if (evt.hook_event_name === 'CapriShowcase') return this.onShowcase?.();
     const s = this.session(evt);
     const name = evt.hook_event_name;
     // these three put her somewhere themselves; anything else just brings her out of hiding

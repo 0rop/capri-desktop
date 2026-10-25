@@ -13,6 +13,7 @@ const ON_TWOS = 1000 / 12;
 const ON_ONES = 1000 / 24;
 const ASLEEP = 1000 / 6;
 const SLEEP_AFTER = 10 * 60 * 1000;
+const DOZE_AFTER = 20 * 1000; // asleep this long, she comes apart down to her mask
 const GRAVITY = 2600; // px/s²
 const THIGH = 73;     // hip to knee, sprite px (see sprite.js)
 
@@ -47,7 +48,10 @@ export class Capri {
     this.windows = { fg: 0, wins: [] };
     this.busy = false;
     this.hidden = false;
+    this.stowed = false;  // folded away in her biochip (Ctrl+Alt+C)
+    this.dormant = false; // asleep, down to her mask
     this.wander = true;
+    this.possessWindows = true; // tray: "Possess my windows"
     this.dragging = false;
 
     this.p = {
@@ -73,6 +77,7 @@ export class Capri {
     this.nextNotice = 0;
     this.peekUntil = 0;
     this.lastGlyph = 0;
+    this.sleptAt = 0;
     this.uplinkDue = false;
     this.mouse = null; // last pointer position seen
 
@@ -80,6 +85,11 @@ export class Capri {
     this.onTeleport = null; // ('start' | 'end')
     this.onClick = null;
     this.onGaze = null;
+    this.onMode = null;   // (mode, previous)
+    this.onStow = null;   // she's in her biochip
+    this.onUnstow = null; // she's coming out of it
+    this.chipAt = null;   // () => the biochip's middle on screen
+    this.onDoze = null;   // ('start', face) | 'waking' | 'end': down to her mask and back
 
     this.alphaMap = this.buildAlphaMap(image);
     this.setScale(this.scale);
@@ -212,6 +222,8 @@ export class Capri {
         return { x: w - side - 30, y: this.floor };
       case 'stage':
         return { x: w * 0.5 + rand(-w * 0.12, w * 0.12), y: this.floor };
+      case 'chip': // next to her biochip, bottom left
+        return { x: side + 30, y: this.floor };
       default: {
         const y = Math.random() < 0.65 ? this.floor : rand(SPRITE.height * s + 200, this.floor);
         let x = rand(side, w - side);
@@ -367,6 +379,10 @@ export class Capri {
     }
 
     if (this.mode === 'idle' && now - this.lastActivity > SLEEP_AFTER) this.setMode('sleep');
+    if (this.mode === 'sleep' && now - this.sleptAt > DOZE_AFTER) {
+      this.doze();
+      return;
+    }
 
     if (this.stance === 'peek' && now > this.peekUntil) {
       this.unpeek();
@@ -416,6 +432,7 @@ export class Capri {
 
   // Play an act from acting.js. Resolves when it's over (or cut off by a stronger one).
   perform(name, dir = 0, { reach = 1 } = {}) {
+    if (this.stowed || this.dormant) return Promise.resolve(); // nobody to act: she's in her biochip, or just her mask
     const act = ACTS[name];
     if (reducedMotion.matches && act.fps === 24) {
       if (act.flip) this.facing *= -1;
@@ -460,7 +477,10 @@ export class Capri {
     this.nextMove = Math.max(this.nextMove, now + rand(55000, 120000));
     this.nextGaze = Math.max(this.nextGaze, now + rand(30000, 70000));
     if (this.mode === mode) return;
+    const prev = this.mode;
     this.mode = mode;
+    if (mode === 'sleep') this.sleptAt = now;
+    this.onMode?.(mode, prev);
     if (this.stance === 'stand') this.base = new Player(this.baseAct());
     const p = this.p;
     if (mode === 'sleep') tween(p, { alpha: 0.55, sparkle: 0.35, boil: 0.4 }, 900, ease.inOut);
@@ -470,6 +490,7 @@ export class Capri {
   wake() {
     if (this.mode === 'sleep') this.setMode('idle');
     this.lastActivity = performance.now();
+    if (this.dormant) this.rouse(); // down to her mask: she comes back
   }
 
   // Somewhere to be while Claude works: on the window in front if she can sit on it, else her corner.
@@ -849,7 +870,7 @@ export class Capri {
   // comes back down (that's when the "done" panel comes in), or at the end if anything cut it short.
   async celebrate({ onSpeak } = {}) {
     this.onSpeak = onSpeak;
-    if (reducedMotion.matches) {
+    if (reducedMotion.matches || this.stowed || this.dormant) {
       this.voice.play('done');
       this.fireSpeak();
       return;
@@ -935,8 +956,10 @@ export class Capri {
 
   // Leave in a column of light, reappear somewhere else.
   async teleport(to, opts = {}) {
-    if (this.busy) {
+    if (this.stowed) return; // put away: she stays in her biochip
+    if (this.busy || this.dormant) {
       this.pending = { to, opts };
+      if (this.dormant) this.rouse(); // asleep, down to her mask: she comes back first, then goes
       return;
     }
     this.busy = true;
@@ -945,6 +968,11 @@ export class Capri {
     const fromHead = await this.vanish();
     await sleep(70);
     await this.arrive(to, { ...opts, fromHead });
+    await this.settle();
+  }
+
+  // After a move: free again, stay put a while, the panel back, and the move that was waiting, if any.
+  async settle() {
     this.busy = false;
     this.nextMove = Math.max(this.nextMove, performance.now() + rand(25000, 60000));
     this.onTeleport?.('end');
@@ -955,12 +983,135 @@ export class Capri {
     }
   }
 
+  // Ctrl+Alt+C: she folds herself into her biochip in the corner (she pulls in, collapses, and
+  // a streak runs from her to the chip). Asleep down to her mask, it's the mask that goes.
+  async stow() {
+    if (this.stowed || this.stowing) return;
+    this.stowing = true;
+    for (let i = 0; this.busy && i < 30; i++) await sleep(100); // let a move finish
+    this.busy = true;
+    this.endAct(false);
+    this.onTeleport?.('start');
+    let from = null;
+    if (this.dormant) {
+      from = this.head();
+      this.dormant = false;
+      this.onDoze?.('end');
+    }
+    if (reducedMotion.matches) {
+      await tween(this.p, { alpha: 0 }, 160, ease.linear);
+    } else {
+      if (!from) {
+        await this.perform('fold');
+        from = await this.vanish({ beam: false });
+      }
+      const chip = this.chipAt();
+      this.fx.streak(from.x, from.y, chip.x, chip.y);
+      await sleep(60);
+      this.fx.burst(chip.x, chip.y, { count: 12, inward: true, power: 0.45, spread: 40 });
+      this.fx.ring(chip.x, chip.y, { size: 0.3 });
+      this.voice.play('land');
+    }
+    this.setStance('stand');
+    this.stowed = true;
+    this.stowing = false;
+    this.hidden = true;
+    this.root.hidden = true;
+    this.onStow?.();
+    this.busy = false;
+    if (this.unstowAfter) this.unstow(); // called back out while she was folding herself away
+  }
+
+  // Already in it, no show (put away last time, she starts in it).
+  stowNow() {
+    this.stowed = true;
+    this.hidden = true;
+    this.root.hidden = true;
+    this.p.alpha = 0;
+    this.onTeleport?.('start');
+    this.onStow?.();
+  }
+
+  // Asleep a while: her mane and her body come apart (shards drifting down, the drawing
+  // dissolving) and all that's left is her mask, floating there, eyes shut (chip.js Mask).
+  async doze() {
+    if (this.busy || this.dormant || this.stowed || this.hidden) return;
+    this.busy = true;
+    this.endAct(false);
+    this.onTeleport?.('start');
+    this.dozedOn = this.stance === 'sit' ? { ...this.perch } : null;
+    const s = this.scale;
+    const h = this.head();
+    if (!reducedMotion.matches) {
+      for (let i = 0; i < 10; i++) this.shed();
+      this.fx.burst(h.x, h.y + 60 * s, { count: 10, power: 0.3, spread: 120 * s });
+      this.p.glitchSeed = Math.random() * 100;
+      await tween(this.p, { dissolve: 0.9, glitch: 0.25, sparkle: 0 }, 700, ease.in);
+    }
+    this.setStance('stand'); // no ledge to fall off while she's away
+    Object.assign(this.p, { alpha: 0, dissolve: 0, glitch: 0 });
+    this.hidden = true;
+    this.root.hidden = true;
+    this.dormant = true;
+    this.onDoze?.('start', h);
+    this.busy = false;
+  }
+
+  // Back from her mask: her eyes snap open, then she comes back together around it,
+  // on her ledge again if it's still there.
+  async rouse() {
+    if (!this.dormant) return;
+    this.dormant = false;
+    this.busy = true;
+    this.onDoze?.('waking');
+    if (this.mode === 'sleep') this.setMode('idle');
+    this.lastActivity = performance.now();
+    await sleep(reducedMotion.matches ? 0 : 280);
+    this.onDoze?.('end');
+    this.hidden = false;
+    this.root.hidden = false;
+    Object.assign(this.p, { alpha: 0, collapse: 0.6, dissolve: 0.5, glitch: 0, split: 0, sparkle: 1 });
+    const win = this.dozedOn && this.windows.wins.find((w) => w.id === this.dozedOn.id);
+    if (win && this.canSit(win) && !this.covered(win, win.x + this.dozedOn.dx)) {
+      await this.arrive(this.seat(win, this.dozedOn.dx), { face: this.facing, stance: 'sit', perch: this.dozedOn, beam: false });
+    } else {
+      await this.arrive({ x: this.pos.x, y: this.dozedOn ? this.floor : this.pos.y }, { face: this.facing, beam: false });
+    }
+    this.dozedOn = null;
+    await this.settle();
+  }
+
+  // Out of her biochip: a streak from the chip, and she arrives next to it.
+  async unstow() {
+    this.unstowAfter = this.stowing;
+    if (!this.stowed) return;
+    this.stowed = false;
+    this.busy = true;
+    this.onUnstow?.();
+    this.hidden = false;
+    this.root.hidden = false;
+    if (this.mode === 'sleep') this.setMode('idle');
+    this.lastActivity = performance.now();
+    Object.assign(this.p, { alpha: 0, collapse: 1, dissolve: 0.5, glitch: 0, split: 0 });
+    const chip = this.chipAt();
+    const to = this.spot('chip');
+    const face = to.x > this.view.w / 2 ? 1 : -1;
+    if (!reducedMotion.matches) {
+      const toHead = this.head(to, face);
+      this.fx.burst(chip.x, chip.y, { count: 10, power: 0.5, spread: 30 });
+      this.fx.streak(chip.x, chip.y, toHead.x, toHead.y);
+      await sleep(60);
+    }
+    await this.arrive(to, { face, beam: false });
+    await this.settle();
+  }
+
   sitOn({ win, dx }) {
     return this.teleport(this.seat(win, dx), { stance: 'sit', perch: { id: win.id, dx }, face: this.facing });
   }
 
   canPossess() {
-    return !this.busy && !this.hidden && this.stance === 'sit' && !reducedMotion.matches
+    return this.possessWindows && !this.busy && !this.hidden && this.stance === 'sit' && !reducedMotion.matches
       && this.windows.wins.some((w) => w.id === this.perch?.id);
   }
 
@@ -1012,9 +1163,7 @@ export class Capri {
     }
     if (seat) this.fx.slit(to.x, toHead.top, seat.win.y, { width: 56 * s + 10 }); // the void she climbs out of
     await this.arrive(to, seat ? { stance: 'sit', perch: { id: seat.win.id, dx: seat.dx }, beam: false } : {});
-    this.busy = false;
-    this.nextMove = Math.max(this.nextMove, performance.now() + rand(25000, 60000));
-    this.onTeleport?.('end');
+    await this.settle();
     return true;
   }
 

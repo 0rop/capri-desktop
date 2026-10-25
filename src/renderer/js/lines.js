@@ -55,6 +55,15 @@ export const LINES = {
     idle: ['Rien en cours. Je flotte.', 'Pas de mission. Je m’ennuie un peu.', 'Calme plat sur le Net.'],
     gaze: ['Tu la vois, cette étoile ?', 'Il est toujours là, le satellite.', 'Chut. Je regarde.'],
     uplink: ['Un jour, j’irai là-haut.', 'Tu crois qu’on pourrait monter jusque-là ?', 'Il m’a répondu. Tu l’as vu ?'],
+    // the demo's second half, one line before each trick
+    showcase: {
+      minds: 'Y a du monde, là-dedans.',
+      zap: 'Moi, une petite peste ?',
+      possess: 'Cette fenêtre est à moi.',
+      sleep: 'Une petite sieste…',
+      chip: 'Ctrl+Alt+C, et je me range là.',
+      end: 'Fin de la démo. À toi, choom.',
+    },
     status: 'Claude travaille sur {project} depuis {time}.',
     last: 'Dernière action : {action}',
     sessions: '{count} sessions actives',
@@ -109,6 +118,15 @@ export const LINES = {
     idle: ['Nothing running. Just floating.', 'No gig. Kinda bored.', 'Quiet night on the Net.'],
     gaze: ['See that star?', 'The satellite’s still up there.', 'Shh. I’m watching.'],
     uplink: ['Someday I’ll get up there.', 'Think we could make it up there?', 'It answered. Did you see?'],
+    // the demo's second half, one line before each trick
+    showcase: {
+      minds: 'There’s a crowd in here.',
+      zap: 'Me? A menace?',
+      possess: 'This window’s mine now.',
+      sleep: 'Quick nap…',
+      chip: 'Ctrl+Alt+C, and I tuck myself away here.',
+      end: 'That’s the demo. Your turn, choom.',
+    },
     status: 'Claude has been working on {project} for {time}.',
     last: 'Last action: {action}',
     sessions: '{count} active sessions',

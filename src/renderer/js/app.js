@@ -1,5 +1,6 @@
 import { Capri } from './capri.js';
 import { FxLayer } from './fx.js';
+import { Chip, Mask } from './chip.js';
 import { Panel } from './panel.js';
 import { Voice } from './voice.js';
 import { Brain } from './brain.js';
@@ -34,6 +35,9 @@ async function boot() {
     cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i]])),
   });
   fx.resize(innerWidth, innerHeight);
+  const chip = new Chip(document.getElementById('chip'));
+  chip.place(innerWidth, innerHeight);
+  const mask = new Mask(document.getElementById('mask'));
 
   const voice = new Voice();
   voice.configure(config);
@@ -53,11 +57,12 @@ async function boot() {
     voice,
   });
   capri.wander = config.wander;
+  capri.possessWindows = config.possess;
   capri.setScale(config.scale);
 
   const brain = new Brain({ capri, panel, voice, host, lang: config.lang });
 
-  // Click-through everywhere except on her body and the panel.
+  // Click-through everywhere except on her body, the panel and her biochip.
   let interactive = false;
   let mouse = null;
   const setInteractive = (on) => {
@@ -65,20 +70,49 @@ async function boot() {
     interactive = on;
     host.setInteractive(on);
   };
+  const onChip = () => Boolean(chip.visible && mouse && chip.contains(mouse.x, mouse.y, 0));
   const refreshHit = () => {
     if (capri.dragging) return setInteractive(true);
     if (!mouse) return setInteractive(false);
     const r = panel.rect();
     const onPanel = r && mouse.x >= r.left && mouse.x <= r.right && mouse.y >= r.top && mouse.y <= r.bottom;
-    return setInteractive(Boolean(onPanel || capri.hit(mouse.x, mouse.y)));
+    document.body.style.cursor = onChip() ? 'pointer' : '';
+    return setInteractive(Boolean(onPanel || capri.hit(mouse.x, mouse.y) || onChip()));
+  };
+  // Her biochip: her eyes on it follow the pointer over it, and she comes out when you click it
+  // (only then, so the pointer passing through that corner doesn't call her back).
+  // Her mask, asleep: the pointer coming over it stirs her, and a moment of that wakes her up.
+  let wakeTimer = 0;
+  const comeOut = () => {
+    if (capri.stowed) host.setConfig({ visible: true }); // the tray and Ctrl+Alt+C follow
+    capri.unstow();
+  };
+  const hoverChip = () => {
+    chip.pointer = chip.visible && mouse && chip.contains(mouse.x, mouse.y) ? mouse : null;
+    const near = mask.visible && mouse && mask.contains(mouse.x, mouse.y, 30);
+    mask.pointer = near ? mouse : null;
+    if (!near) {
+      clearTimeout(wakeTimer);
+      wakeTimer = 0;
+    } else if (!wakeTimer) {
+      wakeTimer = setTimeout(() => {
+        wakeTimer = 0;
+        if (capri.dormant) capri.wake();
+      }, 400);
+    }
   };
   window.addEventListener('mousemove', (e) => {
     mouse = { x: e.clientX, y: e.clientY };
     refreshHit();
+    hoverChip();
   });
   document.addEventListener('mouseleave', () => {
     mouse = null;
     refreshHit();
+    hoverChip();
+  });
+  window.addEventListener('click', (e) => {
+    if (chip.visible && chip.contains(e.clientX, e.clientY, 0)) comeOut();
   });
 
   // wiring
@@ -88,6 +122,23 @@ async function boot() {
     refreshHit();
   };
   capri.onTeleport = (phase) => (phase === 'start' ? panel.suspend() : panel.resume());
+  capri.chipAt = () => chip.center();
+  capri.onStow = () => {
+    chip.setMode(capri.mode);
+    chip.show();
+  };
+  capri.onUnstow = () => chip.hide();
+  capri.onDoze = (phase, face) => {
+    if (phase === 'start') {
+      mask.place(face.x, face.y, capri.scale * 1.1);
+      mask.show();
+    } else if (phase === 'waking') {
+      mask.wake();
+    } else {
+      mask.hide();
+    }
+  };
+  capri.onMode = (mode, prev) => chip.setMode(mode, prev);
   // now and then she says something about the satellite: while she looks at it, or once
   // the red light has gone up (never during, nothing should cover that)
   capri.onGaze = (when) => {
@@ -101,21 +152,98 @@ async function boot() {
   panel.onChar = (kind) => voice.play('blip', { mood: kind });
   panel.onTalk = (talking) => talking && capri.perform('talk');
 
+  // The demo's second half, after its fake Claude session: everything she does on her own, one
+  // after the other, a line before each.
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const until = async (done, max = 15000) => {
+    for (const t0 = Date.now(); !done() && Date.now() - t0 < max;) await wait(100);
+  };
+  const free = () => !capri.busy && !capri.act && capri.stance !== 'fall';
+  brain.onShowcase = async () => {
+    const t = brain.t.showcase;
+    const caption = (line) => panel.say({ kind: 'info', line, hold: 2200 });
+    capri.nextMove = capri.nextGaze = performance.now() + 120000; // nothing of her own in between
+    if (capri.stowed) await capri.unstow();
+    if (capri.dormant) capri.wake();
+    await until(free);
+    panel.hide();
+
+    caption(t.minds);
+    await wait(1000);
+    await capri.perform('split');
+    await wait(900);
+
+    caption(t.zap);
+    await wait(1000);
+    const h = capri.head();
+    capri.zap(h.x + capri.towardCenter() * 280, h.y - 170);
+    await wait(1800);
+
+    panel.hide();
+    if (capri.gaze({ big: true })) await until(() => !capri.sky);
+    await wait(2500);
+
+    // a little terminal opens for her to take over, and closes under her once she's done with it
+    if (capri.possessWindows && (await host.demoWindow(true))) {
+      const top = () => capri.windows.wins.find((w) => capri.canSit(w)); // it opens on top of everything
+      await until(top, 4000);
+      const win = top();
+      const seat = win && { win, dx: win.w * 0.4 };
+      if (seat) {
+        panel.hide();
+        await capri.sitOn(seat);
+        await until(free);
+        caption(t.possess);
+        await wait(1400);
+        panel.hide();
+        await capri.possess();
+        await wait(1800);
+      }
+      host.demoWindow(false);
+      await wait(400);
+      await until(free); // she may have fallen off it
+      await wait(900);
+    }
+
+    caption(t.sleep);
+    await wait(1400);
+    panel.hide();
+    capri.setMode('sleep');
+    await wait(2500); // dozing off
+    await capri.doze();
+    await wait(4500);
+    capri.wake();
+    await until(free);
+    await wait(1200);
+
+    caption(t.chip);
+    await wait(1600);
+    panel.hide();
+    await capri.stow();
+    await wait(3500);
+    await capri.unstow();
+    await wait(600);
+    panel.say({ kind: 'info', line: t.end, hold: 5000 });
+  };
+
   host.onClaudeEvent((evt) => brain.handle(evt));
   host.onWindows((data) => capri.setWindows(data));
 
   host.onResize(({ width, height }) => {
     fx.resize(width, height);
+    chip.place(width, height);
     capri.setView(width, height);
   });
   window.addEventListener('resize', () => {
     fx.resize(innerWidth, innerHeight);
+    chip.place(innerWidth, innerHeight);
     capri.setView(innerWidth, innerHeight);
   });
 
   host.onConfig((cfg) => {
     voice.configure(cfg);
     capri.wander = cfg.wander;
+    capri.possessWindows = cfg.possess;
     if (cfg.scale !== capri.scale) capri.setScale(cfg.scale);
     if (cfg.lang !== brain.lang) {
       brain.lang = cfg.lang;
@@ -133,7 +261,15 @@ async function boot() {
       case 'status':
         brain.status();
         break;
+      case 'stow': // Ctrl+Alt+C: into her biochip, or back out
+        if (cmd.on) capri.stow();
+        else capri.unstow();
+        break;
       case 'satellite': // the whole sequence, on demand (tray)
+        if (capri.stowed) {
+          host.setConfig({ visible: true });
+          await capri.unstow();
+        }
         capri.wake();
         if (capri.stance === 'peek') await capri.unpeek();
         if (!capri.gaze({ big: true })) setTimeout(() => capri.gaze({ big: true }), 1500);
@@ -162,8 +298,9 @@ async function boot() {
       case 'act':
         // behaviours by method name (gaze, celebrate, hurt, shed, peek, fall, wanderStep...) or acts by name
         if (cmd.act === 'sit') {
-          // topmost: the window on top of the others (the --dev test window), not the one in front
-          const top = cmd.topmost && capri.windows.wins.find((w) => capri.canSit(w));
+          // pile: n-th window she could sit on from the top of the pile (0: the --dev test window
+          // opened last), instead of the usual choice
+          const top = cmd.pile !== undefined && capri.windows.wins.filter((w) => capri.canSit(w))[cmd.pile];
           const seat = top ? { win: top, dx: top.w * 0.4 } : capri.pickSeat();
           if (seat) capri.sitOn(seat);
         } else if (typeof capri[cmd.act] === 'function') capri[cmd.act](...(cmd.args || []));
@@ -175,7 +312,9 @@ async function boot() {
   });
 
   // entrance
-  await capri.materialize(capri.spot('post'));
+  // put away last time: she starts in her biochip
+  if (config.visible === false) capri.stowNow();
+  else await capri.materialize(capri.spot('post'));
   const hooks = await host.hooksStatus();
   if (!hooks.installed) {
     panel.say({ kind: 'info', line: t0(config.lang).noHooks, hold: 9000 });

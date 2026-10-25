@@ -95,6 +95,19 @@ body {
   pointer-events: none;
 }
 
+/* her small forms (chip.js): her biochip in the corner, her mask floating while she sleeps */
+.chip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.chip[hidden] {
+  display: none;
+}
+
 /* ---------- transmission panel ---------- */
 
 .panel {
