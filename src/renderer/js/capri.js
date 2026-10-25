@@ -1381,6 +1381,37 @@ export class Capri {
     this.busy = false;
   }
 
+  // Her intro, when she starts: her face big in the top right corner of the screen says hi,
+  // then dives down to where she stands and her body unfolds from it (fx.intro).
+  // `still`: no motion, it comes and goes where it is (Windows' animations off).
+  async intro(at, { label = 'hi', caption = 'PROJECT CAPRICORN', still = reducedMotion.matches } = {}) {
+    const p = this.p;
+    this.pos = { ...at };
+    this.faceCenter();
+    this.setStance('stand');
+    this.busy = true;
+    this.onTeleport?.('start'); // the panel waits for her
+    p.alpha = 0;
+    p.collapse = 1;
+    p.dissolve = 0.5;
+    this.place();
+    const head = this.head(at, this.facing);
+    await this.fx.intro({
+      to: { x: head.x, y: head.y, size: 100 * this.scale },
+      label,
+      caption,
+      still,
+      onCue: (cue) => {
+        if (cue === 'open') this.voice.play('teleport-in');
+        else if (cue === 'hi') this.voice.play('hello');
+        else if (cue === 'dive') this.voice.play('teleport-out');
+      },
+    });
+    await this.arrive(at, { face: this.facing, beam: false });
+    this.busy = false;
+    this.onTeleport?.('end');
+  }
+
   // ---------- showing you things ----------
 
   // The point of `rect` (overlay coordinates) she aims at from where she is: its closest point,

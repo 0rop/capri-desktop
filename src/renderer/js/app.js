@@ -23,9 +23,10 @@ function loadImage(src) {
 const CUTINS = ['grin', 'laugh', 'eyes', 'many', 'look'];
 
 async function boot() {
-  const [config, image, ...cutins] = await Promise.all([
+  const [config, image, intro, ...cutins] = await Promise.all([
     host.getConfig(),
     loadImage('../../assets/capri/capri-full.png'),
+    loadImage('../../assets/capri/intro-face.webp').catch(() => null), // her intro, frames of the show
     ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`)),
     document.fonts.load('600 16px "Chakra Petch"'),
     document.fonts.load('400 11px "JetBrains Mono"'),
@@ -34,6 +35,7 @@ async function boot() {
 
   const fx = new FxLayer(document.getElementById('fx'), {
     cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i]])),
+    intro,
   });
   fx.resize(innerWidth, innerHeight);
   const chip = new Chip(document.getElementById('chip'));
@@ -319,6 +321,10 @@ async function boot() {
         else panel.say({ kind: 'error', line: fmt(t.hooksFail, { error: cmd.error }), hold: 9000 });
         break;
       // --dev helpers
+      case 'intro': // her intro again, as when she starts (still: as with Windows' animations off)
+        panel.hide();
+        await capri.intro(capri.spot('post'), cmd.still ? { still: true } : {});
+        break;
       case 'pose':
         capri.debug = cmd.params || null;
         if (cmd.still) capri.nextMove = capri.nextGaze = Infinity; // no wandering off mid-test
@@ -358,9 +364,10 @@ async function boot() {
     }
   });
 
-  // entrance
-  // put away last time: she starts in her biochip
+  // entrance: her face big in the corner says hi, then she dives down to her spot
+  // (put away last time: she starts in her biochip)
   if (config.visible === false) capri.stowNow();
+  else if (intro) await capri.intro(capri.spot('post'));
   else await capri.materialize(capri.spot('post'));
   const hooks = await host.hooksStatus();
   if (!config.welcomed || !hooks.installed) guide.welcome();

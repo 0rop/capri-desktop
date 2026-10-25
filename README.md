@@ -12,6 +12,12 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 ## What she does
 
+- **When she starts**: her face, big, in the top right corner of your screen, frame by frame from the show. A slit
+  tears open into her portrait, the camera pushes in on her, she opens her mouth and says hi. Then she shrinks and
+  dives down to her spot, leaving afterimages of herself behind, and her body unfolds from her face.
+
+  ![Her intro: it tears open, her face, "hi", the dive](docs/intro.png)
+
 - **While Claude works**: a ticker over her head shows the current action
   (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
   When Claude runs a command or goes on the web, red sparks fly off her fingers; sitting on a window,
@@ -261,6 +267,9 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
 - **Teleport**: charge, shards, collapse into a line, and where she was, a black slit with a red line in it,
   like in the show. A red column of light to the sky, a bolt to the destination, her pieces (mane shards and the
   green stars of her eyes) spiralling back in, back with two *impact frames*.
+- **Her intro**: nine frames of the show played in her portrait (the push-in on her face, her mouth opening for
+  "hi"), torn open from her slit with two impact frames, the tag slammed on with speed lines, then a dive with a
+  smear, afterimages and her zigzag.
 - **Cut-ins**: close-ups of her taken from the show, pushed in, with speed lines: her grin or her laugh after a
   finished job, all her eyes when Claude is waiting on you, her eyes right before the red light, her sideways look
   after zapping your pointer. Her face in the panel changes with what she's saying, too.
@@ -277,14 +286,14 @@ If Windows is set to "Show animations: off", she sticks to fades.
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
 tools/build-sprite.py    rebuilds the sprite from the original cut-out (Python + Pillow, only if you change it)
-tools/build-cutins.py    cuts the cut-ins and her faces out of frames of the show
+tools/build-cutins.py    cuts the cut-ins, her faces and her intro out of frames of the show
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
   windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
 src/renderer/js/
   sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
   acting.js              the exposure sheets: every move, drawing by drawing
   capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
-  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, possessed windows, the cut-ins
+  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, possessed windows, the cut-ins, her intro
   panel.js               the "transmission" panel, her faces, and the ticker
   guide.js               her guide: the tutorials, going to things and pointing at them
   brain.js               turns Claude events into lines and actions

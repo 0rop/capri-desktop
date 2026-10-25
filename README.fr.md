@@ -12,6 +12,12 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 ## Ce qu'elle fait
 
+- **Quand elle démarre** : son visage en grand en haut à droite de l'écran, image par image tiré de la série. Une
+  fente se déchire et s'ouvre sur son portrait, la caméra zoome sur elle, elle ouvre la bouche et te dit hi. Puis elle
+  rétrécit et plonge jusqu'à sa place en laissant des images d'elle derrière, et son corps se déplie depuis son visage.
+
+  ![Son intro : la fente qui s'ouvre, son visage, « hi », le plongeon](docs/intro.png)
+
 - **Pendant que Claude bosse** : un ticker au-dessus d'elle affiche l'action en cours
   (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
   Quand Claude lance une commande ou va sur le web, des étincelles rouges partent de ses doigts ; assise sur une fenêtre,
@@ -269,6 +275,9 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
 - **Téléportation** : charge, éclats, effondrement en ligne, et là où elle était, une fente noire avec un trait rouge
   dedans, comme dans la série. Colonne de lumière rouge vers le ciel, éclair jusqu'à la destination, ses morceaux
   (éclats de crinière et étoiles vertes de ses yeux) qui reviennent en spirale, retour avec deux *impact frames*.
+- **Son intro** : neuf images de la série jouées dans son portrait (le zoom sur son visage, sa bouche qui s'ouvre
+  pour « hi »), ouvert depuis sa fente avec deux *impact frames*, l'étiquette qui claque avec des lignes de vitesse,
+  puis un plongeon avec un étirement, des images rémanentes et son zigzag.
 - **Cut-ins** : des gros plans d'elle tirés de la série, en poussée de caméra avec des lignes de vitesse : son sourire
   ou son rire après une tâche terminée, tous ses yeux quand Claude t'attend, ses yeux juste avant la lumière rouge,
   son regard en coin après un éclair sur ta souris. Le visage du panneau change aussi selon ce qu'elle dit.
@@ -285,14 +294,14 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
 tools/build-sprite.py    reconstruit le sprite depuis la découpe d'origine (Python + Pillow, seulement si tu la changes)
-tools/build-cutins.py    découpe les cut-ins et ses expressions dans des images de la série
+tools/build-cutins.py    découpe les cut-ins, ses expressions et son intro dans des images de la série
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
   windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
 src/renderer/js/
   sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
   capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
-  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les fenêtres possédées, les cut-ins
+  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les fenêtres possédées, les cut-ins, son intro
   panel.js               le panneau « transmission », ses expressions et le ticker
   guide.js               son guide : les tutos, aller jusqu'aux choses et les montrer du doigt
   brain.js               traduit les événements Claude en répliques et en actions

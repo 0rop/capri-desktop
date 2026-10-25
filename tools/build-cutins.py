@@ -34,6 +34,13 @@ FACES = {
     'laugh': (138, (92, 26, 374, 308)),   # mouth wide open
     'many': (123, (12, 12, 362, 362)),    # all her eyes on you
 }
+# her intro (fx.js intro): her face big in the corner, played frame by frame from the show.
+# A strip of INTRO_SIZE squares, in this order: the camera pushing in on her (96-98), her face
+# held (99-101, looped), her mouth opening for "hi" (136-138).
+INTRO_SIZE = 300
+LOOK = (34, 58, 334, 358)
+LAUGH = (92, 26, 374, 308)
+INTRO = [(96, LOOK), (97, LOOK), (98, LOOK), (99, LOOK), (100, LOOK), (101, LOOK), (136, LAUGH), (137, LAUGH), (138, LAUGH)]
 
 
 def main():
@@ -44,6 +51,10 @@ def main():
         frames[i].crop(box).resize(CUTIN, Image.LANCZOS).save(OUT / f'cutin-{name}.png', optimize=True)
     for name, (i, box) in FACES.items():
         frames[i].crop(box).resize(FACE, Image.LANCZOS).save(OUT / f'face-{name}.png', optimize=True)
+    strip = Image.new('RGB', (INTRO_SIZE * len(INTRO), INTRO_SIZE))
+    for k, (i, box) in enumerate(INTRO):
+        strip.paste(frames[i].crop(box).resize((INTRO_SIZE, INTRO_SIZE), Image.LANCZOS), (k * INTRO_SIZE, 0))
+    strip.save(OUT / 'intro-face.webp', quality=92, method=6)
     # the grin from the stills, same format as the cut-ins
     face = Image.open(OUT / 'capri-face.png').convert('RGB')
     face.crop((16, 58, 241, 208)).resize(CUTIN, Image.LANCZOS).save(OUT / 'cutin-grin.png', optimize=True)

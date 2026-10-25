@@ -20,6 +20,12 @@ const SHARD_PALETTE = ['red', 'red', 'red', 'red', 'ink', 'ink', 'green', 'green
 const GLYPHS = ['01', '10', '▚', '▞', '◢', '◣', '>_', '{}', '#', '⌁', '//', '0x'];
 const FRAME_MS = 1000 / 24;
 const CUTIN = { w: 360, h: 240 }; // assets/capri/cutin-*.png
+// her intro (see intro()): the strip's frames (assets/capri/intro-face.webp, squares side by
+// side), and when things happen, in drawings at 24 fps
+const STRIP = { size: 300, push: [0, 1, 2], look: [3, 4, 5, 4], mouth: [6, 7, 8] };
+const INTRO_T = { hi: 22, pop: 24, back: 50, dive: 60, travel: 8, land: 70, end: 72 };
+// the bevelled frame of her portrait (as in the panel), on a unit square
+const BEVEL = [[0.14, 0], [1, 0], [1, 0.8], [0.84, 1], [0, 1], [0, 0.16]];
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const onTwos = (ms) => Math.floor(ms / (FRAME_MS * 2)) * FRAME_MS * 2;
@@ -156,10 +162,11 @@ export function drawEye(ctx, x, y, R, open, look = null) {
 }
 
 export class FxLayer {
-  constructor(canvas, { cutins = {} } = {}) {
+  constructor(canvas, { cutins = {}, intro = null } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.cutins = cutins;
+    this.strip = intro;
     this.items = [];
     this.running = false;
     this.last = 0;
@@ -423,6 +430,136 @@ export class FxLayer {
     const image = this.cutins[kind] || this.cutins.grin;
     if (!image) return Promise.resolve();
     return new Promise((done) => this.add({ type: 'cutin', life, x, y, dir, image, done }));
+  }
+
+  // ---------- her intro ----------
+
+  // Her first appearance: her face big in the top right corner, frame by frame from the show.
+  // A slit tears open into her portrait, two impact frames, the camera pushes in on her; she
+  // opens her mouth and a tag pops: "hi". Then she shrinks and dives down to `to` (her face
+  // where she'll stand: { x, y, size }) and closes into a slit there.
+  // Cues to onCue: 'open', 'hi', 'dive'. Resolves as it lands, for her body to unfold.
+  // `still` (reduced motion): it comes and goes where it is, in four steps each way.
+  intro({ to, label = 'hi', caption = '', still = false, onCue = () => {} }) {
+    if (!this.strip || !this.size) return Promise.resolve();
+    const S = Math.round(clamp(this.size.h * 0.32, 170, 300));
+    const at = { x: this.size.w - S / 2 - 64, y: S / 2 + 52 };
+    // the dive swings out toward the middle of the screen and back in to her
+    const ctrl = { x: Math.min(at.x, to.x) - S * 0.6, y: lerp(at.y, to.y, 0.3) };
+    return new Promise((land) => {
+      this.add({ type: 'intro', life: FRAME_MS * (INTRO_T.end + 1), S, at, to, ctrl, label, caption, still, onCue, land, cued: -1 });
+    });
+  }
+
+  // One drawing of her portrait: the bevelled frame centred on (x, y), w by h, its violet copy
+  // behind, strip frame `i` inside (or one flat colour, an impact frame), a red line on top.
+  // `glitch`: slices of her knocked sideways.
+  portrait(x, y, w, h, i, { flat = null, glitch = 0, copy = 1 } = {}) {
+    const { ctx } = this;
+    const x0 = x - w / 2, y0 = y - h / 2;
+    const shape = (dx, dy, inset = 0) => {
+      ctx.beginPath();
+      BEVEL.forEach(([u, v], k) => {
+        const px = x0 + dx + inset + u * (w - inset * 2), py = y0 + dy + inset + v * (h - inset * 2);
+        if (k) ctx.lineTo(px, py);
+        else ctx.moveTo(px, py);
+      });
+      ctx.closePath();
+    };
+    const off = Math.max(3, w * 0.035) * copy;
+    const inset = Math.max(2, w * 0.022);
+    ctx.save();
+    shape(off, off);
+    ctx.fillStyle = COLORS.violet;
+    ctx.fill();
+    shape(0, 0);
+    ctx.fillStyle = COLORS.ink;
+    ctx.fill();
+    shape(0, 0, inset);
+    if (flat) {
+      ctx.fillStyle = flat;
+      ctx.fill();
+    } else {
+      ctx.clip();
+      const N = STRIP.size;
+      ctx.drawImage(this.strip, i * N, 0, N, N, x0, y0, w, h);
+      for (let k = 0; k < glitch; k++) {
+        const sy = rand(0, N - 30), sh = rand(8, 34), dx = rand(-1, 1) * w * 0.08;
+        ctx.drawImage(this.strip, i * N, sy, N, sh, x0 + dx, y0 + (sy / N) * h, w, (sh / N) * h);
+        ctx.fillStyle = pick([COLORS.red, COLORS.green, COLORS.violet]);
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(x0 + dx - w * 0.04, y0 + (sy / N) * h, w * 0.3, Math.max(2, (sh / N) * h * 0.2));
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.restore();
+    ctx.fillStyle = COLORS.red;
+    ctx.fillRect(x0 + w * 0.14, y0, w * 0.86, Math.max(2, w * 0.014));
+  }
+
+  // The void, as she leaves or lands (see slit): black, with her as a red line in it.
+  voidSlit(x, y, w, h) {
+    const { ctx } = this;
+    ctx.fillStyle = COLORS.violet;
+    ctx.fillRect(x - w / 2 - 3, y - h / 2, w + 6, h);
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = COLORS.red;
+    ctx.fillRect(x - 1, y - h * 0.42, 2, h * 0.84);
+  }
+
+  // The tag she says hi on: red, slanted, over the lower left of her portrait, scaled by `k`
+  // from its end on the portrait (`ky`: squashed flat).
+  hiTag(it, k, ky, jitter = 0) {
+    const { ctx } = this;
+    const fs = Math.round(it.S * 0.24);
+    ctx.save();
+    ctx.font = `600 ${fs}px "Chakra Petch", sans-serif`;
+    ctx.letterSpacing = `${(-fs * 0.03).toFixed(1)}px`;
+    const skew = fs * 0.32, h = fs * 1.18;
+    const w = ctx.measureText(it.label).width + fs * 0.9 + skew;
+    ctx.translate(it.at.x - it.S * 0.38 + jitter, it.at.y + it.S * 0.24);
+    ctx.scale(k, k * ky);
+    const band = (dx, dy) => {
+      ctx.beginPath();
+      ctx.moveTo(-w + skew + dx, -h / 2 + dy);
+      ctx.lineTo(dx, -h / 2 + dy);
+      ctx.lineTo(-skew + dx, h / 2 + dy);
+      ctx.lineTo(-w + dx, h / 2 + dy);
+      ctx.closePath();
+    };
+    band(7, 7);
+    ctx.fillStyle = COLORS.violet;
+    ctx.fill();
+    band(0, 0);
+    ctx.fillStyle = COLORS.red;
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = COLORS.paper;
+    ctx.fillText(it.label, -w / 2, fs * 0.04);
+    ctx.restore();
+  }
+
+  // Her name under her portrait, typed out on an ink strip, a red block for a cursor.
+  nameTag(it, text, frame = 0) {
+    if (!it.caption) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.font = '400 11px "JetBrains Mono", monospace';
+    ctx.letterSpacing = '2px';
+    const full = ctx.measureText(it.caption).width;
+    const x = it.at.x + it.S / 2 - full - 18, y = it.at.y + it.S / 2 + 24;
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(x - 8, y - 13, full + 26, 20);
+    ctx.fillStyle = COLORS.paper;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, x, y + 1);
+    if (text.length < it.caption.length || (frame >> 2) % 2) {
+      ctx.fillStyle = COLORS.red;
+      ctx.fillRect(x + ctx.measureText(text).width + 1, y - 9, 7, 12);
+    }
+    ctx.restore();
   }
 
   // ---------- loop ----------
@@ -1119,6 +1256,123 @@ export class FxLayer {
         ctx.fillStyle = COLORS.red;
         ctx.fillRect(x0, y0, w + skew, 3);
         ctx.restore();
+        break;
+      }
+      case 'intro': {
+        const T = INTRO_T;
+        const { S, at, to } = it;
+        const frame = Math.floor((now - it.born) / FRAME_MS);
+        for (let f = it.cued + 1; f <= frame; f++) {
+          if (f === 0) it.onCue('open');
+          if (f === T.hi) it.onCue('hi');
+          if (f === T.pop && !it.still) this.lines(at.x, at.y, { inner: S * 0.74, life: 320 }); // the punch on "hi"
+          if (f === T.dive) it.onCue('dive');
+          if (f === (it.still ? T.dive + 4 : T.land)) it.land();
+        }
+        it.cued = frame;
+        // which of her frames: the camera pushing in, then her face held (looped on twos), and
+        // her mouth opening for "hi"
+        let img = frame < 6 ? 0 : frame < 8 ? 1 : frame < 10 ? 2 : STRIP.look[(frame >> 1) % 4];
+        if (frame >= T.hi && frame < T.back) {
+          // it opens over three drawings, then she giggles: wide, a bit less, wide...
+          img = frame < T.hi + 6 ? STRIP.mouth[(frame - T.hi) >> 1] : STRIP.mouth[(frame >> 2) % 2 ? 1 : 2];
+        }
+        const typed = it.caption.slice(0, clamp(frame - 12, 0, it.caption.length));
+
+        if (it.still) {
+          const a = frame < 4 ? (frame + 1) / 4 : frame >= T.dive ? 1 - (frame - T.dive + 1) / 4 : 1;
+          if (a <= 0) break;
+          ctx.save();
+          ctx.globalAlpha = a;
+          this.portrait(at.x, at.y, S, S, frame >= T.hi && frame < T.back ? STRIP.mouth[2] : STRIP.look[0]);
+          if (frame >= T.pop) this.hiTag(it, 1, 1);
+          this.nameTag(it, it.caption);
+          ctx.restore();
+          break;
+        }
+
+        if (frame < 2) {
+          // the slit she tears open
+          this.voidSlit(at.x, at.y, [4, 14][frame], S * 1.08);
+          break;
+        }
+
+        if (frame < T.dive) {
+          // tearing open in two drawings, an overshoot flashed green, one in ink, then her
+          const OPEN = [[0.3, 1.04], [0.78, 1], [1.1, 0.95], [1, 1]];
+          const [kw, kh] = frame < 6 ? OPEN[frame - 2] : [1, 1];
+          // "hi": she bobs up into it and settles
+          let dy = 0, sx = 1, sy = 1;
+          if (frame === T.pop) [dy, sx, sy] = [-12, 0.96, 1.05];
+          else if (frame === T.pop + 1) [dy, sx, sy] = [4, 1.03, 0.97];
+          const flat = frame === 4 ? COLORS.green : frame === 5 ? COLORS.ink : null;
+          const glitch = frame === 6 || frame === 7 || frame % 16 === 13 ? 3 : 0;
+          this.portrait(at.x, at.y + dy, S * kw * sx, S * kh * sy, img, { flat, glitch });
+          if (frame >= 6) this.nameTag(it, typed, frame);
+          if (frame >= T.pop) {
+            const POP = [0.35, 1.22, 0.94];
+            this.hiTag(it, POP[frame - T.pop] ?? 1, 1, (frame >> 1) % 2);
+          }
+          break;
+        }
+
+        if (frame < T.dive + 2) {
+          // winding up: a hop up and a stretch, the tag squashed away
+          const k = frame - T.dive;
+          this.portrait(at.x, at.y - [8, 14][k], S * 0.95, S * 1.06, img);
+          if (!k) this.hiTag(it, 1, 0.45);
+          break;
+        }
+
+        if (frame < T.land) {
+          // the dive: shrinking fast, then falling faster and faster into her, smeared along the
+          // way she goes, her last drawings left behind her, and a zigzag where she's been
+          const u = (frame - T.dive - 1) / T.travel;
+          const place = (v) => {
+            const e = v * v;
+            const a = (1 - e) * (1 - e), b = 2 * e * (1 - e), c = e * e;
+            return {
+              x: a * at.x + b * it.ctrl.x + c * to.x,
+              y: a * at.y + b * it.ctrl.y + c * to.y,
+              size: lerp(S, to.size, 1 - (1 - v) * (1 - v)),
+            };
+          };
+          const trail = [];
+          for (let k = 0; k <= 10; k++) {
+            const q = place(Math.max(0, u - 0.45 + (k / 10) * 0.45));
+            trail.push([q.x + (k % 2 ? 1 : -1) * rand(3, 9), q.y]);
+          }
+          ctx.save();
+          ctx.lineJoin = 'miter';
+          this.stroke(trail, COLORS.violet, 5, -3, 3);
+          this.stroke(trail, COLORS.red, 4);
+          this.stroke(trail, COLORS.paper, 1.2);
+          ctx.restore();
+          for (const [k, alpha] of [[3, 0.22], [2, 0.42], [1, 0.65]]) {
+            const v = u - k / T.travel;
+            if (v <= 0) continue;
+            const q = place(v);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            this.portrait(q.x, q.y, q.size, q.size, img, { copy: 0 });
+            ctx.restore();
+          }
+          const q = place(u), prev = place(Math.max(0, u - 1 / T.travel));
+          const ang = Math.atan2(q.y - prev.y, q.x - prev.x);
+          const st = clamp(1 + (Math.hypot(q.x - prev.x, q.y - prev.y) / q.size) * 0.22, 1, 1.9);
+          ctx.save();
+          ctx.translate(q.x, q.y);
+          ctx.rotate(ang);
+          ctx.scale(st, 1 / Math.sqrt(st));
+          ctx.rotate(-ang);
+          this.portrait(0, 0, q.size, q.size, img);
+          ctx.restore();
+          break;
+        }
+
+        // landed: it closes into a slit where her face will be
+        const k = frame - T.land;
+        if (k < 2) this.voidSlit(to.x, to.y, to.size * [0.4, 0.1][k], to.size * 1.5);
         break;
       }
       case 'pointer': {
