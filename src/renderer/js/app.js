@@ -162,7 +162,9 @@ async function boot() {
       case 'act':
         // behaviours by method name (gaze, celebrate, hurt, shed, peek, fall, wanderStep...) or acts by name
         if (cmd.act === 'sit') {
-          const seat = capri.pickSeat();
+          // topmost: the window on top of the others (the --dev test window), not the one in front
+          const top = cmd.topmost && capri.windows.wins.find((w) => capri.canSit(w));
+          const seat = top ? { win: top, dx: top.w * 0.4 } : capri.pickSeat();
           if (seat) capri.sitOn(seat);
         } else if (typeof capri[cmd.act] === 'function') capri[cmd.act](...(cmd.args || []));
         else capri.perform(cmd.act, cmd.dir || 0);

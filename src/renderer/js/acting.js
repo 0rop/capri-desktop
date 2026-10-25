@@ -229,6 +229,18 @@ export const ACTS = {
     ],
   },
 
+  // Before she dives into the window she sits on: head cocked at it, the legs swing up, she
+  // coils with the mane pulled in and the arms tucked, then stretches down into it.
+  dive: {
+    priority: 3,
+    keys: [
+      [1, { head: -0.05 }],
+      [5, { head: 0.18, mane: 0.1, kickL: 0.1, kickR: 0.1 }],
+      [2, { head: 0.22, mane: -0.15, sy: 0.9, sx: 1.06, kickL: 0.34, kickR: 0.34, arms: -0.6 }],
+      [1, { head: 0.1, mane: -0.28, sy: 1.16, sx: 0.88, smear: [0, -14], arms: -0.7 }],
+    ],
+  },
+
   // The other minds in her: her green and red copies pull away from her, hang there
   // flickering, and snap back in.
   split: {

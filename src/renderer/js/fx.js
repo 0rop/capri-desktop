@@ -1,8 +1,8 @@
 // Full-screen effect layer: shards, light beams, the zigzag streak between two teleport
 // points, the void she collapses into and the swirl she comes back from, data glyphs,
 // mane shards drifting off, the stars rising out of her mane, the satellite and the red light
-// she sends up to it, red lightning, speed lines, shockwaves, and the cut-ins (real frames of
-// her from the show).
+// she sends up to it, the windows she takes over, red lightning, speed lines, shockwaves, and
+// the cut-ins (real frames of her from the show).
 // Drawn on whole frames (24 fps) and only while something is alive.
 
 import { rand, pick } from './util.js';
@@ -247,6 +247,21 @@ export class FxLayer {
     return { break: () => { item.breakAt ||= performance.now(); } };
   }
 
+  // She takes over a window: lightning races round its frame from where she dove in, slices
+  // of it glitch, and it looks at you with her eyes and her grin, more eyes opening all over it,
+  // every pupil on your pointer. rect() gives the window now (null once it's gone), covers() the
+  // windows in front of it (nothing is drawn over those), look() the pointer.
+  // Handle: leave() closes the eyes and ends it.
+  possess(rect, { covers = () => [], entry = 0, look = () => null } = {}) {
+    const extra = Array.from({ length: 7 }, (_, i) => {
+      // around the face, not on it
+      const a = (i / 7) * Math.PI * 2 + rand(-0.3, 0.3);
+      return { u: 0.5 + Math.cos(a) * rand(0.28, 0.42), v: 0.46 + Math.sin(a) * rand(0.26, 0.4), size: rand(0.35, 0.65), at: 650 + i * 95 };
+    });
+    const item = this.add({ type: 'possess', life: 60000, rect, covers, entry, look, extra, leaveAt: 0, off: null });
+    return { leave: () => { item.leaveAt ||= performance.now(); } };
+  }
+
   // Little red sparks crawling out of a point (her hand charging up), wider as it goes.
   // `at` can be a function, for a moving point.
   crackle(at, { life = 700, radius = 46, count = 3 } = {}) {
@@ -347,6 +362,128 @@ export class FxLayer {
       path(0, 0, 0.36);
       ctx.fillStyle = core;
       ctx.fill();
+    }
+  }
+
+  // One of her eyes: green ring, blue iris, white pupil turned toward `look`, over an ink disk
+  // with its violet copy. `open` squashes it shut.
+  eye(x, y, R, open, look) {
+    const { ctx } = this;
+    let px = 0, py = 0;
+    if (look) {
+      const d = Math.hypot(look.x - x, look.y - y) || 1;
+      px = ((look.x - x) / d) * R * 0.2;
+      py = ((look.y - y) / d) * R * 0.2;
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(1, open);
+    const disk = (dx, dy, r, color) => {
+      ctx.beginPath();
+      ctx.arc(dx, dy, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    };
+    disk(-3, 3, R, COLORS.violet);
+    disk(0, 0, R, COLORS.ink);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.8, 0, Math.PI * 2);
+    ctx.strokeStyle = COLORS.green;
+    ctx.lineWidth = R * 0.16;
+    ctx.stroke();
+    disk(px * 0.6, py * 0.6, R * 0.52, COLORS.blue);
+    ctx.beginPath();
+    ctx.ellipse(px, py, R * 0.16, R * 0.24, 0, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.paper;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // A window she's in (see possess()): what's drawn on it, in screen coordinates.
+  possession(it, r, now, leaving) {
+    const { ctx } = this;
+    const age = now - it.born;
+    const frame = Math.floor(age / FRAME_MS);
+    const look = it.look();
+
+    // an impact frame as she hits it
+    if (frame === 0) {
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = COLORS.ink;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.globalAlpha = 1;
+    }
+
+    // slices of it knocked sideways, re-rolled every other drawing
+    if (!it.slices || it.drawn !== frame >> 1) {
+      it.drawn = frame >> 1;
+      it.slices = Array.from({ length: leaving >= 0 ? 2 : 6 }, () => ({
+        y: rand(0, r.h), h: rand(2, 9), x: rand(-0.1, 0.7), w: rand(0.2, 0.6),
+        color: COLORS[pick(['red', 'red', 'green', 'violet', 'paper'])],
+      }));
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+    ctx.globalAlpha = 0.9;
+    for (const s of it.slices) {
+      ctx.fillStyle = s.color;
+      ctx.fillRect(r.x + s.x * r.w, r.y + s.y, s.w * r.w, s.h);
+    }
+    ctx.restore();
+
+    // its frame: lightning racing round from where she dove in, both ways, struck fresh every drawing
+    const P = 2 * (r.w + r.h);
+    const grow = leaving >= 0 ? Math.max(0, 1 - leaving / (FRAME_MS * 5)) : Math.min(1, (frame + 1) / 8);
+    const edge = (s) => {
+      s = ((s % P) + P) % P;
+      if (s < r.w) return { x: r.x + s, y: r.y, nx: 0, ny: -1 };
+      if (s < r.w + r.h) return { x: r.x + r.w, y: r.y + s - r.w, nx: 1, ny: 0 };
+      if (s < 2 * r.w + r.h) return { x: r.x + r.w - (s - r.w - r.h), y: r.y + r.h, nx: 0, ny: 1 };
+      return { x: r.x, y: r.y + r.h - (s - 2 * r.w - r.h), nx: -1, ny: 0 };
+    };
+    const half = (grow * P) / 2;
+    ctx.save();
+    ctx.lineJoin = 'miter';
+    for (const way of [1, -1]) {
+      const n = Math.max(2, Math.ceil(half / 28));
+      const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const p = edge(it.entry + way * half * (i / n));
+        const off = i === 0 || i === n ? 0 : (i % 2 ? 1 : -1) * rand(2, 7);
+        pts.push([p.x + p.nx * off, p.y + p.ny * off]);
+      }
+      this.stroke(pts, COLORS.violet, 5, -2, 2);
+      this.stroke(pts, COLORS.red, 3.5);
+      this.stroke(pts, COLORS.paper, 1.2);
+    }
+    ctx.restore();
+
+    // her face in it: the eyes open in three drawings, blink once, shut as she leaves
+    const stepOf = (ms) => Math.floor(ms / (FRAME_MS * 2));
+    let open = age < 250 ? 0 : [0.25, 0.6, 1][Math.min(2, stepOf(age - 250))];
+    if (age > 1150 && age < 1150 + FRAME_MS * 4) open = 0.12;
+    if (leaving >= 0) open = [0.6, 0.2, 0][Math.min(2, stepOf(leaving))];
+    if (!open) return;
+    const R = Math.max(20, Math.min(72, Math.min(r.w, r.h) * 0.13));
+    const cx = r.x + r.w / 2 + rand(-1.5, 1.5), cy = r.y + r.h * 0.46 + rand(-1.5, 1.5); // shaking on ones
+    for (const e of it.extra) {
+      if (age < e.at) continue;
+      const k = leaving >= 0 ? open : Math.min(1, (stepOf(age - e.at) + 1) / 3);
+      this.eye(r.x + e.u * r.w, r.y + e.v * r.h, R * e.size, k, look);
+    }
+    this.eye(cx - R * 1.6, cy - R * 0.3, R, open, look);
+    this.eye(cx + R * 1.6, cy - R * 0.3, R, open, look);
+    if (open >= 0.6) {
+      // the zigzag grin
+      const pts = Array.from({ length: 7 }, (_, i) => [cx - R * 2.4 + (i * R * 4.8) / 6, cy + R * 1.4 + (i % 2 ? R * 0.6 : -R * 0.1)]);
+      ctx.save();
+      ctx.lineJoin = 'miter';
+      this.stroke(pts, COLORS.violet, R * 0.42, -3, 3);
+      this.stroke(pts, COLORS.ink, R * 0.42);
+      this.stroke(pts, COLORS.paper, R * 0.22);
+      ctx.restore();
     }
   }
 
@@ -548,17 +685,22 @@ export class FxLayer {
           break;
         }
         ctx.save();
-        // the constellation, a line at a time once they're up, gone when they line up
+        // the constellation, a line at a time once they're up, gone when they line up;
+        // white over a violet copy, so it reads on a dark desktop and a light one
         if (!it.alignAt || now - it.alignAt < 160) {
-          ctx.strokeStyle = COLORS.violet;
           ctx.lineWidth = 1;
           it.links.forEach(([i, j], n) => {
             if (onTwos(age) < 900 + n * 60) return;
-            ctx.beginPath();
-            ctx.moveTo(Math.round(pos[i].x) + 0.5, Math.round(pos[i].y) + 0.5);
-            ctx.lineTo(Math.round(pos[j].x) + 0.5, Math.round(pos[j].y) + 0.5);
-            ctx.stroke();
+            for (const [d, color] of [[1, COLORS.violet], [0, COLORS.paper]]) {
+              ctx.beginPath();
+              ctx.moveTo(Math.round(pos[i].x) + 0.5 - d, Math.round(pos[i].y) + 0.5 + d);
+              ctx.lineTo(Math.round(pos[j].x) + 0.5 - d, Math.round(pos[j].y) + 0.5 + d);
+              ctx.strokeStyle = color;
+              ctx.globalAlpha = d ? 1 : 0.75;
+              ctx.stroke();
+            }
           });
+          ctx.globalAlpha = 1;
         }
         it.ps.forEach((p, i) => {
           const { x, y } = pos[i];
@@ -709,6 +851,36 @@ export class FxLayer {
           }
         }
         ctx.restore();
+        break;
+      }
+      case 'possess': {
+        const r = it.rect();
+        const leaving = it.leaveAt ? now - it.leaveAt : -1;
+        if (!r || leaving > FRAME_MS * 6) {
+          it.life = 0;
+          break;
+        }
+        // drawn on its own canvas so the windows in front of it can be cut out
+        const M = 16, dpr = window.devicePixelRatio || 1;
+        const cw = Math.ceil(r.w + M * 2), ch = Math.ceil(r.h + M * 2);
+        it.off ||= document.createElement('canvas');
+        if (it.off.width !== Math.round(cw * dpr) || it.off.height !== Math.round(ch * dpr)) {
+          it.off.width = Math.round(cw * dpr);
+          it.off.height = Math.round(ch * dpr);
+        }
+        const o = it.off.getContext('2d');
+        o.setTransform(dpr, 0, 0, dpr, 0, 0);
+        o.clearRect(0, 0, cw, ch);
+        o.translate(M - r.x, M - r.y);
+        this.ctx = o; // the drawing helpers draw on this.ctx
+        try {
+          this.possession(it, r, now, leaving);
+        } finally {
+          this.ctx = ctx;
+        }
+        o.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (const c of it.covers()) o.clearRect(c.x - r.x + M, c.y - r.y + M, c.w, c.h);
+        ctx.drawImage(it.off, r.x - M, r.y - M, cw, ch);
         break;
       }
       case 'crackle': {

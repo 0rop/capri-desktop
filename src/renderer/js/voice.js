@@ -8,7 +8,7 @@ import { rand, pick } from './util.js';
 const BLIP_NOTES = [62, 65, 67, 69, 72, 74, 77, 79];
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge'];
+export const CUES = ['teleport-out', 'teleport-in', 'done', 'alert', 'error', 'hello', 'blip', 'tick', 'star', 'land', 'rise', 'bolt', 'charge', 'possess'];
 
 export class Voice {
   constructor() {
@@ -87,6 +87,7 @@ export class Voice {
       rise: () => this.rise(),
       bolt: () => this.bolt(opts.soft),
       charge: () => this.charge(),
+      possess: () => this.possess(),
     }[cue];
     fn?.();
   }
@@ -189,6 +190,19 @@ export class Voice {
     o.start(t);
     o.stop(t + 0.7);
     for (let i = 0; i < 6; i++) this.noiseBurst(t + 0.08 + i * 0.09, 0.02, 0.04 + i * 0.016, 3000, 7000, 6);
+  }
+
+  // the window she took over laughs with all her voices: three falling chirps, each a detuned
+  // chord, over a hiss
+  possess() {
+    const t = this.ctx.currentTime;
+    [79, 76, 72].forEach((n, i) => {
+      const at = t + i * 0.11;
+      this.osc('square', midi(n), at, 0.07, 0.05);
+      this.osc('square', midi(n) * 1.012, at + 0.004, 0.06, 0.035);
+      this.osc('triangle', midi(n - 12), at + 0.008, 0.07, 0.04);
+    });
+    this.noiseBurst(t, 0.3, 0.05, 1200, 5000, 3);
   }
 
   // the launch into the victory pose: a quick upward whoosh

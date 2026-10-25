@@ -6,6 +6,8 @@ import { pick, fmt, duration, basename } from './util.js';
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const HACKING_TOOLS = new Set(['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Agent', 'Task']);
 const WORKING_EVERY = 20; // say something about progress every N tool calls
+const LONG_JOB_MS = 8 * 60 * 1000; // a job this long (or this busy) earns the whole satellite sequence
+const LONG_JOB_ACTIONS = 50;
 
 export class Brain {
   constructor({ capri, panel, voice, host, lang = 'fr' }) {
@@ -176,6 +178,8 @@ export class Brain {
     this.capri.celebrate({
       onSpeak: () => this.say('done', pick(this.t.done), s, { quote: clip(quote, 150), summary, hold: 14000 }),
     });
+    // a long one: she'll send the red light up to the satellite once it's all quiet
+    if ((s.taskStart && Date.now() - s.taskStart >= LONG_JOB_MS) || s.count >= LONG_JOB_ACTIONS) this.capri.earnUplink();
   }
 
   onStopFailure(evt, s) {

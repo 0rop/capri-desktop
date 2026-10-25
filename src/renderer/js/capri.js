@@ -16,6 +16,14 @@ const SLEEP_AFTER = 10 * 60 * 1000;
 const GRAVITY = 2600; // px/s²
 const THIGH = 73;     // hip to knee, sprite px (see sprite.js)
 
+const UPLINK_DAY = 'capri.uplinkDay'; // the last day she sent the red light up
+
+// the local date, YYYY-MM-DD
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const GREEN = [0.21, 1, 0.48];
 const INK = [0.08, 0.06, 0.11];
 const RED = [1, 0.13, 0.32];
@@ -65,7 +73,8 @@ export class Capri {
     this.nextNotice = 0;
     this.peekUntil = 0;
     this.lastGlyph = 0;
-    this.gazes = 0;
+    this.uplinkDue = false;
+    this.mouse = null; // last pointer position seen
 
     this.onMove = null;     // her head moved on screen
     this.onTeleport = null; // ('start' | 'end')
@@ -103,11 +112,17 @@ export class Capri {
   setScale(scale) {
     this.scale = scale;
     this.sprite.resize(scale);
-    // flip, lean and squash all pivot on her feet
-    const fx = (SPRITE.pad + SPRITE.feet.x) * scale;
-    const fy = (SPRITE.pad + SPRITE.feet.y) * scale;
-    this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
+    this.pivot();
     this.place();
+  }
+
+  // Flip, lean and squash all pivot on her feet, or on her seat when she sits on a ledge
+  // (so a squash presses her onto it instead of pulling her down through it).
+  pivot() {
+    const s = this.scale;
+    const fx = (SPRITE.pad + SPRITE.feet.x) * s;
+    const fy = (SPRITE.pad + (this.stance === 'sit' ? SPRITE.hip : SPRITE.feet.y)) * s;
+    this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
   }
 
   setView(w, h) {
@@ -246,10 +261,10 @@ export class Capri {
   }
 
   // A window she could sit on, the one in front first. Returns { win, dx } or null.
-  pickSeat({ frontOnly = false } = {}) {
+  pickSeat({ frontOnly = false, except = null } = {}) {
     const options = [];
     for (const win of this.windows.wins) {
-      if (!this.canSit(win)) continue;
+      if (win.id === except || !this.canSit(win)) continue;
       const dx = clamp(rand(win.w * 0.18, win.w * 0.6), 60, Math.max(60, win.w - 190));
       if (this.covered(win, win.x + dx)) continue;
       options.push({ win, dx });
@@ -318,7 +333,9 @@ export class Capri {
     p.kickR = pose.kickR;
     p.smear = pose.smear;
     p.echo = pose.echo;
-    this.bob = this.dragging ? 0 : pose.bob;
+    // on a ledge she stays seated: no lifting off it, no sinking through it
+    const bob = this.stance === 'sit' ? clamp(pose.bob, -3, 2) : pose.bob;
+    this.bob = this.dragging ? 0 : bob;
     this.tilt = this.dragging ? 0 : pose.tilt;
     this.sx = pose.sx;
     this.sy = pose.sy;
@@ -376,8 +393,9 @@ export class Capri {
     }
     if (this.stance === 'sit') {
       const r = Math.random();
-      if (r < 0.4) this.flourish();
-      else if (r < 0.7) this.fall(); // just hops off the ledge
+      if (r < 0.3) this.flourish();
+      else if (r < 0.5 && this.canPossess()) this.possess();
+      else if (r < 0.75) this.fall(); // just hops off the ledge
       else this.teleport(this.spot('random'));
       return;
     }
@@ -425,6 +443,7 @@ export class Capri {
     this.peekSide = peekSide;
     this.p.sit = stance === 'sit' ? 1 : 0;
     this.base = new Player(this.baseAct(), { dir });
+    this.pivot();
   }
 
   baseAct() {
@@ -531,13 +550,21 @@ export class Capri {
   }
 
   // The satellite. It crosses high over the open side of the screen, slowly, and her hand
-  // follows it. Mostly she just looks at it ("gaze"); the first time, and now and then after
-  // that, she sends the red light up to it ("uplink"). The cues in onCue do the sky.
+  // follows it. Mostly she just looks at it ("gaze"). She sends the red light up to it
+  // ("uplink") only when it means something: the first time of the day, and a little while
+  // after Claude finishes a long job (earnUplink). The cues in onCue do the sky.
   gaze({ big } = {}) {
     if (this.busy || this.hidden || this.act || this.stance === 'peek' || this.stance === 'fall') return false;
-    big ??= this.gazes === 0 || Math.random() < 0.5;
+    big ??= this.uplinkDue || this.lastUplinkDay() !== today();
     if (reducedMotion.matches) big = false; // no strobing bolt
-    this.gazes++;
+    if (big) {
+      this.uplinkDue = false;
+      try {
+        localStorage.setItem(UPLINK_DAY, today());
+      } catch {
+        // no storage: she'll just do it again next launch
+      }
+    }
     const dir = this.towardCenter();
     const { w } = this.view;
     const side = this.armToward(dir);
@@ -562,6 +589,20 @@ export class Capri {
       if (big) this.onGaze?.('end');
     });
     return true;
+  }
+
+  lastUplinkDay() {
+    try {
+      return localStorage.getItem(UPLINK_DAY);
+    } catch {
+      return null;
+    }
+  }
+
+  // Claude just finished a long job: the next time she looks up, once things have settled, it's the whole thing.
+  earnUplink() {
+    this.uplinkDue = true;
+    this.nextGaze = performance.now() + rand(25000, 40000);
   }
 
   clearSky() {
@@ -629,15 +670,16 @@ export class Capri {
     return true;
   }
 
-  // Where a cut-in goes, as fx.cutin's (x, y, dir): next to her head on the `dir` side,
-  // or on the other side if it would run off the screen.
-  cutinAt(dir) {
+  // Where a cut-in goes, as fx.cutin's (x, y, dir): next to her head on the `dir` side, else on
+  // the other side (unless `flip` is off because something is going on there), else over her mane.
+  cutinAt(dir, { flip = true } = {}) {
     const s = this.scale;
     const h = this.head();
     const gap = 85 * s + 24, width = 274; // the band plus its slant, see fx.js
     const fits = (d) => (d > 0 ? h.x + gap + width < this.view.w - 8 : h.x - gap - width > 8);
-    const side = fits(dir) || !fits(-dir) ? dir : -dir;
-    return [h.x + side * gap, h.y - 18, side];
+    if (fits(dir)) return [h.x + dir * gap, h.y - 18, dir];
+    if (flip && fits(-dir)) return [h.x - dir * gap, h.y - 18, -dir];
+    return [clamp(h.x - width / 2, 8, this.view.w - width - 8), Math.max(56, h.top - 58), 1];
   }
 
   // Flat-colour impact frames, one drawing each.
@@ -735,7 +777,7 @@ export class Capri {
         this.fx.crackle(hand, { life: 640, radius: 70 * s + 14, count: 3 });
         const at = hand();
         this.fx.burst(at.x, at.y, { count: 14, inward: true, power: 0.5, spread: 90 * s });
-        this.fx.cutin(...this.cutinAt(-sky.dir), { kind: 'eyes', life: 600 }); // away from the road
+        this.fx.cutin(...this.cutinAt(-sky.dir, { flip: false }), { kind: 'eyes', life: 600 }); // never over the road
         this.voice.play('charge');
         break;
       }
@@ -915,6 +957,65 @@ export class Capri {
 
   sitOn({ win, dx }) {
     return this.teleport(this.seat(win, dx), { stance: 'sit', perch: { id: win.id, dx }, face: this.facing });
+  }
+
+  canPossess() {
+    return !this.busy && !this.hidden && this.stance === 'sit' && !reducedMotion.matches
+      && this.windows.wins.some((w) => w.id === this.perch?.id);
+  }
+
+  // Like in the show, she gets into things: she dives into the window she sits on and takes it
+  // over (fx.possess: its frame crackles, it glitches, it looks at you with her eyes), then comes
+  // out of another window, or further along this one if there's no other.
+  async possess() {
+    if (!this.canPossess()) return false;
+    const s = this.scale;
+    const id = this.perch.id;
+    const win = this.windows.wins.find((w) => w.id === id);
+    const entry = this.pos.x - win.x;
+    this.busy = true;
+    this.wake();
+    this.onTeleport?.('start');
+    await this.perform('dive');
+    const head = await this.vanish({ beam: false });
+    this.fx.streak(head.x, head.y, this.pos.x, win.y + 40 * s);
+
+    const rect = () => this.windows.wins.find((w) => w.id === id) || null;
+    const covers = () => {
+      const front = [];
+      for (const o of this.windows.wins) {
+        if (o.id === id) break;
+        front.push(o);
+      }
+      return front;
+    };
+    const taken = this.fx.possess(rect, { covers, entry, look: () => this.mouse });
+    this.voice.play('bolt');
+    await sleep(300);
+    this.voice.play('possess');
+    await sleep(1600);
+    taken.leave();
+    await sleep(260);
+
+    const here = rect();
+    let seat = this.pickSeat({ except: id });
+    if (!seat && here && this.canSit(here)) {
+      const dx = clamp(here.w - entry + rand(-60, 60), 60, Math.max(60, here.w - 190)); // the other end of it
+      if (!this.covered(here, here.x + dx)) seat = { win: here, dx };
+    }
+    const to = seat ? this.seat(seat.win, seat.dx) : this.spot('random');
+    const toHead = this.head(to);
+    if (here) {
+      // out through the system, from the middle of the window to where she comes out
+      this.fx.streak(here.x + here.w / 2, here.y + here.h * 0.46, toHead.x, toHead.y);
+      await sleep(60);
+    }
+    if (seat) this.fx.slit(to.x, toHead.top, seat.win.y, { width: 56 * s + 10 }); // the void she climbs out of
+    await this.arrive(to, seat ? { stance: 'sit', perch: { id: seat.win.id, dx: seat.dx }, beam: false } : {});
+    this.busy = false;
+    this.nextMove = Math.max(this.nextMove, performance.now() + rand(25000, 60000));
+    this.onTeleport?.('end');
+    return true;
   }
 
   // Lean in from an edge of the screen: vanish, then slide in on twos, three drawings.
@@ -1117,6 +1218,7 @@ export class Capri {
       down = { x: e.clientX, y: e.clientY, pos: { ...this.pos } };
     });
     window.addEventListener('mousemove', (e) => {
+      this.mouse = { x: e.clientX, y: e.clientY }; // a window she's in watches it
       if (down) {
         const dx = e.clientX - down.x, dy = e.clientY - down.y;
         if (!this.dragging && Math.hypot(dx, dy) > 5 && !this.busy) {
@@ -1179,7 +1281,7 @@ export class Capri {
   // When the pointer comes close she turns around to face it and cocks her head;
   // if she's peeking, she's shy and ducks away.
   notice(x, y) {
-    if (this.busy || this.hidden || this.stance === 'fall') return;
+    if (this.busy || this.hidden || this.stance === 'fall' || this.sky) return; // the satellite has all her attention
     const h = this.head();
     if (Math.hypot(x - h.x, y - h.y) > 230) return;
     const now = performance.now();
