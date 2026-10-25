@@ -1402,7 +1402,8 @@ export class Capri {
       caption,
       still,
       onCue: (cue) => {
-        if (cue === 'open') this.voice.play('teleport-in');
+        if (cue === 'open') this.voice.play('charge'); // her pieces coming in
+        else if (cue === 'tear') this.voice.play('teleport-in');
         else if (cue === 'hi') this.voice.play('hello');
         else if (cue === 'dive') this.voice.play('teleport-out');
       },

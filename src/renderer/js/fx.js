@@ -22,8 +22,9 @@ const FRAME_MS = 1000 / 24;
 const CUTIN = { w: 360, h: 240 }; // assets/capri/cutin-*.png
 // her intro (see intro()): the strip's frames (assets/capri/intro-face.webp, squares side by
 // side), and when things happen, in drawings at 24 fps
-const STRIP = { size: 300, push: [0, 1, 2], look: [3, 4, 5, 4], mouth: [6, 7, 8] };
-const INTRO_T = { hi: 22, pop: 24, back: 50, dive: 60, travel: 8, land: 70, end: 72 };
+const STRIP = { size: 400, push: [0, 1, 2], look: [3, 4, 5, 4], mouth: [6, 7, 8] };
+const INTRO_T = { line: 9, tear: 13, flash: 21, hi: 42, pop: 44, back: 70, dive: 82, travel: 8, land: 92, end: 94 };
+const INTRO_ZOOM = 0.05; // how far the camera pushes in on her while she's up there
 // the bevelled frame of her portrait (as in the panel), on a unit square
 const BEVEL = [[0.14, 0], [1, 0], [1, 0.8], [0.84, 1], [0, 1], [0, 0.16]];
 
@@ -435,14 +436,30 @@ export class FxLayer {
   // ---------- her intro ----------
 
   // Her first appearance: her face big in the top right corner, frame by frame from the show.
-  // A slit tears open into her portrait, two impact frames, the camera pushes in on her; she
+  // Her pieces spiral in to a point, she's a red line, the line splits in two and opens on her
+  // portrait like a shutter, the picture coming in with its colours apart; the frame builds
+  // around her (its violet shadow, its red line, her name) while the camera pushes in. She
   // opens her mouth and a tag pops: "hi". Then she shrinks and dives down to `to` (her face
   // where she'll stand: { x, y, size }) and closes into a slit there.
-  // Cues to onCue: 'open', 'hi', 'dive'. Resolves as it lands, for her body to unfold.
+  // Cues to onCue: 'open', 'tear', 'hi', 'dive'. Resolves as it lands, for her body to unfold.
   // `still` (reduced motion): it comes and goes where it is, in four steps each way.
   intro({ to, label = 'hi', caption = '', still = false, onCue = () => {} }) {
     if (!this.strip || !this.size) return Promise.resolve();
-    const S = Math.round(clamp(this.size.h * 0.32, 170, 300));
+    if (!this.channels) {
+      // her red, green and blue apart, for the picture coming in (portrait's `split`)
+      this.channels = ['#ff0000', '#00ff00', '#0000ff'].map((color) => {
+        const c = document.createElement('canvas');
+        c.width = this.strip.width;
+        c.height = this.strip.height;
+        const g = c.getContext('2d');
+        g.drawImage(this.strip, 0, 0);
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = color;
+        g.fillRect(0, 0, c.width, c.height);
+        return c;
+      });
+    }
+    const S = Math.round(clamp(this.size.h * 0.34, 180, 320));
     const at = { x: this.size.w - S / 2 - 64, y: S / 2 + 52 };
     // the dive swings out toward the middle of the screen and back in to her
     const ctrl = { x: Math.min(at.x, to.x) - S * 0.6, y: lerp(at.y, to.y, 0.3) };
@@ -452,9 +469,13 @@ export class FxLayer {
   }
 
   // One drawing of her portrait: the bevelled frame centred on (x, y), w by h, its violet copy
-  // behind, strip frame `i` inside (or one flat colour, an impact frame), a red line on top.
-  // `glitch`: slices of her knocked sideways.
-  portrait(x, y, w, h, i, { flat = null, glitch = 0, copy = 1 } = {}) {
+  // behind, strip frame `i` inside (or one flat colour), a red line on top.
+  //   glitch   slices of her knocked sideways
+  //   copy     how far out its violet copy is (0..1); bar: how much of the red line is drawn
+  //   open     only a band down its middle shows, this wide (0..1), a red line on each edge
+  //   split    her colours pulled apart (px); zoom: the camera pushed in on her
+  //   outline  its edge lit up in that colour
+  portrait(x, y, w, h, i, { flat = null, glitch = 0, copy = 1, open = 1, bar = 1, split = 0, zoom = 1, outline = null } = {}) {
     const { ctx } = this;
     const x0 = x - w / 2, y0 = y - h / 2;
     const shape = (dx, dy, inset = 0) => {
@@ -469,12 +490,24 @@ export class FxLayer {
     const off = Math.max(3, w * 0.035) * copy;
     const inset = Math.max(2, w * 0.022);
     ctx.save();
-    shape(off, off);
-    ctx.fillStyle = COLORS.violet;
-    ctx.fill();
+    if (open < 1) {
+      ctx.beginPath();
+      ctx.rect(x - (w * open) / 2, y0 - h, w * open, h * 3);
+      ctx.clip();
+    }
+    if (off >= 1) {
+      shape(off, off);
+      ctx.fillStyle = COLORS.violet;
+      ctx.fill();
+    }
     shape(0, 0);
     ctx.fillStyle = COLORS.ink;
     ctx.fill();
+    if (outline) {
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
     shape(0, 0, inset);
     if (flat) {
       ctx.fillStyle = flat;
@@ -482,19 +515,56 @@ export class FxLayer {
     } else {
       ctx.clip();
       const N = STRIP.size;
-      ctx.drawImage(this.strip, i * N, 0, N, N, x0, y0, w, h);
+      const dw = w * zoom, dh = h * zoom, dx0 = x - dw / 2, dy0 = y - dh / 2;
+      this.face(i, dx0, dy0, dw, dh, split);
       for (let k = 0; k < glitch; k++) {
         const sy = rand(0, N - 30), sh = rand(8, 34), dx = rand(-1, 1) * w * 0.08;
-        ctx.drawImage(this.strip, i * N, sy, N, sh, x0 + dx, y0 + (sy / N) * h, w, (sh / N) * h);
+        ctx.drawImage(this.strip, i * N, sy, N, sh, dx0 + dx, dy0 + (sy / N) * dh, dw, (sh / N) * dh);
         ctx.fillStyle = pick([COLORS.red, COLORS.green, COLORS.violet]);
         ctx.globalAlpha = 0.5;
-        ctx.fillRect(x0 + dx - w * 0.04, y0 + (sy / N) * h, w * 0.3, Math.max(2, (sh / N) * h * 0.2));
+        ctx.fillRect(dx0 + dx - w * 0.04, dy0 + (sy / N) * dh, w * 0.3, Math.max(2, (sh / N) * dh * 0.2));
         ctx.globalAlpha = 1;
       }
     }
     ctx.restore();
+    if (bar > 0) {
+      ctx.fillStyle = COLORS.red;
+      ctx.fillRect(x0 + w * 0.14, y0, w * 0.86 * bar, Math.max(2, w * 0.014));
+    }
+    if (open < 1) {
+      this.redLine(x - (w * open) / 2, y, h * 1.04);
+      this.redLine(x + (w * open) / 2, y, h * 1.04);
+    }
+  }
+
+  // Strip frame `i` drawn into (x, y, w, h). `split`: its red and blue pulled apart (px), like a
+  // signal coming in (added up over black, so at 0 apart it's the picture as it is).
+  face(i, x, y, w, h, split = 0) {
+    const { ctx } = this;
+    const N = STRIP.size;
+    ctx.imageSmoothingQuality = 'high';
+    if (!split || !this.channels) {
+      ctx.drawImage(this.strip, i * N, 0, N, N, x, y, w, h);
+      return;
+    }
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x - split, y - split, w + split * 2, h + split * 2);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(this.channels[0], i * N, 0, N, N, x - split, y + split * 0.3, w, h);
+    ctx.drawImage(this.channels[1], i * N, 0, N, N, x, y, w, h);
+    ctx.drawImage(this.channels[2], i * N, 0, N, N, x + split, y - split * 0.3, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Her as a red line, h tall (how she goes and comes in the show), on its violet copy.
+  redLine(x, y, h) {
+    const { ctx } = this;
+    ctx.fillStyle = COLORS.violet;
+    ctx.fillRect(x - 5, y - h / 2 + 3, 6, h);
     ctx.fillStyle = COLORS.red;
-    ctx.fillRect(x0 + w * 0.14, y0, w * 0.86, Math.max(2, w * 0.014));
+    ctx.fillRect(x - 2.5, y - h / 2, 5, h);
+    ctx.fillStyle = COLORS.paper;
+    ctx.fillRect(x - 0.75, y - h * 0.42, 1.5, h * 0.84);
   }
 
   // The void, as she leaves or lands (see slit): black, with her as a red line in it.
@@ -542,10 +612,13 @@ export class FxLayer {
   }
 
   // Her name under her portrait, typed out on an ink strip, a red block for a cursor.
-  nameTag(it, text, frame = 0) {
-    if (!it.caption) return;
+  // `slide`: the strip sliding in from the right (0..1).
+  nameTag(it, text, frame = 0, slide = 1) {
+    if (!it.caption || slide <= 0) return;
     const { ctx } = this;
     ctx.save();
+    ctx.translate(Math.round((1 - slide) * 60), 0);
+    ctx.globalAlpha *= Math.ceil(slide * 4) / 4;
     ctx.font = '400 11px "JetBrains Mono", monospace';
     ctx.letterSpacing = '2px';
     const full = ctx.measureText(it.caption).width;
@@ -1263,21 +1336,34 @@ export class FxLayer {
         const { S, at, to } = it;
         const frame = Math.floor((now - it.born) / FRAME_MS);
         for (let f = it.cued + 1; f <= frame; f++) {
-          if (f === 0) it.onCue('open');
+          if (f === 0) {
+            it.onCue('open');
+            if (!it.still) {
+              // her pieces spiralling in to where she'll be
+              this.vortex(at.x, at.y, { radius: S * 0.85, life: FRAME_MS * T.line, count: 30 });
+              for (let g = 0; g < 3; g++) this.glyph(at.x + rand(-S / 2, S / 2), at.y + rand(-S / 3, S / 3));
+            }
+          }
+          if (f === T.tear) it.onCue('tear');
+          if (f === T.flash && !it.still) this.burst(at.x, at.y, { count: 16, power: 0.75, spread: S * 0.9 });
           if (f === T.hi) it.onCue('hi');
           if (f === T.pop && !it.still) this.lines(at.x, at.y, { inner: S * 0.74, life: 320 }); // the punch on "hi"
           if (f === T.dive) it.onCue('dive');
           if (f === (it.still ? T.dive + 4 : T.land)) it.land();
         }
         it.cued = frame;
-        // which of her frames: the camera pushing in, then her face held (looped on twos), and
-        // her mouth opening for "hi"
-        let img = frame < 6 ? 0 : frame < 8 ? 1 : frame < 10 ? 2 : STRIP.look[(frame >> 1) % 4];
+        // which of her frames: the camera pushing in as it opens, then her face held (looped on
+        // twos), and her mouth opening for "hi"
+        const opened = frame - T.tear;
+        let img = opened < 12 ? STRIP.push[clamp(opened >> 2, 0, 2)] : STRIP.look[(frame >> 1) % 4];
         if (frame >= T.hi && frame < T.back) {
           // it opens over three drawings, then she giggles: wide, a bit less, wide...
           img = frame < T.hi + 6 ? STRIP.mouth[(frame - T.hi) >> 1] : STRIP.mouth[(frame >> 2) % 2 ? 1 : 2];
         }
-        const typed = it.caption.slice(0, clamp(frame - 12, 0, it.caption.length));
+        const since = frame - T.flash; // since it's fully open
+        const typed = it.caption.slice(0, clamp(since - 6, 0, it.caption.length));
+        const held = clamp(since / (T.dive - T.flash), 0, 1);
+        const zoom = 1 + INTRO_ZOOM * held * held * (3 - 2 * held);
 
         if (it.still) {
           const a = frame < 4 ? (frame + 1) / 4 : frame >= T.dive ? 1 - (frame - T.dive + 1) / 4 : 1;
@@ -1291,24 +1377,41 @@ export class FxLayer {
           break;
         }
 
-        if (frame < 2) {
-          // the slit she tears open
-          this.voidSlit(at.x, at.y, [4, 14][frame], S * 1.08);
+        if (frame < T.line) {
+          // her pieces coming in (the vortex), to a red point that throbs brighter
+          if (frame >= 3) this.sparkle(at.x, at.y, [3, 5, 4, 7, 6, 9][frame - 3], COLORS.red, COLORS.paper);
+          break;
+        }
+
+        if (frame < T.tear) {
+          // she's a red line, growing out of it
+          const h = S * [0.15, 0.45, 0.8, 1.04][frame - T.line];
+          this.redLine(at.x, at.y, h);
+          this.sparkle(at.x, at.y - h / 2, 8, COLORS.paper);
+          this.sparkle(at.x, at.y + h / 2, 8, COLORS.paper);
           break;
         }
 
         if (frame < T.dive) {
-          // tearing open in two drawings, an overshoot flashed green, one in ink, then her
-          const OPEN = [[0.3, 1.04], [0.78, 1], [1.1, 0.95], [1, 1]];
-          const [kw, kh] = frame < 6 ? OPEN[frame - 2] : [1, 1];
-          // "hi": she bobs up into it and settles
+          // the line splits and opens on her like a shutter, fast then easing in, the picture
+          // coming in with its colours apart; fully open, its edge lights up, it gives a little,
+          // and the frame builds: its violet shadow slides out, its red line runs along the top
+          const OPEN = [0.04, 0.12, 0.26, 0.44, 0.62, 0.78, 0.9, 0.97];
+          const SPLIT = [16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
+          const open = OPEN[opened] ?? 1;
+          let split = SPLIT[opened] ?? 0;
+          let glitch = opened < 3 ? 2 : 0;
+          if (since > 4 && frame % 16 === 13) [glitch, split] = [3, 4];
           let dy = 0, sx = 1, sy = 1;
+          if (since === 0) [sx, sy] = [1.04, 0.97];
+          else if (since === 1) [sx, sy] = [0.99, 1.01];
+          // "hi": she bobs up into it and settles
           if (frame === T.pop) [dy, sx, sy] = [-12, 0.96, 1.05];
           else if (frame === T.pop + 1) [dy, sx, sy] = [4, 1.03, 0.97];
-          const flat = frame === 4 ? COLORS.green : frame === 5 ? COLORS.ink : null;
-          const glitch = frame === 6 || frame === 7 || frame % 16 === 13 ? 3 : 0;
-          this.portrait(at.x, at.y + dy, S * kw * sx, S * kh * sy, img, { flat, glitch });
-          if (frame >= 6) this.nameTag(it, typed, frame);
+          const copy = since < 0 ? 0 : [0.2, 0.5, 0.75, 0.92][since] ?? 1;
+          const bar = clamp((since + 1) / 6, 0, 1);
+          this.portrait(at.x, at.y + dy, S * sx, S * sy, img, { glitch, copy, open, bar, split, zoom, outline: since === 0 ? COLORS.paper : null });
+          if (since >= 3) this.nameTag(it, typed, frame, Math.min(1, (since - 2) / 5));
           if (frame >= T.pop) {
             const POP = [0.35, 1.22, 0.94];
             this.hiTag(it, POP[frame - T.pop] ?? 1, 1, (frame >> 1) % 2);
@@ -1319,7 +1422,7 @@ export class FxLayer {
         if (frame < T.dive + 2) {
           // winding up: a hop up and a stretch, the tag squashed away
           const k = frame - T.dive;
-          this.portrait(at.x, at.y - [8, 14][k], S * 0.95, S * 1.06, img);
+          this.portrait(at.x, at.y - [8, 14][k], S * 0.95, S * 1.06, img, { zoom });
           if (!k) this.hiTag(it, 1, 0.45);
           break;
         }
@@ -1354,7 +1457,7 @@ export class FxLayer {
             const q = place(v);
             ctx.save();
             ctx.globalAlpha = alpha;
-            this.portrait(q.x, q.y, q.size, q.size, img, { copy: 0 });
+            this.portrait(q.x, q.y, q.size, q.size, img, { copy: 0, zoom });
             ctx.restore();
           }
           const q = place(u), prev = place(Math.max(0, u - 1 / T.travel));
@@ -1365,7 +1468,7 @@ export class FxLayer {
           ctx.rotate(ang);
           ctx.scale(st, 1 / Math.sqrt(st));
           ctx.rotate(-ang);
-          this.portrait(0, 0, q.size, q.size, img);
+          this.portrait(0, 0, q.size, q.size, img, { zoom });
           ctx.restore();
           break;
         }

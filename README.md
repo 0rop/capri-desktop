@@ -12,11 +12,12 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 ## What she does
 
-- **When she starts**: her face, big, in the top right corner of your screen, frame by frame from the show. A slit
-  tears open into her portrait, the camera pushes in on her, she opens her mouth and says hi. Then she shrinks and
-  dives down to her spot, leaving afterimages of herself behind, and her body unfolds from her face.
+- **When she starts**: her face, big, in the top right corner of your screen, frame by frame from the show. Her pieces
+  spiral in, she's a red line, the line splits in two and opens on her like a shutter, the picture coming in with its
+  colours apart, then her frame builds around her while the camera pushes in. She opens her mouth and says hi. Then
+  she shrinks and dives down to her spot, leaving afterimages of herself behind, and her body unfolds from her face.
 
-  ![Her intro: it tears open, her face, "hi", the dive](docs/intro.png)
+  ![Her intro: the shutter opening, her frame building, "hi", the dive](docs/intro.png)
 
 - **While Claude works**: a ticker over her head shows the current action
   (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
@@ -268,8 +269,9 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
   like in the show. A red column of light to the sky, a bolt to the destination, her pieces (mane shards and the
   green stars of her eyes) spiralling back in, back with two *impact frames*.
 - **Her intro**: nine frames of the show played in her portrait (the push-in on her face, her mouth opening for
-  "hi"), torn open from her slit with two impact frames, the tag slammed on with speed lines, then a dive with a
-  smear, afterimages and her zigzag.
+  "hi"), from the sharpest copy of the clip, its GIF grain smoothed out. It opens on a red line split in two, with
+  an RGB split that settles as it opens; its edge flashes, then its violet shadow, red line and her name come in one
+  after the other. The tag slams on with speed lines, then a dive with a smear, afterimages and her zigzag.
 - **Cut-ins**: close-ups of her taken from the show, pushed in, with speed lines: her grin or her laugh after a
   finished job, all her eyes when Claude is waiting on you, her eyes right before the red light, her sideways look
   after zapping your pointer. Her face in the panel changes with what she's saying, too.

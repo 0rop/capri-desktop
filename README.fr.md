@@ -12,11 +12,13 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 ## Ce qu'elle fait
 
-- **Quand elle démarre** : son visage en grand en haut à droite de l'écran, image par image tiré de la série. Une
-  fente se déchire et s'ouvre sur son portrait, la caméra zoome sur elle, elle ouvre la bouche et te dit hi. Puis elle
-  rétrécit et plonge jusqu'à sa place en laissant des images d'elle derrière, et son corps se déplie depuis son visage.
+- **Quand elle démarre** : son visage en grand en haut à droite de l'écran, image par image tiré de la série. Ses
+  morceaux arrivent en spirale, elle devient une ligne rouge, la ligne se dédouble et s'ouvre sur elle comme un
+  obturateur, l'image arrive avec ses couleurs décalées, puis son cadre se construit autour d'elle pendant que la
+  caméra zoome. Elle ouvre la bouche et te dit hi. Puis elle rétrécit et plonge jusqu'à sa place en laissant des
+  images d'elle derrière, et son corps se déplie depuis son visage.
 
-  ![Son intro : la fente qui s'ouvre, son visage, « hi », le plongeon](docs/intro.png)
+  ![Son intro : l'ouverture, son cadre qui se construit, « hi », le plongeon](docs/intro.png)
 
 - **Pendant que Claude bosse** : un ticker au-dessus d'elle affiche l'action en cours
   (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
@@ -276,8 +278,10 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
   dedans, comme dans la série. Colonne de lumière rouge vers le ciel, éclair jusqu'à la destination, ses morceaux
   (éclats de crinière et étoiles vertes de ses yeux) qui reviennent en spirale, retour avec deux *impact frames*.
 - **Son intro** : neuf images de la série jouées dans son portrait (le zoom sur son visage, sa bouche qui s'ouvre
-  pour « hi »), ouvert depuis sa fente avec deux *impact frames*, l'étiquette qui claque avec des lignes de vitesse,
-  puis un plongeon avec un étirement, des images rémanentes et son zigzag.
+  pour « hi »), tirées de la copie la plus nette de l'extrait, le grain du GIF lissé. Ça s'ouvre sur une ligne rouge
+  dédoublée, avec un décalage RVB qui se resserre en s'ouvrant ; le bord flashe, puis son ombre violette, sa ligne
+  rouge et son nom arrivent l'un après l'autre. L'étiquette claque avec des lignes de vitesse, puis un plongeon avec
+  un étirement, des images rémanentes et son zigzag.
 - **Cut-ins** : des gros plans d'elle tirés de la série, en poussée de caméra avec des lignes de vitesse : son sourire
   ou son rire après une tâche terminée, tous ses yeux quand Claude t'attend, ses yeux juste avant la lumière rouge,
   son regard en coin après un éclair sur ta souris. Le visage du panneau change aussi selon ce qu'elle dit.
