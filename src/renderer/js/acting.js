@@ -229,33 +229,56 @@ export const ACTS = {
     ],
   },
 
-  // Showing you something: a look at it first, the arm drawn back, then snapped out at it with
-  // a smear and stretched long. The pointer (dashed line, brackets) comes in on that drawing.
+  // Showing you something, the way she'd do it in the show. Her head snaps to it, she coils
+  // up leaning away with the arm cocked back behind her, then strikes: one stretched drawing
+  // where her construct arm shoots out to more than twice its length, red lightning off the
+  // fingertip and the reticle slamming onto it ('lock'). The arm recoils, overshoots, settles.
   point: {
     priority: 2,
     fps: 24,
     directional: true,
     keys: [
-      [3, { reach: 0.05, long: 0.92, head: 0.1, mane: 0.06 }],
-      [2, { reach: -0.1, long: 0.88, head: 0.14, mane: 0.1, bob: 1 }],
-      [1, { reach: 0.85, long: 1.5, head: 0.16, mane: 0.26, smear: [-10, 0] }, 'aim'],
-      [3, { reach: 1.03, long: 1.48, head: 0.17, mane: 0.22 }],
-      [2, { reach: 1, long: 1.4, head: 0.16, mane: 0.16 }],
+      [2, { head: 0.16, mane: 0.15, tilt: 1, smear: [-10, 2] }, 'spot'],
+      [3, { head: 0.2, mane: 0.12, tilt: 1.5 }],
+      [3, { reach: -0.45, long: 0.8, head: 0.12, tilt: -5, sy: 0.9, sx: 1.06, bob: 5, mane: -0.2 }],
+      [2, { reach: -0.55, long: 0.75, head: 0.1, tilt: -6, sy: 0.86, sx: 1.08, bob: 7, mane: -0.28 }, 'coil'],
+      [1, { reach: 0.9, long: 2.3, head: 0.24, tilt: 8, sx: 0.94, sy: 1.1, mane: 0.6, smear: [-18, 0], echo: [14, 0] }, 'lock'],
+      [1, { reach: 1.08, long: 2, head: 0.22, tilt: 7, mane: 0.55, echo: [8, 0] }],
+      [2, { reach: 1.02, long: 1.42, head: 0.19, tilt: 4, mane: 0.4 }],
+      [2, { reach: 0.98, long: 1.58, head: 0.18, tilt: 3, mane: 0.3 }],
+      [2, { reach: 1, long: 1.5, head: 0.17, tilt: 3, mane: 0.22 }],
     ],
   },
 
-  // ...and held while she explains: still, with a little jab at it every now and then,
-  // like she's tapping the screen. A stance: it lasts until the guide moves on.
+  // ...and held while she explains, leaning in: a jab at it now and then (two taps, like on a
+  // screen), and a glance back at you before her eyes go back to it. A stance: it lasts until
+  // the guide moves on.
   pointing: {
     loop: true,
     directional: true,
     keys: [
-      [14, { reach: 1, long: 1.4, head: 0.15, mane: 0.1 }],
-      [1, { reach: 1.04, long: 1.55, head: 0.18, mane: 0.16 }],
-      [2, { reach: 1, long: 1.42, head: 0.16, mane: 0.12 }],
-      [1, { reach: 1.04, long: 1.55, head: 0.18, mane: 0.16 }],
-      [8, { reach: 1, long: 1.4, head: 0.15, mane: 0.1, bob: -2 }],
-      [6, { reach: 1, long: 1.4, head: 0.12, mane: 0.08, bob: -1 }],
+      [12, { reach: 1, long: 1.5, head: 0.17, mane: 0.16, tilt: 3 }],
+      [1, { reach: 1.05, long: 1.8, head: 0.2, mane: 0.24, tilt: 4 }, 'tap'],
+      [2, { reach: 1, long: 1.52, head: 0.18, mane: 0.18, tilt: 3 }],
+      [1, { reach: 1.05, long: 1.8, head: 0.2, mane: 0.24, tilt: 4 }, 'tap'],
+      [10, { reach: 1, long: 1.5, head: 0.17, mane: 0.16, tilt: 3, bob: -2 }],
+      [1, { reach: 1, long: 1.5, head: 0.02, mane: 0.12, tilt: 2, smear: [10, 0] }],
+      [8, { reach: 1, long: 1.5, head: -0.1, mane: 0.1, tilt: 2 }],
+      [1, { reach: 1, long: 1.5, head: 0.12, mane: 0.16, tilt: 3, smear: [-10, 0] }],
+      [8, { reach: 1, long: 1.5, head: 0.17, mane: 0.16, tilt: 3, bob: -1 }],
+    ],
+  },
+
+  // Done showing: the line reels back into her finger and the arm is snapped back in.
+  unpoint: {
+    priority: 2,
+    fps: 24,
+    directional: true,
+    keys: [
+      [1, { reach: 0.6, long: 0.9, head: 0.08, tilt: -2, smear: [12, 0], mane: 0.1 }],
+      [2, { reach: 0.1, long: 0.85, head: 0.04, tilt: -1 }],
+      [2, { reach: -0.06, long: 1, tilt: 0 }],
+      [1, {}],
     ],
   },
 

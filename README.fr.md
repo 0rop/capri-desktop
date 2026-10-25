@@ -76,9 +76,14 @@ Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand m�
 
 ### Elle te fait visiter
 
-**Comment ça marche ?** dans son menu : elle te demande ce qu'elle te montre, puis t'y emmène et le montre du doigt
-(une ligne en pointillés depuis le bout de son doigt, des crochets qui clignotent sur ses coins, une étiquette) pendant
-qu'elle t'explique.
+**Comment ça marche ?** dans son menu : elle te demande ce qu'elle te montre, puis t'y emmène et le montre du doigt.
+Sa tête se tourne d'un coup, elle prend son élan penchée en arrière, puis frappe : son bras de construct s'allonge
+jusqu'au double vers la cible, un éclair rouge part de son doigt, un viseur claque dessus avec deux de ses yeux qui
+s'ouvrent sur ses coins, et un gros plan sur ses yeux surgit. Ensuite elle tient la pose pendant qu'elle t'explique,
+un fil de données entre son doigt et la cible : de temps en temps elle donne un petit coup de doigt, ou te jette un
+regard. Quand elle a fini, le fil se ravale dans son doigt et le bras revient d'un coup sec.
+
+![La frappe, puis la pose tenue pendant qu'elle explique](docs/point.png)
 
 - **Où est mon icône ?** Elle descend près de l'horloge et pointe son icône, ou le **^** quand Windows la cache.
 - **Où est Claude ?** Elle pointe la fenêtre de Claude : celle où tu as tapé ton dernier prompt.

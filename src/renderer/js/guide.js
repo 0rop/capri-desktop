@@ -146,7 +146,9 @@ export class Guide {
     this.capri.perform('hop');
     // she knows where Claude is if you've used it with her before: she shows you where to restart it
     const win = this.claudeWindow();
-    if (win && this.capri.canPoint(win)) this.capri.pointAt(win, { label: this.t.labels.claude });
+    const scene = this.sceneId;
+    if (win && this.capri.canPoint(win)) await this.capri.pointAt(win, { label: this.t.labels.claude });
+    if (scene !== this.sceneId) return; // another scene took over meanwhile
     await this.ask({ kind: 'done', face: 'laugh', line: w.connected, quote: w.restart, actions: [{ id: 'ok', label: w.ok }] });
   }
 
@@ -154,7 +156,9 @@ export class Guide {
   async icon() {
     const t = this.t.icon;
     const place = await this.host.trayPlace();
-    this.capri.pointAt(place.icon || place.corner, { label: this.t.labels.icon });
+    const scene = this.sceneId;
+    await this.capri.pointAt(place.icon || place.corner, { label: this.t.labels.icon });
+    if (scene !== this.sceneId) return; // another scene took over meanwhile
     await this.ask({ face: 'look', line: t.line, quote: place.icon ? t.quote : t.hidden, actions: this.ok() });
   }
 
@@ -167,7 +171,9 @@ export class Guide {
     } else if (!this.capri.canPoint(win)) {
       await this.ask({ face: 'calm', line: t.behind, quote: t.behindHow, actions: this.ok() });
     } else {
-      this.capri.pointAt(win, { label: this.t.labels.claude });
+      const scene = this.sceneId;
+      await this.capri.pointAt(win, { label: this.t.labels.claude });
+      if (scene !== this.sceneId) return; // another scene took over meanwhile
       await this.ask({ face: 'look', line: t.there, quote: t.thereHow, actions: this.ok() });
     }
   }
@@ -185,8 +191,9 @@ export class Guide {
     // Explorer comes up in front: a new window, or the one already showing that folder, brought back
     const front = () => capri.windows.wins.find((w) => w.id === capri.windows.fg) || null;
     const win = (await this.until(() => (capri.windows.fg !== before ? front() : null), 2500)) || front();
-    if (win && capri.canPoint(win)) capri.pointAt(win, { label: opened.file ? 'settings.json' : '.claude' });
-    capri.perform('curious', capri.towardCenter());
+    const scene = this.sceneId;
+    if (win && capri.canPoint(win)) await capri.pointAt(win, { label: opened.file ? 'settings.json' : '.claude' });
+    if (scene !== this.sceneId) return; // another scene took over meanwhile
     const id = await this.ask({
       face: 'smug',
       line: fmt(t.line, { dir: opened.dir }),

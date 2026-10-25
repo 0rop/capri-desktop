@@ -175,13 +175,19 @@ export class FxLayer {
     this.size = { w: width, h: height };
   }
 
-  // Showing you something: a dashed line from her fingertip (`from`, a function) to `aim` with an
-  // arrowhead, blinking corner brackets around `rect`, and a word on them. When `rect` is off her
-  // screen (the tray, down in the taskbar), an arrow on the edge points the rest of the way.
-  // Handle: fade().
+  // Showing you something: a lock-on reticle that slams onto `rect`, a dashed wire from her
+  // fingertip (`from`, a function) to `aim` with data running down it, two of her eyes opening
+  // on the reticle's corners, and a word on a tag. When `rect` is off her screen (the tray, down
+  // in the taskbar), an arrow on the edge points the rest of the way.
+  // Handle: tap() (she jabs at it: the reticle pulses), retract() (the wire reels back into her
+  // finger, the reticle lets go), fade().
   pointer(from, rect, aim, { label = '' } = {}) {
-    const item = this.add({ type: 'pointer', life: 10 * 60 * 1000, from, rect, aim, label, fadeAt: 0 });
-    return { fade: () => { item.fadeAt ||= performance.now(); } };
+    const item = this.add({ type: 'pointer', life: 10 * 60 * 1000, from, rect, aim, label, fadeAt: 0, tapAt: 0, retractAt: 0 });
+    return {
+      tap: () => { item.tapAt = performance.now(); },
+      retract: () => { item.retractAt ||= performance.now(); },
+      fade: () => { item.fadeAt ||= performance.now(); },
+    };
   }
 
   add(item) {
@@ -1119,89 +1125,121 @@ export class FxLayer {
         const fade = this.fadeStep(it, now, 260);
         if (!fade) break;
         const { w: vw, h: vh } = this.size || { w: 1e5, h: 1e5 };
-        const frame = Math.floor((now - it.born) / FRAME_MS);
-        const grow = Math.min(1, (frame + 1) / 4); // the line shoots out over four drawings
+        const age = now - it.born;
+        const frame = Math.floor(age / FRAME_MS);
+        // reeling back in: the wire shortens toward her finger over four drawings, then it's gone
+        const back = it.retractAt ? Math.floor((now - it.retractAt) / FRAME_MS) / 4 : 0;
+        if (back >= 1) {
+          it.life = 0;
+          break;
+        }
         const a = it.from(), b = it.aim;
+        const grow = Math.min(1, (frame + 1) / 2) * (1 - back);
         const ex = lerp(a.x, b.x, grow), ey = lerp(a.y, b.y, grow);
+        const off = it.rect.y > vh - 2 ? [0, 1] : it.rect.y + it.rect.h < 2 ? [0, -1] : it.rect.x > vw - 2 ? [1, 0] : it.rect.x + it.rect.w < 2 ? [-1, 0] : null;
         ctx.save();
         ctx.globalAlpha = fade;
-        // the line, dashes crawling toward it on twos
+
+        // the wire, dashes crawling toward it on twos, and data running down it
         ctx.setLineDash([9, 6]);
         ctx.lineDashOffset = -Math.floor(frame / 2) * 5;
         const line = [[a.x, a.y], [ex, ey]];
         this.stroke(line, COLORS.violet, 4, -2, 2);
         this.stroke(line, COLORS.paper, 2);
         ctx.setLineDash([]);
-        // off her screen (the tray, down in the taskbar): an arrow on the edge does the last bit
-        const off = it.rect.y > vh - 2 ? [0, 1] : it.rect.y + it.rect.h < 2 ? [0, -1] : it.rect.x > vw - 2 ? [1, 0] : it.rect.x + it.rect.w < 2 ? [-1, 0] : null;
-        if (grow >= 1) {
-          // arrowhead, with its violet copy (off screen, the edge arrow below takes over)
-          if (!off) {
-            const ang = Math.atan2(b.y - a.y, b.x - a.x);
-            const head = (dx, dy, color) => {
-              ctx.beginPath();
-              ctx.moveTo(b.x + dx, b.y + dy);
-              ctx.lineTo(b.x - Math.cos(ang - 0.45) * 16 + dx, b.y - Math.sin(ang - 0.45) * 16 + dy);
-              ctx.lineTo(b.x - Math.cos(ang + 0.45) * 16 + dx, b.y - Math.sin(ang + 0.45) * 16 + dy);
-              ctx.closePath();
-              ctx.fillStyle = color;
-              ctx.fill();
-            };
-            head(-2, 2, COLORS.violet);
-            head(0, 0, COLORS.red);
-          }
-
-          // brackets on its corners (what of it is on her screen), on for five drawings, off for one
-          const pad = 7;
-          const x0 = Math.max(4, it.rect.x - pad), y0 = Math.max(4, it.rect.y - pad);
-          const x1 = Math.min(vw - 4, it.rect.x + it.rect.w + pad), y1 = Math.min(vh - 4, it.rect.y + it.rect.h + pad);
-          if (frame % 6 !== 5 && x1 > x0 && y1 > y0) {
-            const arm = Math.min(26, (x1 - x0) / 3, (y1 - y0) / 3);
-            const corners = [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]];
-            for (const [dx, dy, color, width] of [[-2, 2, COLORS.violet, 5], [0, 0, COLORS.red, 4]]) {
-              ctx.strokeStyle = color;
-              ctx.lineWidth = width;
-              for (const [cx, cy, sx, sy] of corners) {
-                ctx.beginPath();
-                ctx.moveTo(cx + dx, cy + sy * arm + dy);
-                ctx.lineTo(cx + dx, cy + dy);
-                ctx.lineTo(cx + sx * arm + dx, cy + dy);
-                ctx.stroke();
-              }
-            }
-          }
-          // off her screen: an arrow on the edge, bobbing on twos, pointing the rest of the way
-          let tagAt = null;
-          if (off) {
-            const bob = Math.floor(frame / 2) % 2 ? 3 : 0;
-            const px = clamp(it.rect.x + it.rect.w / 2, 14, vw - 14) - off[0] * (14 + bob);
-            const py = clamp(it.rect.y + it.rect.h / 2, 14, vh - 14) - off[1] * (14 + bob);
-            tagAt = { x: px - off[0] * 50, y: py - off[1] * 30 };
-            const ang2 = Math.atan2(off[1], off[0]);
-            for (const [dx, dy, color] of [[-2, 2, COLORS.violet], [0, 0, COLORS.red]]) {
-              ctx.beginPath();
-              ctx.moveTo(px + Math.cos(ang2) * 13 + dx, py + Math.sin(ang2) * 13 + dy);
-              ctx.lineTo(px + Math.cos(ang2 + 2.4) * 13 + dx, py + Math.sin(ang2 + 2.4) * 13 + dy);
-              ctx.lineTo(px + Math.cos(ang2 - 2.4) * 13 + dx, py + Math.sin(ang2 - 2.4) * 13 + dy);
-              ctx.closePath();
-              ctx.fillStyle = color;
-              ctx.fill();
-            }
-          }
-          // the word, on a red tag: at the bracket's top corner (under it at the top of the screen),
-          // or next to the edge arrow
-          if (it.label && (x1 > x0 || tagAt)) {
-            ctx.font = '600 11px "JetBrains Mono", monospace';
-            const tw = ctx.measureText(it.label).width + 14;
-            const tx = clamp(tagAt ? tagAt.x - tw / 2 : x0, 4, vw - tw - 4);
-            const ty = tagAt ? clamp(tagAt.y - 10, 4, vh - 23) : y0 > 30 ? y0 - 24 : y1 + 6;
+        if (!back) {
+          for (let i = 0; i < 3; i++) {
+            const u = (Math.floor(frame / 2) * 0.06 + i / 3) % 1;
+            if (u > grow) continue;
+            const px = lerp(a.x, b.x, u), py = lerp(a.y, b.y, u);
             ctx.fillStyle = COLORS.violet;
-            ctx.fillRect(tx - 2, ty + 2, tw, 19);
-            ctx.fillStyle = COLORS.red;
-            ctx.fillRect(tx, ty, tw, 19);
-            ctx.fillStyle = COLORS.paper;
-            ctx.fillText(it.label, tx + 7, ty + 13.5);
+            ctx.fillRect(Math.round(px) - 3, Math.round(py) - 1, 5, 5);
+            ctx.fillStyle = i ? COLORS.green : COLORS.paper;
+            ctx.fillRect(Math.round(px) - 2, Math.round(py) - 2, 5, 5);
           }
+        }
+
+        if (grow >= 1 && !off) {
+          // arrowhead, with its violet copy
+          const ang = Math.atan2(b.y - a.y, b.x - a.x);
+          for (const [dx, dy, color] of [[-2, 2, COLORS.violet], [0, 0, COLORS.red]]) {
+            ctx.beginPath();
+            ctx.moveTo(b.x + dx, b.y + dy);
+            ctx.lineTo(b.x - Math.cos(ang - 0.45) * 16 + dx, b.y - Math.sin(ang - 0.45) * 16 + dy);
+            ctx.lineTo(b.x - Math.cos(ang + 0.45) * 16 + dx, b.y - Math.sin(ang + 0.45) * 16 + dy);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+          }
+        }
+
+        // the reticle: comes in from wide and slams on (four drawings), bounces once, then holds.
+        // A tap makes it pulse; letting go, it opens back out.
+        const SLAM = [64, 36, 16, 4, 11, 7];
+        const tapK = it.tapAt ? Math.floor((now - it.tapAt) / FRAME_MS) : 99;
+        let pad = frame < SLAM.length ? SLAM[frame] : 7;
+        if (tapK < 2) pad += 6;
+        if (back) pad += back * 60;
+        const x0 = Math.max(4, it.rect.x - pad), y0 = Math.max(4, it.rect.y - pad);
+        const x1 = Math.min(vw - 4, it.rect.x + it.rect.w + pad), y1 = Math.min(vh - 4, it.rect.y + it.rect.h + pad);
+        const flash = frame < 5 || tapK < 2; // white as it lands
+        if ((frame % 8 !== 7 || frame < 8) && x1 > x0 && y1 > y0) {
+          const arm = Math.min(28, (x1 - x0) / 3, (y1 - y0) / 3);
+          const corners = [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]];
+          for (const [dx, dy, color, width] of [[-2, 2, COLORS.violet, 5], [0, 0, flash ? COLORS.paper : COLORS.red, 4]]) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            for (const [cx, cy, sx, sy] of corners) {
+              ctx.beginPath();
+              ctx.moveTo(cx + dx, cy + sy * arm + dy);
+              ctx.lineTo(cx + dx, cy + dy);
+              ctx.lineTo(cx + sx * arm + dx, cy + dy);
+              ctx.stroke();
+            }
+          }
+          // two of her eyes open on its corners and watch it, blinking now and then
+          if (!back && frame >= 6 && x1 - x0 > 90 && y1 - y0 > 60) {
+            const open = Math.min(1, (frame - 6) / 3);
+            const blink = frame % 70 > 66 ? 0.15 : 1;
+            const center = { x: it.rect.x + it.rect.w / 2, y: it.rect.y + it.rect.h / 2 };
+            this.eye(x1 - 4, y0 + 4, 8, open * blink, center);
+            this.eye(x0 + 4, y1 - 4, 8, open * blink, center);
+          }
+        }
+
+        // off her screen: an arrow on the edge, bobbing on twos, pointing the rest of the way
+        let tagAt = null;
+        if (off && grow >= 1) {
+          const bob = Math.floor(frame / 2) % 2 ? 3 : 0;
+          const px = clamp(it.rect.x + it.rect.w / 2, 14, vw - 14) - off[0] * (14 + bob);
+          const py = clamp(it.rect.y + it.rect.h / 2, 14, vh - 14) - off[1] * (14 + bob);
+          tagAt = { x: px - off[0] * 50, y: py - off[1] * 30 };
+          const ang2 = Math.atan2(off[1], off[0]);
+          for (const [dx, dy, color] of [[-2, 2, COLORS.violet], [0, 0, flash ? COLORS.paper : COLORS.red]]) {
+            ctx.beginPath();
+            ctx.moveTo(px + Math.cos(ang2) * 13 + dx, py + Math.sin(ang2) * 13 + dy);
+            ctx.lineTo(px + Math.cos(ang2 + 2.4) * 13 + dx, py + Math.sin(ang2 + 2.4) * 13 + dy);
+            ctx.lineTo(px + Math.cos(ang2 - 2.4) * 13 + dx, py + Math.sin(ang2 - 2.4) * 13 + dy);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+          }
+        }
+
+        // the word, on a red tag: at the reticle's top corner (under it at the top of the screen),
+        // or next to the edge arrow; it drops in once the reticle has landed
+        if (it.label && !back && frame >= 4 && (x1 > x0 || tagAt)) {
+          ctx.font = '600 11px "JetBrains Mono", monospace';
+          const tw = ctx.measureText(it.label).width + 14;
+          const drop = frame < 6 ? (6 - frame) * 4 : 0;
+          const tx = clamp(tagAt ? tagAt.x - tw / 2 : x0, 4, vw - tw - 4);
+          const ty = (tagAt ? clamp(tagAt.y - 10, 4, vh - 23) : y0 > 30 ? y0 - 24 : y1 + 6) - drop;
+          ctx.fillStyle = COLORS.violet;
+          ctx.fillRect(tx - 2, ty + 2, tw, 19);
+          ctx.fillStyle = COLORS.red;
+          ctx.fillRect(tx, ty, tw, 19);
+          ctx.fillStyle = COLORS.paper;
+          ctx.fillText(it.label, tx + 7, ty + 13.5);
         }
         ctx.restore();
         break;

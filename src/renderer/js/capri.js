@@ -319,6 +319,10 @@ export class Capri {
     const base = under ? this.base.resolve(under.pose, this.facing) : {};
     let act = null;
     let cue = null;
+    if (under && under.index !== this.baseIndex) {
+      this.baseIndex = under.index;
+      if (!this.act) cue = under.cue; // the stance's own cues, when no act is on top
+    }
     if (this.act) {
       const drawing = this.act.player.sample(now);
       if (drawing) {
@@ -769,14 +773,37 @@ export class Capri {
         if (this.zapAt && Math.random() < 0.6) this.fx.cutin(...this.cutinAt(-this.zapAt.dir), { kind: 'look', life: 560 });
         this.zapAt = null;
         break;
-      case 'aim': { // the arm snaps out: the pointer comes with it
-        const pt = this.pointing;
-        if (pt && !pt.pointer) {
-          pt.pointer = this.fx.pointer(() => this.limb(pt.side).hand, pt.rect, pt.aim, { label: pt.label });
+      // pointing at something (pointAt)
+      case 'spot': // her head snaps to it: a glint where she's looking
+        if (this.pointing) {
+          const { aim } = this.pointing;
+          this.fx.ring(aim.x, aim.y, { size: 0.18 });
           this.voice.play('tick');
         }
         break;
+      case 'coil': // winding up: shards pulled into her, a crackle
+        this.fx.burst(h.x, h.y + 40 * s, { count: 10, inward: true, power: 0.45, spread: 90 * s });
+        this.voice.play('bolt', { soft: true });
+        break;
+      case 'lock': { // the strike: lightning off her fingertip, the reticle slams onto it
+        const pt = this.pointing;
+        if (pt && !pt.pointer) {
+          const hand = this.limb(pt.side).hand;
+          pt.pointer = this.fx.pointer(() => this.limb(pt.side).hand, pt.rect, pt.aim, { label: pt.label });
+          if (!reducedMotion.matches) {
+            this.fx.bolt(hand, pt.aim, { life: 260, forks: 3, width: 3 });
+            this.fx.ring(pt.aim.x, pt.aim.y, { size: 0.55 });
+            this.fx.burst(pt.aim.x, pt.aim.y, { count: 12, power: 0.5, spread: 20 });
+            // her eyes lock on, on the side away from it
+            this.fx.cutin(...this.cutinAt(-pt.dir, { flip: false }), { kind: 'eyes', life: 480 });
+          }
+          this.voice.play('bolt');
+        }
+        break;
       }
+      case 'tap':
+        this.pointing?.pointer?.tap();
+        break;
       case 'minds':
         this.twitch();
         break;
@@ -1374,7 +1401,7 @@ export class Capri {
     const s = this.scale;
     const { w, h } = this.view;
     const side = 150 * s + 30;
-    const reach = 120 * s + 60; // from her feet to what she points at
+    const reach = 230 * s + 90; // from her feet to what she points at: room for the arm to shoot out
     const roomLeft = rect.x, roomRight = w - (rect.x + rect.w);
     let x;
     if (Math.max(roomLeft, roomRight) >= side + 40) {
@@ -1410,16 +1437,18 @@ export class Capri {
     this.pointing = { rect, aim, dir, side, reach, label, pointer: null };
     this.base = this.restBase();
     await this.perform('point', dir, { reach });
-    if (this.pointing && !this.pointing.pointer) this.onCue('aim'); // the act was cut short
+    if (this.pointing && !this.pointing.pointer) this.onCue('lock'); // the act was cut short
     return true;
   }
 
+  // Done showing: the line reels back into her finger, the reticle lets go, the arm snaps back.
   stopPointing() {
     const pt = this.pointing;
     if (!pt) return;
     this.pointing = null;
-    pt.pointer?.fade();
+    pt.pointer?.retract();
     this.base = this.restBase();
+    if (!this.busy && !this.hidden && this.stance === 'stand') this.perform('unpoint', pt.dir);
   }
 
   // Can she point at this window so you'd see it: not maximized, its top not under other windows.

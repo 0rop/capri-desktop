@@ -74,8 +74,13 @@ On macOS and Linux she still floats, peeks, falls and wanders.
 
 ### She shows you around
 
-**How does it work?** in her menu: she asks what to show you, then takes you there and points at it with her finger
-(a dashed line from her fingertip, brackets blinking on its corners, a tag) while she explains.
+**How does it work?** in her menu: she asks what to show you, then takes you there and points at it. Her head snaps
+to it, she coils up leaning away, then strikes: her construct arm shoots out at it to twice its length, red lightning
+off her fingertip, a reticle slams onto it with two of her eyes opening on its corners, and a close-up of her eyes cuts
+in. Then she holds it while she explains, a wire of data running from her finger to it: now and then she jabs at it,
+or glances back at you. When she's done, the wire reels back into her finger and the arm snaps back.
+
+![The strike, and the hold while she explains](docs/point.png)
 
 - **Where's my icon?** She goes down by the clock and points at her tray icon, or at the **^** when Windows hides it.
 - **Where's Claude?** She points at Claude's window: the one you typed your last prompt in.
