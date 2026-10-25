@@ -25,9 +25,10 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 - **Le reste du temps** : elle flotte, sa crinière ondule et perd des éclats, elle se balade d'un coin à l'autre de l'écran,
   se retourne et penche la tête quand ta souris approche (ou, petite peste, lui envoie un éclair rouge avec un sourire en coin),
   lève les yeux vers le satellite, et s'endort si rien ne se passe pendant 10 minutes.
-- **Le satellite** : de temps en temps, ou quand tu veux depuis le menu de l'icône, la grande séquence. Les points blancs
-  de sa crinière s'envolent en constellation, s'alignent en chemin entre ses doigts et le satellite, elle se ramasse,
-  et la lumière rouge monte jusqu'à lui. Il lui répond en scintillant deux fois.
+- **Le satellite** : la grande séquence, gardée pour les vrais moments. La première fois de la journée, un peu après
+  que Claude a fini une longue tâche (8 minutes ou plus, ou 50 actions), ou quand tu veux depuis le menu de l'icône.
+  Les points blancs de sa crinière s'envolent en constellation, s'alignent en chemin entre ses doigts et le satellite,
+  elle se ramasse, et la lumière rouge monte jusqu'à lui. Il lui répond en scintillant deux fois.
 
 ![Victoire : la pose clé, puis le rire et le cut-in](docs/victory.png)
 
@@ -44,12 +45,19 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
   En chemin, le rebord d'une fenêtre peut la rattraper.
 - **Pose-la sur une fenêtre** : attrape-la et lâche-la avec les hanches sur le bord du haut d'une fenêtre, elle s'y assoit.
   Lâchée ailleurs, elle tombe.
+- **Elle possède tes fenêtres**, comme dans la série où elle se glisse dans les corps et les systèmes : de temps en temps,
+  elle plonge dans la fenêtre où elle est assise. Un éclair rouge fait le tour du cadre, des tranches glitchent,
+  et la fenêtre te regarde avec ses yeux et son sourire en zigzag, d'autres yeux s'ouvrent partout, toutes les pupilles
+  sur ta souris, et elle rit. Puis elle ressort d'une autre fenêtre. Rien n'est dessiné sur les fenêtres posées devant,
+  et le contenu de la fenêtre n'est jamais lu : c'est juste dessiné par-dessus, deux secondes.
 - **Petites fioritures** : un tour complet avec des images rémanentes, un saut, un regard à gauche puis à droite, la tête penchée,
   et ses autres esprits (ses copies verte et rouge) qui se détachent d'elle, flottent un instant et reviennent d'un coup.
 
 ![Assise sur une fenêtre](docs/sit.png)
 
 ![Elle dépasse des bords de l'écran](docs/peek.png)
+
+![Elle possède une fenêtre : la plongée, l'impact, la fenêtre pleine d'yeux](docs/possess.png)
 
 Le suivi des fenêtres ne marche que sous Windows pour l'instant (un petit script PowerShell lit la position des fenêtres, pas leurs titres ni leur contenu).
 Sur macOS et Linux, elle flotte, dépasse des bords, tombe et se balade quand même.
@@ -116,6 +124,7 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 | `rise` | l'élan de sa pose de victoire, la lumière rouge qui monte |
 | `bolt` | ses éclairs rouges |
 | `charge` | elle se charge avant d'envoyer la lumière rouge |
+| `possess` | la fenêtre qu'elle possède rit |
 | `blip` | chaque syllabe quand elle parle |
 | `tick` | petit rappel discret |
 
@@ -142,7 +151,8 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
   s'aplatit à l'atterrissage, et se dédouble en copies verte et rouge (les autres esprits en elle) quand elle tourne ou rit.
 - **Le satellite**, d'après la fin de la saison, où elle montre la lumière dans le ciel en se demandant s'ils
   pourraient monter jusque-là : un point de lumière traverse lentement le haut de l'écran. La plupart du temps elle le regarde, tend la main, il scintille, elle soupire.
-  La première fois, puis une fois sur deux, c'est la séquence complète, en cinq temps :
+  La première fois de la journée, et un peu après une longue tâche de Claude, c'est la séquence complète, en cinq temps
+  (et pendant ce temps rien ne la déconcentre, même pas ta souris) :
   1. **Le silence** : elle se fige, les points blancs de sa crinière s'envolent et forment une constellation au-dessus d'elle.
   2. **Le geste** : elle tend le bras (les dessins se resserrent à mesure que la main arrive) et ses étoiles s'alignent
      en chemin, du bout de ses doigts jusqu'au satellite.
@@ -183,7 +193,7 @@ src/renderer/js/
   sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
   capri.js               le personnage : postures, téléportation, assise, bords d'écran, chute, drag, sommeil
-  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les cut-ins
+  fx.js                  éclats, colonnes de lumière, éclairs, glyphes, lignes de vitesse, ondes de choc, le satellite et la lumière rouge, les fenêtres possédées, les cut-ins
   panel.js               le panneau « transmission » et le ticker
   brain.js               traduit les événements Claude en répliques et en actions
   lines.js               ce qu'elle dit (FR / EN)

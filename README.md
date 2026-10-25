@@ -25,9 +25,10 @@ comes to find you when Claude needs your permission, and loses it when the job i
 - **The rest of the time**: she floats, her mane sways and sheds shards, she drifts from one corner to another,
   turns around and cocks her head when your mouse comes near (or, little menace, zaps it with red lightning and a sly grin),
   looks up at the satellite, and falls asleep after 10 quiet minutes.
-- **The satellite**: now and then, or whenever you like from the tray menu, the big sequence. The white specks of her
-  mane lift off as a constellation, line up into a road from her fingers to the satellite, she coils up,
-  and the red light goes up to it. It answers her, twinkling twice.
+- **The satellite**: the big sequence, kept for moments that matter. The first time of the day, a little while after
+  Claude finishes a long job (8 minutes or more, or 50 actions), or whenever you like from the tray menu.
+  The white specks of her mane lift off as a constellation, line up into a road from her fingers to the satellite,
+  she coils up, and the red light goes up to it. It answers her, twinkling twice.
 
 ![Victory: the key pose, then the laugh and the cut-in](docs/victory.png)
 
@@ -44,12 +45,19 @@ comes to find you when Claude needs your permission, and loses it when the job i
   On the way down, a window ledge can catch her.
 - **Drop her on a window**: drag her and let go with her hips on a window's top edge, she sits there.
   Let go anywhere else and she falls.
+- **She possesses your windows**, like in the show where she slips into bodies and systems: now and then she dives
+  into the window she's sitting on. Red lightning races round its frame, slices of it glitch, and the window looks
+  at you with her eyes and her zigzag grin, more eyes opening all over it, every pupil on your pointer, and she laughs.
+  Then she comes out of another window. Nothing is drawn over the windows in front of it, and the window's contents
+  are never read: it's just drawn over, for two seconds.
 - **Little flourishes**: a full spin with afterimages, a hop, looking left and right, the cocked head,
   and the other minds in her (her green and red copies) pulling away from her, hanging there, and snapping back in.
 
 ![Sitting on a window](docs/sit.png)
 
 ![Peeking in from the edges](docs/peek.png)
+
+![Possessing a window: the dive, the hit, the window full of eyes](docs/possess.png)
 
 Window tracking is Windows-only for now (a tiny PowerShell helper reads window positions, no titles, no contents).
 On macOS and Linux she still floats, peeks, falls and wanders.
@@ -116,6 +124,7 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 | `rise` | the launch into her victory pose, the red light going up |
 | `bolt` | her red lightning |
 | `charge` | charging up before the red light goes up |
+| `possess` | the window she took over laughs |
 | `blip` | every syllable while she talks |
 | `tick` | a quiet reminder |
 
@@ -142,7 +151,8 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
   she falls, flattens when she lands, and splits into green and red copies (the other minds in her) when she spins or laughs.
 - **The satellite**, after the season's ending, where she points at the light in the sky and wonders if they
   could make it up there: a point of light crosses the top of the screen, slowly. Most of the time she just looks,
-  reaches, it twinkles, she sighs. The first time, then every other time, it's the whole sequence, in five beats:
+  reaches, it twinkles, she sighs. The first time of the day, and a little while after a long Claude job, it's the
+  whole sequence, in five beats (and nothing distracts her meanwhile, not even your pointer):
   1. **Hush**: she freezes, and the white specks of her mane lift off into a constellation over her.
   2. **The reach**: she reaches out (the drawings bunch up as the hand gets there) and her stars line up into a road
      from her fingertips to the satellite.
@@ -183,7 +193,7 @@ src/renderer/js/
   sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
   acting.js              the exposure sheets: every move, drawing by drawing
   capri.js               the character: stances, teleport, sitting, peeking, falling, drag, sleep
-  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, the cut-ins
+  fx.js                  shards, light columns, bolts, glyphs, speed lines, shockwaves, the satellite and the red light, possessed windows, the cut-ins
   panel.js               the "transmission" panel and the ticker
   brain.js               turns Claude events into lines and actions
   lines.js               what she says (FR / EN)
