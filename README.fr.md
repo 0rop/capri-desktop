@@ -84,6 +84,15 @@ Elle parle **français ou anglais et choisit toute seule la langue de ton systè
 
 ## Installation
 
+### Windows
+
+Télécharge **`Capri-Setup-x.y.z.exe`** dans la [dernière release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
+et lance-le. Il s'installe pour ton utilisateur seulement (pas besoin d'être administrateur), ajoute un raccourci
+sur le bureau et lance Capri. L'installeur n'est pas signé, donc Windows SmartScreen peut afficher « Windows a protégé
+votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+
+### Depuis le code
+
 Il faut [Node.js](https://nodejs.org) 20 ou plus.
 
 ```bash
@@ -220,6 +229,7 @@ src/renderer/js/
 Pour bosser dessus : `npm run dev` active des routes de debug sur le bridge (`/debug/capture` enregistre une image de la fenêtre dans `captures/`,
 `/debug/testwin` ouvre des fenêtres de test sur lesquelles elle peut s'asseoir, une par nom, `/debug/mouse` bouge et clique un pointeur
 factice sur la fenêtre de Capri, sans toucher au vrai).
+`npm run dist` fabrique l'installeur Windows dans `dist/`.
 
 ## Crédits et droits
 

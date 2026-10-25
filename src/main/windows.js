@@ -9,7 +9,8 @@ const readline = require('node:readline');
 const { spawn } = require('node:child_process');
 const { screen } = require('electron');
 
-const SCRIPT = path.join(__dirname, 'windows.ps1');
+// in the installed app it sits next to the app archive (asarUnpack), where PowerShell can read it
+const SCRIPT = path.join(__dirname, 'windows.ps1').replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 
 function startWindowWatch({ overlay, onUpdate }) {
   if (process.platform !== 'win32') return { stop() {} };

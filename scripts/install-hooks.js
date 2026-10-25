@@ -11,6 +11,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const EVENTS = [
   'SessionStart',
@@ -34,8 +35,23 @@ function settingsPath() {
   return path.join(base, 'settings.json');
 }
 
+function hasNode() {
+  try {
+    return spawnSync('node', ['-v'], { windowsHide: true, timeout: 3000 }).status === 0;
+  } catch {
+    return false;
+  }
+}
+
+// In the installed app (the .exe) the hook sits next to the app archive (asarUnpack), where
+// node can read it. With no node on the machine, Capri's own executable runs it as node.
 function hookCommand() {
-  const script = path.resolve(__dirname, '..', 'hooks', 'capri-hook.js').replace(/\\/g, '/');
+  const script = path.resolve(__dirname, '..', 'hooks', 'capri-hook.js')
+    .replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`)
+    .replace(/\\/g, '/');
+  if (process.versions.electron && !hasNode()) {
+    return `ELECTRON_RUN_AS_NODE=1 "${process.execPath.replace(/\\/g, '/')}" "${script}"`;
+  }
   return `node "${script}"`;
 }
 

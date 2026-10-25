@@ -82,6 +82,15 @@ She speaks **French or English and picks the language of your system** on her ow
 
 ## Install
 
+### Windows
+
+Download **`Capri-Setup-x.y.z.exe`** from the [latest release](https://github.com/mochiiwuff/capri-desktop/releases/latest)
+and run it. It installs for your user only (no admin rights), adds a desktop shortcut and starts Capri.
+The installer isn't signed, so Windows SmartScreen may say "Windows protected your PC": click **More info**,
+then **Run anyway**.
+
+### From the source
+
 You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
@@ -218,6 +227,7 @@ src/renderer/js/
 To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/capture` saves a frame of the window to `captures/`,
 `/debug/testwin` opens test windows she can sit on, one per name, `/debug/mouse` moves and clicks a stand-in pointer
 over Capri's window, without touching the real one).
+`npm run dist` builds the Windows installer in `dist/`.
 
 ## Credits and rights
 

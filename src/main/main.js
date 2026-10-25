@@ -365,7 +365,8 @@ async function debugHandler(route, body) {
   }
   if (route === 'capture') {
     const image = await overlay.webContents.capturePage();
-    const dir = path.join(ROOT, 'captures');
+    // installed, the app's own folder is read-only: its data folder instead
+    const dir = path.join(app.isPackaged ? app.getPath('userData') : ROOT, 'captures');
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, `${(body.name || 'frame').replace(/[^\w-]/g, '')}.png`);
     fs.writeFileSync(file, image.toPNG());
