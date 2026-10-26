@@ -48,6 +48,20 @@ export class Setup {
     if (ready) this.onReady?.();
   }
 
+  // A bigger model than the tiny one her chat is on: picked, fetched, and her chat back on it.
+  async better() {
+    let ready = false;
+    await this.guide.scene(async () => {
+      if (!(await this.ollamaUp())) return;
+      const name = await this.pickModel(this.t.bigger);
+      if (!name) return;
+      const res = await this.pull(name);
+      if (res.ok) ready = await this.done();
+      else if (res.error !== 'stopped') await this.fail(this.t.pullFailed, res.error);
+    });
+    if (ready) this.onReady?.();
+  }
+
   // Claude Code or Codex for free (the one she watches), run through Ollama in a window of its own.
   async free() {
     await this.guide.scene(() => this.freeNow());
@@ -134,13 +148,13 @@ export class Setup {
   }
 
   // Which model to fetch: the better one first when the PC has room for it.
-  async pickModel() {
+  async pickModel(line = this.t.model) {
     const t = this.t;
     const info = await this.host.setupInfo();
     const models = info.ram >= ROOMY ? info.models : [...info.models].reverse();
     const id = await this.guide.ask({
       face: 'look',
-      line: t.model,
+      line,
       quote: t.modelHow,
       actions: [
         ...models.map((m, i) => ({ id: m.name, label: `${m.name} · ${this.size(m.bytes)}`, primary: i === 0 })),

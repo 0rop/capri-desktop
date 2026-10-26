@@ -196,6 +196,7 @@ async function boot() {
   guide.setup = setup;
   guide.onTalk = () => chat.start();
   chat.onSetup = (status) => setup.chat(status);
+  chat.onBetterModel = () => setup.better();
   setup.onReady = () => chat.start();
   // What she calls you, how she is, your lines, what she remembers (custom.js)
   const custom = new Custom({ guide, host, brain, capri, voice });
@@ -358,9 +359,12 @@ async function boot() {
       case 'setupStep': // --dev: one step of her setup on its own (pickModel, pull, pickKeyed, address…)
         guide.scene(() => setup[cmd.step]?.(...(cmd.args || [])));
         break;
-      case 'answer': // --dev: as if that button of her guide had been clicked
-        guide.answer(cmd.id);
+      case 'answer': { // --dev: as if that button of her panel had been clicked (her chat's too)
+        const button = document.querySelector(`.panel__action[data-id="${CSS.escape(cmd.id)}"]`);
+        if (button) button.click();
+        else guide.answer(cmd.id);
         break;
+      }
       case 'assistantChanged': // Claude Code, Codex or Antigravity, picked in her menu
         guide.welcome();
         break;

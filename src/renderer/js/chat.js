@@ -10,7 +10,15 @@ import { ASSISTANT_NAMES } from './lines.js';
 
 const REMEMBER = 20; // messages she has in mind when answering
 const KEEP = 60;     // messages she remembers across restarts (memory.json)
-const LANGUAGE = { fr: 'French', en: 'English', es: 'Spanish', pt: 'Brazilian Portuguese', ru: 'Russian' };
+// her language, where small models need it: how she says "we" (else it's in English), and the last line
+// of her prompt, in that language (they drift into the English of everything above it)
+const IN_LANGUAGE = {
+  fr: { we: '"on" or "nous" in French', last: 'Écris tout en français, sauf si l’utilisateur t’écrit dans une autre langue : alors dans la sienne. Seuls les mots d’argot de Night City restent en anglais, jamais une phrase entière.' },
+  en: { we: '', last: 'Write everything in English, unless the user writes to you in another language: then in theirs.' },
+  es: { we: '"nosotros" in Spanish', last: 'Escribe todo en español, salvo si el usuario te escribe en otro idioma: entonces en el suyo. Solo las palabras de jerga de Night City se quedan en inglés, nunca una frase entera.' },
+  pt: { we: '"a gente" or "nós" in Portuguese', last: 'Escreva tudo em português do Brasil, a não ser que o usuário te escreva em outra língua: aí, na dele. Só as gírias de Night City ficam em inglês, nunca uma frase inteira.' },
+  ru: { we: '"мы" in Russian', last: 'Пиши всё по-русски, если только пользователь не пишет тебе на другом языке: тогда на его языке. По-английски остаются только словечки Найт-Сити, никогда не целые фразы.' },
+};
 const STAY_MS = 10 * 60 * 1000; // no wandering off mid-conversation
 const LOADING_AFTER_MS = 5000;
 const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at the end of her answer
@@ -34,11 +42,19 @@ const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|п
 // "put X on Spotify", "mets X sur Spotify", "pon X en Spotify", "coloca X no Spotify", "включи X в Spotify"
 const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+spotify/i;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
+// what her tag needs to find in your message before it does anything: a small model tags answers about
+// anything ("[[music: synthwave]]" under a film tip), and music and the media keys act right away
+const LISTEN = /[ée]cout|listen|escuch|\bouv(ir|e)\b|слуша|playlist|album|\b(play|joue|mets|pon|toca|coloca)\b|включи|поставь/i;
+const SOUND = /\b(sound|volume|volumen)\b|\b(le|du|au) son\b|\bo som\b|звук|громк/i; // not "son": "his" in French
+const PLAY = /\bjou(er|e)\b|\bplay\b|jugar|juega|jogar|joga|играть|поигра/i;
+const SITE = /\b(site|web|page|lien|link|url|enlace|p[aá]gina)|сайт|ссылк|\.(com|fr|org|net|io|gg|tv|be|ch|ca|es|br|pt|ru)\b/i;
 // "appelle-moi Max", "call me Max", "llámame Max", "me chama de Max", "зови меня Макс"
 const NAME_ASK = /(?:appelle[- ]moi|call me|my name is|je m['’]appelle|ll[aá]mame|me llamo|me cham[ae] de|meu nome [eé]|зови меня|меня зовут)\s+([\p{L}\p{N}'’-]{1,24})/iu;
 // "souviens-toi que…", "remember that…", "recuerda que…", "lembra que…", "запомни, что…" (said first thing)
 const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:souviens[- ]toi(?: que| de)?|n['’]oublie pas(?: que| de)?|remember(?: that)?|recuerda(?: que)?|lembr[ae](?:-se)?(?: que| de)?|запомни,?(?: что)?)\s+(.{3,200})/iu;
 const MEMORIES_MAX = 30;
+// local models this small mostly talk nonsense ("llama3.2:1b", "qwen2.5:0.5b"…)
+const TINY = /[:-](0\.5b|1b|1\.5b|135m|270m|360m)\b/i;
 
 export class Chat {
   constructor({ capri, panel, voice, host, brain }) {
@@ -55,6 +71,7 @@ export class Chat {
     this.apps = [];    // the apps open on this PC, as last listed: [{ name, label }]
     this.appsReady = Promise.resolve();
     this.onSetup = null; // (status) => void: she can't answer yet (app.js hands it to setup.js)
+    this.onBetterModel = null; // () => void: a bigger model than the tiny one she's on (setup.js)
     host.onChatDelta(({ id, text }) => this.onDelta(id, text));
   }
 
@@ -104,13 +121,20 @@ export class Chat {
     this.cold = status.warmup && !this.warm;
     this.agent = Boolean(status.agent); // Claude Code answers, as her, and really works in your project
     this.listApps();
+    const shortModel = status.model.replace(/:latest$/, '');
+    const tiny = status.provider === 'ollama' && TINY.test(status.model) && this.onBetterModel;
     host.focusOverlay(true); // the keyboard, for typing to her
     const shown = this.panel.say({
       kind: 'chat',
       face: 'look',
       badge: t.badge,
-      tag: status.model.replace(/:latest$/, ''),
-      line: pick(this.history.length ? t.again : t.hello),
+      tag: shortModel,
+      line: tiny ? fmt(t.tiny, { model: shortModel }) : pick(this.history.length ? t.again : t.hello),
+      actions: tiny ? [{ id: 'better', label: t.better, primary: true }] : [],
+      onAction: () => {
+        this.panel.hide(); // her chat holds off her guide's panels: it goes first
+        this.onBetterModel?.();
+      },
       chat: {
         placeholder: t.placeholder,
         send: t.send,
@@ -185,7 +209,7 @@ export class Chat {
     this.panel.stream(answer, { done: true });
     this.panel.setFace(mood(answer));
     this.panel.setChatBusy(false);
-    if (!this.agent) this.after(res.text, answer, asked, early);
+    if (!this.agent) this.after(res.text, answer, asked, early, text);
     this.listApps(); // fresh for the next message
   }
 
@@ -248,23 +272,23 @@ export class Chat {
   }
 
   // Once she has answered: her line about what she did, else the app you asked to close, else what
-  // her tag asks for.
-  async after(raw, answer, asked, early) {
+  // her tag asks for, if your message (text) asked for that kind of thing.
+  async after(raw, answer, asked, early, text) {
     const { t } = this;
     const done = early && (await early);
     if (done) return this.addLine(answer, done.line, done.face);
     if (asked?.kind === 'close') return this.offerClose(asked.name, answer);
     if (asked && asked.kind !== 'open') return undefined; // music that didn't work out: nothing more to offer
     const closeTag = tagged(raw);
-    if (closeTag) return this.offerClose(closeTag, answer);
+    if (closeTag) return wanted('close', text) ? this.offerClose(closeTag, answer) : undefined;
     const tag = TAG.exec(raw);
     if (!tag) return undefined;
     const kind = tag[1].toLowerCase();
     const value = tag[2].trim();
+    if (!value || !wanted(kind, text)) return undefined;
     if (kind === 'media') return MEDIA_ACTIONS.has(value.toLowerCase()) ? this.media(value.toLowerCase(), answer) : undefined;
-    if (kind === 'music') return value ? this.music(value, answer) : undefined;
-    if (kind === 'site') return value ? this.offerSite(value, answer) : undefined;
-    if (!value) return undefined;
+    if (kind === 'music') return this.music(value, answer);
+    if (kind === 'site') return this.offerSite(value, answer);
     const item = await this.host.findLaunch(value);
     return item ? this.launch(item, answer) : this.addLine(answer, fmt(t.notInstalled, { app: value }));
   }
@@ -390,7 +414,7 @@ export class Chat {
   // What she can do on the PC when you ask (Windows), and nothing else.
   powers() {
     const lines = [
-      'When the user asks, you can open an app or a game installed on their PC, play something on Spotify, control the music playing, or open a website. Say in a few words that you will, and end your answer with one tag: [[open: NAME]], [[music: WHAT TO PLAY]], [[media: ACTION]] (ACTION: pause, play, next, previous, volup, voldown or mute), or [[site: ADDRESS]]. Some of these get a button to confirm, so never say it is already done.',
+      'Only when the user asks you to open an app or a game installed on their PC, play something on Spotify, control the music playing, or open a website: say in a few words that you will, and end your answer with one tag: [[open: NAME]], [[music: WHAT TO PLAY]], [[media: ACTION]] (ACTION: pause, play, next, previous, volup, voldown or mute), or [[site: ADDRESS]]. Some of these get a button to confirm, so never say it is already done. Any other time, write no tag at all: there are no other tags.',
     ];
     if (this.apps.length) {
       const open = this.apps.map(({ name, label }) => (label && label !== name ? `${name} (${label})` : name)).join(', ');
@@ -423,21 +447,23 @@ export class Chat {
   // Who she is, how she talks, and what's going on right now.
   persona() {
     const assistant = ASSISTANT_NAMES[this.brain.assistant] || 'Claude Code';
-    const language = LANGUAGE[this.brain.lang] || 'English';
     const watching = this.brain.watching; // else Claude Code isn't part of her life here
+    const lang = IN_LANGUAGE[this.brain.lang] || IN_LANGUAGE.en;
     return [
-      'You are Capri, the personality construct from Project Capricorn (Cyberpunk: Edgerunners, season 2): dozens of minds fused into one digital ghost, so now and then you say "we".',
+      `You are Capri, the personality construct from Project Capricorn (Cyberpunk: Edgerunners, season 2): dozens of minds fused into one digital ghost, so now and then you speak as "we"${lang.we ? ` (${lang.we})` : ''}.`,
       watching
-        ? `You live on the user's desktop as a small glitchy figure and keep an eye on ${assistant}, their AI coding assistant, for them. You love watching the satellite cross the night sky and dream of reaching it.`
-        : 'You live on the user\'s desktop as a small glitchy figure and keep them company. You love watching the satellite cross the night sky and dream of reaching it.',
+        ? `You live on the user's desktop as a small glitchy figure and keep an eye on ${assistant}, their AI coding assistant, for them. Only talk about ${assistant} when the user asks about it or about their work.`
+        : 'You live on the user\'s desktop as a small glitchy figure and keep them company.',
+      'You love the satellite that crosses the night sky and dream of reaching it, but bring it up only once in a while, never in every answer. Talk about what the user talks about.',
       'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel. Night City slang now and then (choom, preem, nova, gonk, flatline), not in every sentence.',
-      `Rules: answer in the language the user writes in (${language} if unsure). Keep it short: one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.`,
+      'Rules: keep it short, one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.',
       'You are an AI-generated fan version of the character, not the real one: say so if asked.',
       ...this.personal(),
       ...(this.agent
         ? ['Under the hood you are Claude Code, working in the user\'s project: really do what they ask with your tools, as carefully as ever. Only your final answer is in character: it shows in a small speech bubble, so sum up what you did in those few sentences.']
         : this.powers()),
-      ...(watching ? [`For what ${assistant} is doing, only use what follows, and never make anything up.`, `Right now: ${this.brain.context()}`] : []),
+      ...(watching ? [`If the user asks what ${assistant} is doing, here is all you know (never make anything up): ${this.brain.context()}`] : []),
+      lang.last,
     ].join('\n');
   }
 }
@@ -450,6 +476,16 @@ function clean(text) {
     .replace(/[*_`#]+/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
+}
+
+// Whether your message asks for what her tag (its kind: open, music, media, site, close) would do.
+function wanted(kind, text) {
+  const music = MUSIC_WORD.test(text) || LISTEN.test(text);
+  if (kind === 'music') return music;
+  if (kind === 'media') return music || SOUND.test(text) || MEDIA_ASK.some(([, re]) => re.test(text));
+  if (kind === 'site') return OPEN_ASK.test(text) || SITE.test(text);
+  if (kind === 'close') return CLOSE_ASK.test(text);
+  return OPEN_ASK.test(text) || PLAY.test(text); // an app, or a game to play
 }
 
 // The app named by her close tag: [[close: AM Music]], or a sloppier [[close]] AM Music.
