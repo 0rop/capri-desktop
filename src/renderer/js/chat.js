@@ -1,7 +1,9 @@
-// Talking to her: you type in her panel, and a local model (Ollama, from the main process) answers
-// as her, in writing. The replies are AI-generated, and the panel says so on every chat.
-// Ask her to close an app and she will (Windows): she spots it in what you wrote (or the model names
-// it with a tag in its answer), shows you a button with that app's name, and only your click closes it.
+// Talking to her: you type in her panel, and a model (setup.js picks which) answers as her, in
+// writing. The replies are AI-generated, and the panel says so on every chat.
+// She can do a few things on your PC when you ask (Windows): open an app or a game, play music or
+// control what's playing, open a website, close an app. She spots what you want in what you wrote,
+// or the model asks for it with a tag in its answer. Music right away; an app you named yourself
+// right away; anything only the model asked for, a website, and closing an app behind a button.
 
 import { pick, fmt } from './util.js';
 import { ASSISTANT_NAMES } from './lines.js';
@@ -14,6 +16,24 @@ const LOADING_AFTER_MS = 5000;
 const CLOSE_TAG = /\[\[\s*close\s*:?\s*([^\]]*)\]\]/i; // [[close: AM Music]] at the end of her answer
 // "close", "shut down", "ferme", "quitte", "cierra", "fecha", "закрой"... in any of her languages
 const CLOSE_ASK = /\b(close|shut|quit|kill|exit)|ferm|quitt|coupe|arr[êe]t|cierr|cerra|fech|закр|выключ/i;
+// her other tags: [[open: Spotify]], [[music: Bad Bunny]], [[media: next]], [[site: youtube.com]]
+const TAG = /\[\[\s*(open|music|media|site)\s*:\s*([^\]]*)\]\]/i;
+// "open", "launch", "ouvre", "lance", "abre", "открой"... in any of her languages
+const OPEN_ASK = /\b(open|launch|start|run)\b|ouvr|lance|démarre|abre|abrir|inicia|ejecuta|executa|открой|запусти/i;
+// what to do with the music playing, said plainly (only when it's about music, or said in a few words)
+const MEDIA_ASK = [
+  ['pause', /\b(pause|pausa|pausar)\b|stop (the )?music|arrête la musique|пауз/i],
+  ['next', /\b(next|skip|suivante?|siguiente|próxima|proxima)\b|passe (à )?la suivante|salta|pula|следующ/i],
+  ['previous', /\b(previous|précédente?|anterior)\b|предыдущ/i],
+  ['play', /\b(resume|reprends|reanuda|retoma)\b|relance la musique|remets la musique|продолж/i],
+  ['volup', /\b(louder|plus fort)\b|monte le son|turn (it )?up|sube el volumen|aumenta o volume|громче/i],
+  ['voldown', /\b(quieter|moins fort)\b|baisse le son|turn (it )?down|baja el volumen|abaixa o volume|тише/i],
+  ['mute', /\bmute\b|coupe le son|silencia|sem som|выключи звук/i],
+];
+const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|песн|музык|трек/i;
+// "put X on Spotify", "mets X sur Spotify", "pon X en Spotify", "coloca X no Spotify", "включи X в Spotify"
+const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+spotify/i;
+const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
 
 export class Chat {
   constructor({ capri, panel, voice, host, brain }) {
@@ -127,6 +147,10 @@ export class Chat {
     this.panel.setActions([]); // a close button she offered before goes with a new message
     this.panel.chatTurn({ quote: text, face: 'aside' });
     this.capri.pulse();
+    // what you asked for plainly happens right away (the music, the volume, an app you named): her
+    // line about it comes under her answer (Claude Code, answering her chat, does things its own way)
+    const asked = this.agent ? null : this.asked(text);
+    const early = asked && asked.kind !== 'close' ? this.doNow(asked) : null;
     await Promise.race([this.appsReady, new Promise((r) => setTimeout(r, 1500))]);
     const messages = [{ role: 'system', content: this.persona() }, ...this.history.slice(-REMEMBER)];
     // nothing yet after a few seconds: Ollama is still loading the model (the first answer after a start),
@@ -156,9 +180,7 @@ export class Chat {
     this.panel.stream(answer, { done: true });
     this.panel.setFace(mood(answer));
     this.panel.setChatBusy(false);
-    // what you asked for first (a small model doesn't always write its tag right), else its tag
-    const wanted = this.askedToClose(text) || tagged(res.text);
-    if (wanted && !this.agent) this.offerClose(wanted, answer);
+    if (!this.agent) this.after(res.text, answer, asked, early);
     this.listApps(); // fresh for the next message
   }
 
@@ -171,6 +193,125 @@ export class Chat {
 
   listApps() {
     this.appsReady = this.host.openApps().then((list) => { this.apps = list || []; }).catch(() => {});
+  }
+
+  // What you asked plainly, read off your message (a small model doesn't always write its tag right):
+  // { kind: 'media', action } | { kind: 'music', song } | { kind: 'close', name } | { kind: 'open', text }
+  asked(text) {
+    const count = text.trim().split(/\s+/).length;
+    const media = MEDIA_ASK.find(([, re]) => re.test(text))?.[0];
+    if (media && (count <= 5 || MUSIC_WORD.test(text))) return { kind: 'media', action: media };
+    const song = SPOTIFY_ASK.exec(text)?.[1];
+    if (song) return { kind: 'music', song };
+    const name = this.askedToClose(text);
+    if (name) return { kind: 'close', name };
+    if (OPEN_ASK.test(text) && count <= 8) return { kind: 'open', text };
+    return null;
+  }
+
+  // Doing it now. Resolves with her line about it ({ line, face }), or null if there was nothing to do.
+  async doNow(asked) {
+    const { t } = this;
+    if (asked.kind === 'media') {
+      this.capri.pulse();
+      return (await this.host.media(asked.action)) ? { line: t.media[asked.action], face: 'smug' } : null;
+    }
+    if (asked.kind === 'music') {
+      this.zap();
+      return (await this.host.music(asked.song)) ? { line: fmt(t.music, { song: asked.song }), face: 'laugh' } : null;
+    }
+    const item = await this.host.findLaunch(asked.text);
+    if (!item) return null; // nothing by that name here: her tag may still say what you meant
+    this.zap();
+    const res = await this.host.launch(item);
+    return { line: res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, face: res.ok ? 'laugh' : 'aside' };
+  }
+
+  // Once she has answered: her line about what she did, else the app you asked to close, else what
+  // her tag asks for.
+  async after(raw, answer, asked, early) {
+    const { t } = this;
+    const done = early && (await early);
+    if (done) return this.addLine(answer, done.line, done.face);
+    if (asked?.kind === 'close') return this.offerClose(asked.name, answer);
+    if (asked && asked.kind !== 'open') return undefined; // music that didn't work out: nothing more to offer
+    const closeTag = tagged(raw);
+    if (closeTag) return this.offerClose(closeTag, answer);
+    const tag = TAG.exec(raw);
+    if (!tag) return undefined;
+    const kind = tag[1].toLowerCase();
+    const value = tag[2].trim();
+    if (kind === 'media') return MEDIA_ACTIONS.has(value.toLowerCase()) ? this.media(value.toLowerCase(), answer) : undefined;
+    if (kind === 'music') return value ? this.music(value, answer) : undefined;
+    if (kind === 'site') return value ? this.offerSite(value, answer) : undefined;
+    if (!value) return undefined;
+    const item = await this.host.findLaunch(value);
+    return item ? this.launch(item, answer) : this.addLine(answer, fmt(t.notInstalled, { app: value }));
+  }
+
+  // her answer, with a line of what she did under it
+  addLine(answer, line, face = null) {
+    if (!this.open || this.turn) return;
+    this.panel.stream(`${answer}\n${line}`, { done: true });
+    if (face) this.panel.setFace(face);
+  }
+
+  // a bolt of red lightning off her fingers, at whatever she's doing on your PC
+  zap() {
+    const h = this.capri.head();
+    this.capri.zap(h.x + this.capri.towardCenter() * 280, h.y - 170);
+  }
+
+  // An app or a game her tag asked for: behind a button (now: the button was clicked).
+  async launch(item, answer, { now = false } = {}) {
+    const { t } = this;
+    if (!this.open || this.turn) return;
+    if (!now) {
+      this.panel.setActions(
+        [{ id: 'open', label: fmt(t.openIt, { app: item.name }), primary: true }, { id: 'no', label: t.no }],
+        (id) => (id === 'open' ? this.launch(item, answer, { now: true }) : this.panel.setActions([])),
+      );
+      return;
+    }
+    this.panel.setActions([]);
+    this.zap();
+    const res = await this.host.launch(item);
+    this.addLine(answer, res.ok ? fmt(t.opened, { app: item.name }) : `${t.failed} ${res.error}`, res.ok ? 'laugh' : 'aside');
+  }
+
+  // The media keys: pause, next, louder…
+  async media(action, answer) {
+    this.capri.pulse();
+    const ok = await this.host.media(action);
+    if (ok) this.addLine(answer, this.t.media[action], 'smug');
+  }
+
+  // A Spotify search, in the app if it's there.
+  async music(song, answer) {
+    this.zap();
+    const ok = await this.host.music(song);
+    if (ok) this.addLine(answer, fmt(this.t.music, { song }), 'laugh');
+  }
+
+  // A website: always behind a button that shows where it goes.
+  offerSite(address, answer) {
+    const { t } = this;
+    let host;
+    try {
+      host = new URL(/^https?:\/\//i.test(address) ? address : `https://${address}`).hostname;
+    } catch {
+      return;
+    }
+    if (!this.open || this.turn || !host.includes('.')) return;
+    this.panel.setActions(
+      [{ id: 'site', label: fmt(t.siteIt, { site: host }), primary: true }, { id: 'no', label: t.no }],
+      async (id) => {
+        this.panel.setActions([]);
+        if (id !== 'site') return;
+        const ok = await this.host.openSite(address);
+        if (ok) this.addLine(answer, fmt(t.siteOpened, { site: host }));
+      },
+    );
   }
 
   // "close am music pls": an app that's open, named in a message asking to close something.
@@ -226,15 +367,17 @@ export class Chat {
     this.listApps();
   }
 
-  // What she can do on the PC: close an app you ask her to (Windows), and nothing else.
+  // What she can do on the PC when you ask (Windows), and nothing else.
   powers() {
-    const cant = 'you can\'t see the user\'s screen or files, and you can\'t open apps or touch anything else on their PC (music, settings, files): if asked, say plainly that you can\'t, in character, and don\'t pretend to.';
-    if (!this.apps.length) return [`You can't close apps here, and ${cant}`];
-    const open = this.apps.map(({ name, label }) => (label && label !== name ? `${name} (${label})` : name)).join(', ');
-    return [
-      `You can close an app that's open on the user's PC, only when they ask you to. Then say in a few words that you will, and end your answer with [[close: NAME]], NAME being the exact name from this list (the part before the parentheses). They get a button to confirm it, so never say it's already done. Apps open right now: ${open}.`,
-      `Apart from that, ${cant}`,
+    const lines = [
+      'When the user asks, you can open an app or a game installed on their PC, play something on Spotify, control the music playing, or open a website. Say in a few words that you will, and end your answer with one tag: [[open: NAME]], [[music: WHAT TO PLAY]], [[media: ACTION]] (ACTION: pause, play, next, previous, volup, voldown or mute), or [[site: ADDRESS]]. Some of these get a button to confirm, so never say it is already done.',
     ];
+    if (this.apps.length) {
+      const open = this.apps.map(({ name, label }) => (label && label !== name ? `${name} (${label})` : name)).join(', ');
+      lines.push(`You can also close an app that's open, only when they ask you to: end your answer with [[close: NAME]], NAME being the exact name from this list (the part before the parentheses). They get a button to confirm it. Apps open right now: ${open}.`);
+    }
+    lines.push('Apart from that, you can\'t see the user\'s screen or files, and you can\'t touch anything else on their PC (settings, files): if asked, say plainly that you can\'t, in character, and don\'t pretend to.');
+    return lines;
   }
 
   onDelta(id, piece) {
@@ -269,7 +412,7 @@ export class Chat {
 function clean(text) {
   return String(text)
     .replace(/<think>[\s\S]*?(<\/think>|$)/g, '')
-    .replace(/\[\[[^\]]*(\]\]|$)/g, '') // her close tag (read from the raw answer, never shown)
+    .replace(/\[\[[^\]]*(\]\]|$)/g, '') // her tags (read from the raw answer, never shown)
     .replace(/[*_`#]+/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();

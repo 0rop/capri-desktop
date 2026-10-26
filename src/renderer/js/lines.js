@@ -77,6 +77,10 @@ export const LINES = {
       forced: '{app} : coupé net.',
       unkillable: '{app} résiste. Ferme-le toi-même depuis le Gestionnaire des tâches.',
       notFound: 'Je ne vois pas « {app} » ouvert sur ton PC.',
+      // ouvrir une appli ou un jeu, la musique, un site
+      openIt: 'Ouvrir {app}', opened: '{app} : c’est parti.', notInstalled: 'Je ne trouve pas « {app} » sur ton PC.',
+      music: 'Je cherche « {song} » sur Spotify.', siteIt: 'Ouvrir {site}', siteOpened: '{site} : ouvert.',
+      media: { pause: 'Pause.', play: 'Ça repart.', next: 'Suivante.', previous: 'Précédente.', volup: 'Plus fort.', voldown: 'Moins fort.', mute: 'J’ai appuyé sur muet.' },
     },
     // sa carte de rapport : ce que Claude a abattu aujourd'hui (son menu, ou d'elle-même le soir)
     report: {
@@ -280,6 +284,10 @@ export const LINES = {
       forced: '{app}: cut off clean.',
       unkillable: '{app} won’t go down. Close it yourself from Task Manager.',
       notFound: 'I don’t see “{app}” open on your PC.',
+      // opening an app or a game, the music, a website
+      openIt: 'Open {app}', opened: '{app}: on it.', notInstalled: 'I can’t find “{app}” on your PC.',
+      music: 'Looking up “{song}” on Spotify.', siteIt: 'Open {site}', siteOpened: '{site}: open.',
+      media: { pause: 'Paused.', play: 'Playing.', next: 'Next one.', previous: 'Previous one.', volup: 'Louder.', voldown: 'Quieter.', mute: 'Hit mute.' },
     },
     // her report card: what Claude got through today (her menu, or on her own in the evening)
     report: {
@@ -482,6 +490,10 @@ export const LINES = {
       forced: '{app}: cortada en seco.',
       unkillable: '{app} se resiste. Ciérrala tú desde el Administrador de tareas.',
       notFound: 'No veo «{app}» abierta en tu PC.',
+      // abrir una app o un juego, la música, una web
+      openIt: 'Abrir {app}', opened: '{app}: en marcha.', notInstalled: 'No encuentro «{app}» en tu PC.',
+      music: 'Busco «{song}» en Spotify.', siteIt: 'Abrir {site}', siteOpened: '{site}: abierta.',
+      media: { pause: 'Pausa.', play: 'Sigue sonando.', next: 'Siguiente.', previous: 'Anterior.', volup: 'Más alto.', voldown: 'Más bajo.', mute: 'Le di a silenciar.' },
     },
     // su informe: lo que Claude sacó hoy (su menú, o ella sola por la tarde)
     report: {
@@ -683,6 +695,10 @@ export const LINES = {
       forced: '{app}: cortado na hora.',
       unkillable: '{app} não cai. Feche você mesmo pelo Gerenciador de Tarefas.',
       notFound: 'Não vejo “{app}” aberto no seu PC.',
+      // abrir um app ou um jogo, a música, um site
+      openIt: 'Abrir {app}', opened: '{app}: abrindo.', notInstalled: 'Não acho “{app}” no seu PC.',
+      music: 'Procurando “{song}” no Spotify.', siteIt: 'Abrir {site}', siteOpened: '{site}: aberto.',
+      media: { pause: 'Pausado.', play: 'Tocando.', next: 'Próxima.', previous: 'Anterior.', volup: 'Mais alto.', voldown: 'Mais baixo.', mute: 'Apertei o mudo.' },
     },
     // o relatório dela: o que o Claude fez hoje (o menu dela, ou sozinha à noite)
     report: {
@@ -884,6 +900,10 @@ export const LINES = {
       forced: '{app}: отрублено.',
       unkillable: '{app} не сдаётся. Закрой через Диспетчер задач.',
       notFound: 'Не вижу «{app}» среди открытых на твоём ПК.',
+      // открыть приложение или игру, музыка, сайт
+      openIt: 'Открыть {app}', opened: '{app}: запускаю.', notInstalled: 'Не нахожу «{app}» на твоём ПК.',
+      music: 'Ищу «{song}» в Spotify.', siteIt: 'Открыть {site}', siteOpened: '{site}: открыт.',
+      media: { pause: 'Пауза.', play: 'Играет.', next: 'Следующий.', previous: 'Предыдущий.', volup: 'Громче.', voldown: 'Тише.', mute: 'Нажала «без звука».' },
     },
     // её отчёт: что Claude сделал за день (её меню, или сама вечером)
     report: {

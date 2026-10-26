@@ -152,12 +152,22 @@ conversations** efface ce qu'elle a retenu de vos discussions.
 **C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
 fan d'elle, et le panneau du chat le dit à chaque fois.
 
-**Fermer une appli** (Windows) : demande-lui (« ferme AM Music », « tu peux couper Discord ? ») et elle te propose un
-bouton au nom de l'appli. Rien ne se passe tant que tu ne cliques pas. Elle la ferme comme son propre bouton de
-fermeture, donc l'appli peut encore te demander d'enregistrer. Si elle s'est seulement cachée dans la zone de
-notification, elle te propose **Forcer la fermeture**, là encore seulement sur ton clic (le travail non enregistré est
-alors perdu). Elle ne ferme jamais les morceaux de Windows, Claude, Ollama ni elle-même, et elle ne peut rien faire
-d'autre sur ton PC.
+**Ce qu'elle peut faire sur ton PC** (Windows), quand tu lui demandes dans le chat :
+
+- **Ouvrir une appli ou un jeu** : tout ce qui est dans ton menu Démarrer (les applis du Store comme Spotify
+  comprises), tes jeux Steam et Epic (« ouvre Spotify », « lance Brawlhalla »). Si tu l'as nommé toi-même, ça s'ouvre
+  tout de suite ; si c'est son IA qui l'a proposé, tu as d'abord un bouton.
+- **La musique** : « pause », « suivante », « plus fort », « coupe le son »… appuient sur les touches multimédia, donc
+  ça marche avec Spotify et la plupart des lecteurs, dès que tu envoies. « Mets Daft Punk sur Spotify » ouvre Spotify
+  sur une recherche (l'appli si tu l'as, sinon le site).
+- **Un site** : toujours derrière un bouton qui montre où il mène.
+- **Fermer une appli** (« ferme AM Music », « tu peux couper Discord ? ») : un bouton au nom de l'appli, et rien ne se
+  passe tant que tu ne cliques pas. Elle la ferme comme son propre bouton de fermeture, donc l'appli peut encore te
+  demander d'enregistrer. Si elle s'est seulement cachée dans la zone de notification, elle te propose **Forcer la
+  fermeture**, là encore seulement sur ton clic (le travail non enregistré est alors perdu). Elle ne ferme jamais les
+  morceaux de Windows, Claude, Ollama ni elle-même.
+
+Rien d'autre : elle ne voit ni ton écran ni tes fichiers.
 
 Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l'écran reste utilisable normalement.
 
