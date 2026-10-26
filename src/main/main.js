@@ -59,17 +59,24 @@ function targetDisplay() {
   return screen.getAllDisplays().find((d) => d.id === displayId) || screen.getPrimaryDisplay();
 }
 
+// Her window: the work area, or the whole screen while she rests on the taskbar (her legs hang
+// over it). `floor`: the top of the taskbar, from the top of her window.
+function overlayArea() {
+  const { workArea, bounds } = targetDisplay();
+  const area = config.load().rest === 'taskbar' ? bounds : workArea;
+  return { area, floor: workArea.y + workArea.height - area.y };
+}
+
 function fitOverlay() {
   if (!overlay) return;
-  const { workArea } = targetDisplay();
-  overlay.setBounds(workArea);
-  overlay.webContents.send('overlay:resize', { width: workArea.width, height: workArea.height });
+  const { area, floor } = overlayArea();
+  overlay.setBounds(area);
+  overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, floor });
 }
 
 function createOverlay() {
-  const { workArea } = targetDisplay();
   overlay = new BrowserWindow({
-    ...workArea,
+    ...overlayArea().area,
     transparent: true,
     backgroundColor: '#00000000',
     frame: false,
@@ -175,11 +182,12 @@ function resolveLang(setting) {
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
   const cfg = config.load();
-  return { ...cfg, lang: resolveLang(cfg.lang), langSetting: cfg.lang };
+  return { ...cfg, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floor: overlayArea().floor };
 }
 
 function updateConfig(patch) {
   config.save(patch);
+  if ('rest' in patch) fitOverlay(); // the taskbar in her window or not
   const cfg = rendererConfig();
   overlay?.webContents.send('capri:config', cfg);
   rebuildTray();
@@ -202,7 +210,7 @@ function rebuildTray() {
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: t.help, click: () => sendCommand('welcome') },
-    { label: t.report, click: () => sendCommand('report') },
+    ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
@@ -247,6 +255,13 @@ function rebuildTray() {
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
     { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
     {
+      label: t.rest,
+      submenu: [['corner', t.restCorner], ['taskbar', t.restTaskbar]].map(([rest, label]) => ({
+        label, type: 'radio', checked: cfg.rest === rest, click: () => updateConfig({ rest }),
+      })),
+    },
+    { label: t.claude, type: 'checkbox', checked: cfg.claude, click: (item) => updateConfig({ claude: item.checked }) },
+    {
       label: t.lang,
       submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
         label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
@@ -258,11 +273,14 @@ function rebuildTray() {
       checked: app.getLoginItemSettings(loginItemOptions()).openAtLogin,
       click: (item) => app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: item.checked }),
     },
-    { type: 'separator' },
-    hookState.installed
-      ? { label: t.hooksOn, enabled: false }
-      : { label: t.hooksOff, click: () => runHooks('install') },
-    ...(hookState.installed ? [{ label: t.hooksRemove, click: () => runHooks('uninstall') }] : []),
+    // her hooks, while she watches Claude Code
+    ...(cfg.claude ? [
+      { type: 'separator' },
+      hookState.installed
+        ? { label: t.hooksOn, enabled: false }
+        : { label: t.hooksOff, click: () => runHooks('install') },
+      ...(hookState.installed ? [{ label: t.hooksRemove, click: () => runHooks('uninstall') }] : []),
+    ] : []),
     { type: 'separator' },
     { label: t.quit, click: () => app.quit() },
   ]);

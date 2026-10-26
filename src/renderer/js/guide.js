@@ -82,7 +82,11 @@ export class Guide {
     return this.scene(async () => {
       const w = this.brain.t.welcome;
       const [hooks, found] = await Promise.all([this.host.hooksStatus(), this.host.claudeFound()]);
-      if (hooks.installed) {
+      if (!this.brain.watching) {
+        // not watching Claude Code: she's just here to keep you company
+        this.capri.perform('curious', this.capri.towardCenter());
+        await this.ask({ face: 'grin', line: w.hi, quote: `${w.alone}\n${w.menu}`, actions: [{ id: 'ok', label: w.ok, primary: true }] });
+      } else if (hooks.installed) {
         this.capri.perform('curious', this.capri.towardCenter());
         await this.ask({ face: 'look', line: w.ready, quote: w.readyHow, actions: [{ id: 'ok', label: w.ok, primary: true }, { id: 'more', label: this.t.more }] })
           .then((id) => id === 'more' && this.menuNow());
@@ -98,6 +102,8 @@ export class Guide {
         if (id === 'claude') {
           this.host.openClaudeHelp();
           await this.ask({ face: 'smug', line: w.hi, quote: w.afterInstall, actions: [{ id: 'ok', label: w.ok }] });
+        } else if (id === 'later') {
+          this.host.setConfig({ claude: false }); // just hanging out: no more word of Claude (her menu turns it back on)
         }
       }
       this.host.setConfig({ welcomed: true });
@@ -113,10 +119,13 @@ export class Guide {
     const t = this.t;
     const hooks = await this.host.hooksStatus();
     const actions = [];
-    if (!hooks.installed) actions.push({ id: 'connect', label: t.topics.connect, primary: true });
-    actions.push({ id: 'icon', label: t.topics.icon, primary: hooks.installed });
-    actions.push({ id: 'claude', label: t.topics.claude });
-    actions.push({ id: 'folder', label: t.topics.folder });
+    const watching = this.brain.watching; // else nothing about Claude to show
+    if (watching && !hooks.installed) actions.push({ id: 'connect', label: t.topics.connect, primary: true });
+    actions.push({ id: 'icon', label: t.topics.icon, primary: !watching || hooks.installed });
+    if (watching) {
+      actions.push({ id: 'claude', label: t.topics.claude });
+      actions.push({ id: 'folder', label: t.topics.folder });
+    }
     actions.push({ id: 'close', label: t.topics.close });
     this.capri.perform('curious', this.capri.towardCenter());
     const id = await this.ask({ face: 'smug', line: t.menu.line, quote: t.menu.quote, actions });

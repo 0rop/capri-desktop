@@ -142,6 +142,7 @@ export const LINES = {
     },
     welcome: {
       hi: 'Salut, moi c’est Capri.',
+      alone: 'Pas de Claude Code ici, pas de boulot : je reste juste sur ton bureau avec toi.',
       about: 'Je vis sur ton bureau et je réagis à ce que fait Claude Code sur ce PC. Sans lui, je traîne juste dans le coin, et c’est très bien aussi.',
       connect: 'Tu veux que je me branche sur Claude Code ? Un clic, puis ferme complètement Claude Code et rouvre-le.',
       noClaude: 'Je ne trouve pas Claude Code sur ce PC (il faut un abonnement Claude). Sans lui, je reste juste là à vivre ma vie.',
@@ -297,6 +298,7 @@ export const LINES = {
     },
     welcome: {
       hi: 'Hey, I’m Capri.',
+      alone: 'No Claude Code here, no work: I’ll just hang out on your desktop with you.',
       about: 'I live on your desktop and react to what Claude Code does on this PC. Without it, I just hang out here, and that’s fine too.',
       connect: 'Want me to plug into Claude Code? One click, then close Claude Code completely and open it again.',
       noClaude: 'I can’t find Claude Code on this PC (it needs a Claude subscription). Without it, I’ll just hang out and live my life.',
@@ -448,6 +450,7 @@ export const LINES = {
     },
     welcome: {
       hi: 'Hola, soy Capri.',
+      alone: 'Aquí no hay Claude Code ni trabajo: me quedo en tu escritorio contigo.',
       about: 'Vivo en tu escritorio y reacciono a lo que hace Claude Code en este PC. Sin él, simplemente ando por aquí, y también está bien.',
       connect: '¿Quieres que me conecte a Claude Code? Un clic, y luego cierra Claude Code por completo y vuelve a abrirlo.',
       noClaude: 'No encuentro Claude Code en este PC (necesita una suscripción de Claude). Sin él, me quedo aquí viviendo mi vida.',
@@ -601,6 +604,7 @@ export const LINES = {
     },
     welcome: {
       hi: 'Oi, eu sou a Capri.',
+      alone: 'Sem Claude Code aqui, sem trabalho: eu só fico no seu desktop com você.',
       about: 'Eu moro na sua área de trabalho e reajo ao que o Claude Code faz neste PC. Sem ele, eu só fico por aqui de boa, e tudo bem também.',
       connect: 'Quer que eu me conecte ao Claude Code? Um clique, depois feche o Claude Code completamente e abra de novo.',
       noClaude: 'Não encontrei o Claude Code neste PC (ele precisa de uma assinatura do Claude). Sem ele, eu fico só vivendo minha vida aqui.',
@@ -756,6 +760,7 @@ export const LINES = {
     },
     welcome: {
       hi: 'Привет, я Капри.',
+      alone: 'Здесь нет Claude Code и работы: я просто побуду у тебя на рабочем столе.',
       about: 'Я живу на твоём рабочем столе и реагирую на то, что делает Claude Code на этом ПК. Без него я просто тусуюсь рядом, и это тоже нормально.',
       connect: 'Подключиться к Claude Code? Один клик, потом полностью закрой Claude Code и открой снова.',
       noClaude: 'Я не нахожу Claude Code на этом ПК (для него нужна подписка Claude). Без него я просто живу здесь своей жизнью.',

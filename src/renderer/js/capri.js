@@ -32,7 +32,7 @@ export class Capri {
     this.voice = voice;
 
     this.scale = 0.6;
-    this.view = { w: innerWidth, h: innerHeight };
+    this.view = { w: innerWidth, h: innerHeight, floor: innerHeight }; // floor: the top of the taskbar
     this.pos = { x: innerWidth - 200, y: innerHeight - 6 }; // her feet
     this.facing = 1; // 1: as drawn (reaching left), -1: mirrored
     this.mode = 'idle'; // idle | work | alert | sleep
@@ -46,6 +46,8 @@ export class Capri {
     this.dormant = false; // asleep, down to her mask
     this.wander = true;
     this.possessWindows = true; // tray: "Possess my windows"
+    this.restOn = 'corner'; // where she rests when nothing's going on: her corner, or 'taskbar' (her menu)
+    this.nextHome = 0;
     this.dragging = false;
 
     this.p = {
@@ -131,11 +133,11 @@ export class Capri {
     this.canvas.style.transformOrigin = `${fx}px ${fy}px`;
   }
 
-  setView(w, h) {
-    this.view = { w, h };
+  setView(w, h, floor = h) {
+    this.view = { w, h, floor };
     if (this.stance === 'stand') {
       this.pos.x = clamp(this.pos.x, 60, w - 60);
-      this.pos.y = clamp(this.pos.y, SPRITE.height * this.scale, h - 4);
+      this.pos.y = clamp(this.pos.y, SPRITE.height * this.scale, floor - 4);
     }
     this.place();
   }
@@ -170,6 +172,7 @@ export class Capri {
   // Is this screen point on her body? Uses the cut-out's alpha so empty space stays click-through.
   hit(x, y) {
     if (this.hidden || this.p.alpha < 0.5) return false;
+    if (this.perch?.id === 'taskbar' && y > this.view.floor) return false; // the taskbar under her legs stays clickable
     const s = this.scale;
     const fy = this.pos.y + this.bob;
     if (this.upside) {
@@ -206,7 +209,7 @@ export class Capri {
   }
 
   get floor() {
-    return this.view.h - 6;
+    return this.view.floor - 6;
   }
 
   spot(name) {
@@ -234,7 +237,7 @@ export class Capri {
   setWindows(data) {
     this.windows = data;
     if (this.stance !== 'sit' || this.busy || this.dragging) return;
-    const win = data.wins.find((w) => w.id === this.perch.id);
+    const win = this.perchWin(this.perch.id);
     const dx = win ? clamp(this.perch.dx, 50, win.w - 60) : 0;
     if (!win || !this.canSit(win) || this.covered(win, win.x + dx)) {
       this.fall(); // the ledge is gone (closed, minimized, maximized or covered)
@@ -253,12 +256,14 @@ export class Capri {
   }
 
   canSit(win) {
+    if (win.id === 'taskbar') return true;
     const roomAbove = SPRITE.hip * this.scale + 12;
-    return !win.max && win.w > 260 && win.y > roomAbove && win.y < this.view.h - 80;
+    return !win.max && win.w > 260 && win.y > roomAbove && win.y < this.view.floor - 80;
   }
 
   // Is her spot on that ledge hidden under a window that's above it?
   covered(win, x) {
+    if (win.id === 'taskbar') return false; // nothing goes over the taskbar
     const half = 34 * this.scale;
     const { wins } = this.windows;
     for (const o of wins) {
@@ -269,6 +274,26 @@ export class Capri {
   }
 
   // A window she could sit on, the one in front first. Returns { win, dx } or null.
+  // The top of the taskbar (the bottom of her screen), as a ledge to sit on like a window's: her
+  // legs hang down behind it.
+  ledge() {
+    return { id: 'taskbar', x: 0, y: this.view.floor, w: this.view.w, h: this.view.h - this.view.floor, max: false };
+  }
+
+  // What she's perched on, from its id: a window, or the taskbar.
+  perchWin(id) {
+    return id === 'taskbar' ? this.ledge() : this.windows.wins.find((w) => w.id === id);
+  }
+
+  // Back to where she rests: her corner, or sitting on the taskbar below it.
+  goHome() {
+    const post = this.spot('post');
+    if (this.restOn !== 'taskbar') return this.teleport(post);
+    if (this.stance === 'sit' && this.perch?.id === 'taskbar') return Promise.resolve();
+    // left of the clock and the tray icons, right of the middle (the app icons, on Windows 11)
+    return this.sitOn({ win: this.ledge(), dx: clamp(this.view.w - 440, this.view.w * 0.6, post.x) });
+  }
+
   pickSeat({ frontOnly = false, except = null } = {}) {
     const options = [];
     for (const win of this.windows.wins) {
@@ -389,6 +414,14 @@ export class Capri {
       return;
     }
 
+    // resting on the taskbar: a little while after anything happens, she goes back to sit on it
+    if (this.restOn === 'taskbar' && this.mode === 'idle' && this.stance === 'stand'
+      && now - this.lastActivity > 6000 && now > this.nextHome) {
+      this.nextHome = now + 8000;
+      this.goHome();
+      return;
+    }
+
     if (this.mode === 'idle' && now > this.nextMove) {
       this.nextMove = now + rand(25000, 70000);
       this.wanderStep();
@@ -405,6 +438,12 @@ export class Capri {
   wanderStep() {
     if (!this.wander || this.stance === 'peek') {
       if (this.stance !== 'peek') this.flourish();
+      return;
+    }
+    if (this.stance === 'sit' && this.perch?.id === 'taskbar') {
+      // nothing to hop off or take over down there: a flourish, or off for a bit (she comes back)
+      if (Math.random() < 0.6) this.flourish();
+      else this.teleport(this.spot('random'));
       return;
     }
     if (this.stance === 'sit') {
@@ -507,6 +546,10 @@ export class Capri {
     if (seat) {
       if (this.stance === 'sit' && this.perch?.id === seat.win.id) return;
       this.sitOn(seat);
+      return;
+    }
+    if (this.restOn === 'taskbar') {
+      this.goHome();
       return;
     }
     const post = this.spot('post');
@@ -1110,7 +1153,7 @@ export class Capri {
     this.hidden = false;
     this.root.hidden = false;
     Object.assign(this.p, { alpha: 0, collapse: 0.6, dissolve: 0.5, glitch: 0, split: 0, sparkle: 1 });
-    const win = this.dozedOn && this.windows.wins.find((w) => w.id === this.dozedOn.id);
+    const win = this.dozedOn && this.perchWin(this.dozedOn.id);
     if (win && this.canSit(win) && !this.covered(win, win.x + this.dozedOn.dx)) {
       await this.arrive(this.seat(win, this.dozedOn.dx), { face: this.facing, stance: 'sit', perch: this.dozedOn, beam: false });
     } else {
@@ -1488,13 +1531,13 @@ export class Capri {
 
   // Show up next to the mouse pointer (used when Claude needs you).
   async summon(cursor) {
-    const { w, h } = this.view;
+    const { w } = this.view;
     const s = this.scale;
     const side = 150 * s + 30;
     const dx = cursor.x > w / 2 ? -260 : 260;
     const to = {
       x: clamp(cursor.x + dx, side, w - side),
-      y: clamp(cursor.y + SPRITE.height * s * 0.45, SPRITE.height * s + 120, h - 6),
+      y: clamp(cursor.y + SPRITE.height * s * 0.45, SPRITE.height * s + 120, this.floor),
     };
     if (this.stance === 'stand' && Math.hypot(to.x - this.pos.x, to.y - this.pos.y) < 160) {
       this.facing = cursor.x < this.pos.x ? 1 : -1;

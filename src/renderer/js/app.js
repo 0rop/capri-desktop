@@ -44,8 +44,10 @@ async function boot() {
     intro,
   });
   fx.resize(innerWidth, innerHeight);
+  // the top of the taskbar: her window covers it too while she rests on it
+  let floorGap = innerHeight - (config.floor ?? innerHeight);
   const chip = new Chip(document.getElementById('chip'));
-  chip.place(innerWidth, innerHeight);
+  chip.place(innerWidth, innerHeight - floorGap);
   const mask = new Mask(document.getElementById('mask'));
 
   const voice = new Voice();
@@ -67,6 +69,8 @@ async function boot() {
   });
   capri.wander = config.wander;
   capri.possessWindows = config.possess;
+  capri.restOn = config.rest || 'corner';
+  capri.setView(innerWidth, innerHeight, innerHeight - floorGap);
   capri.setScale(config.scale);
 
   const mission = new Mission();
@@ -176,6 +180,7 @@ async function boot() {
   brain.onTalk = () => chat.start();
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
+  brain.watching = config.claude !== false;
   brain.onLinked = () => {
     host.setConfig({ linked: true, welcomed: true });
     voice.play('hello');
@@ -265,21 +270,30 @@ async function boot() {
   // the windows as they are now: the watcher only speaks again when something changes
   host.windowsNow().then((data) => data && capri.setWindows(data));
 
-  host.onResize(({ width, height }) => {
+  host.onResize(({ width, height, floor = height }) => {
+    floorGap = height - floor;
     fx.resize(width, height);
-    chip.place(width, height);
-    capri.setView(width, height);
+    chip.place(width, floor);
+    capri.setView(width, height, floor);
   });
   window.addEventListener('resize', () => {
     fx.resize(innerWidth, innerHeight);
-    chip.place(innerWidth, innerHeight);
-    capri.setView(innerWidth, innerHeight);
+    chip.place(innerWidth, innerHeight - floorGap);
+    capri.setView(innerWidth, innerHeight, innerHeight - floorGap);
   });
 
   host.onConfig((cfg) => {
     voice.configure(cfg);
     capri.wander = cfg.wander;
     capri.possessWindows = cfg.possess;
+    capri.restOn = cfg.rest || 'corner';
+    if (cfg.claude === false && brain.watching) {
+      // no longer watching Claude Code: whatever it was in the middle of is no business of hers
+      brain.sessions.clear();
+      panel.setTicker(null);
+      if (capri.mode === 'work' || capri.mode === 'alert') capri.setMode('idle');
+    }
+    brain.watching = cfg.claude !== false;
     if (cfg.scale !== capri.scale) capri.setScale(cfg.scale);
     if (cfg.lang !== brain.lang) {
       brain.lang = cfg.lang;
@@ -391,7 +405,8 @@ async function boot() {
   else if (intro) await capri.intro(capri.spot('post'));
   else await capri.materialize(capri.spot('post'));
   const hooks = await host.hooksStatus();
-  if (!config.welcomed || !hooks.installed) guide.welcome();
+  // her welcome: the first time, or while she's meant to watch Claude Code and isn't plugged into it
+  if (!config.welcomed || (config.claude && !hooks.installed)) guide.welcome();
   else panel.say({ kind: 'info', line: pick(brain.t.online), hold: 4000 });
 
   // In the evening, after a real day's work, she brings you her report card once, on her own,
