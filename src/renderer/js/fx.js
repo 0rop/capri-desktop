@@ -241,6 +241,7 @@ export class FxLayer {
     this.cutins = cutins;
     this.grab = intro?.grab || null; // her close-up for her intro (GRAB_FRAMES), at rest
     this.grabFrames = intro || {};
+    if (this.grab) this.prepareGrab();
     this.items = [];
     this.running = false;
     this.last = 0;
@@ -511,47 +512,51 @@ export class FxLayer {
   // Her first appearance: she grabs your screen. Its edges crackle red; her left hand slams onto
   // its edge, then her right; her arms reach in along them, faster and faster, as she hauls herself
   // up, and her face hits the glass: a white flash of her, an ink one, her colours pulled apart,
-  // the screen shaking. She looks around, says "hi" (a tag pops by her face, her name typed under
-  // it), blinks, glances at where she's going, and lets go: her arms come apart into shards from
-  // her hands in, her head crouches and dives down to `to` (her face where she'll stand:
-  // { x, y, size }), and closes into a slit there. Never a straight edge of the picture on screen.
-  // Cues to onCue: 'open', 'hand' (twice), 'grab', 'hi', 'slip'. Resolves as it lands, for her
-  // body to unfold.
+  // the screen shaking. She looks around, blinks, says "hi" with her mouth (a tag pops by her face,
+  // her name typed under it), lets go of the right edge to wave, grabs it again, glances at where
+  // she's going, and lets go: her arms come apart into shards from her hands in, her head crouches
+  // and dives down to `to` (her face where she'll stand: { x, y, size }), and closes into a slit
+  // there. Never a straight edge of the picture on screen. Her moves follow the clock at the
+  // screen's rate (smooth), her drawings change on whole frames, like cels.
+  // Cues to onCue: 'open', 'hand' (three times), 'grab', 'hi', 'wave', 'slip'. Resolves as it
+  // lands, for her body to unfold.
   // `still` (reduced motion): it comes and goes where it is, in four steps each way.
   intro({ to, label = 'hi', caption = '', still = false, onCue = () => {} }) {
     if (!this.grab || !this.size) return Promise.resolve();
-    if (!this.grabCopies) {
-      // her flat silhouettes for the impact frames, and her red, green and blue apart
-      const copy = (fill, mode) => {
-        const c = document.createElement('canvas');
-        c.width = GRAB.w;
-        c.height = GRAB.h;
-        const g = c.getContext('2d');
-        g.drawImage(this.grab, 0, 0);
-        g.globalCompositeOperation = mode;
-        g.fillStyle = fill;
-        g.fillRect(0, 0, c.width, c.height);
-        if (mode === 'multiply') {
-          g.globalCompositeOperation = 'destination-in'; // multiply fills her cut-out background too
-          g.drawImage(this.grab, 0, 0);
-        }
-        return c;
-      };
-      this.grabCopies = {
-        paper: copy(COLORS.paper, 'source-in'),
-        ink: copy(COLORS.ink, 'source-in'),
-        violet: copy(COLORS.violet, 'source-in'),
-        channels: ['#ff0000', '#00ff00', '#0000ff'].map((c) => copy(c, 'multiply')),
-      };
-    }
     const { w, h } = this.size;
     const s = Math.max(w / GRAB.w, h / GRAB.h); // filling the screen, her hands on its edges
     const at = { x: (w - GRAB.w * s) / 2 + GRAB.face.x * s, y: (h - GRAB.h * s) / 2 + GRAB.face.y * s };
     // the dive swings out a little toward the middle of the screen on its way down to her
     const ctrl = { x: lerp(at.x, to.x, 0.25) - (to.x - at.x) * 0.2, y: lerp(at.y, to.y, 0.15) };
     return new Promise((land) => {
-      this.add({ type: 'intro', life: FRAME_MS * (INTRO_T.end + 1), s, at, to, ctrl, label, caption, still, onCue, land, cued: -1 });
+      this.add({ type: 'intro', smooth: true, life: FRAME_MS * (INTRO_T.end + 1), s, at, to, ctrl, label, caption, still, onCue, land, cued: -1 });
     });
+  }
+
+  // Her flat silhouettes for the impact frames, and her red, green and blue apart: made once,
+  // ahead, so nothing is left to work out while she's on screen.
+  prepareGrab() {
+    const copy = (fill, mode) => {
+      const c = document.createElement('canvas');
+      c.width = GRAB.w;
+      c.height = GRAB.h;
+      const g = c.getContext('2d');
+      g.drawImage(this.grab, 0, 0);
+      g.globalCompositeOperation = mode;
+      g.fillStyle = fill;
+      g.fillRect(0, 0, c.width, c.height);
+      if (mode === 'multiply') {
+        g.globalCompositeOperation = 'destination-in'; // multiply fills her cut-out background too
+        g.drawImage(this.grab, 0, 0);
+      }
+      return c;
+    };
+    this.grabCopies = {
+      paper: copy(COLORS.paper, 'source-in'),
+      ink: copy(COLORS.ink, 'source-in'),
+      violet: copy(COLORS.violet, 'source-in'),
+      channels: ['#ff0000', '#00ff00', '#0000ff'].map((c) => copy(c, 'multiply')),
+    };
   }
 
   // Her close-up, its face at (x, y), `k` times its size on screen (squashed sx, sy), turned `rot`:
@@ -676,12 +681,14 @@ export class FxLayer {
     ctx.restore();
   }
 
-  // The edges of the screen crackling red, in broken runs on their violet copy, a new drawing each time.
-  screenEdges(w, h) {
+  // The edges of the screen crackling red, in broken runs on their violet copy (new ones for each `seed`).
+  screenEdges(w, h, seed) {
     const { ctx } = this;
+    let i = 0;
+    const r = (a, b) => a + hash(i++, seed) * (b - a);
     const runs = (horizontal, fixed, len) => {
-      for (let p = rand(-60, 0); p < len; p += rand(70, 230)) {
-        const l = rand(50, 190), t = rand(4, 9);
+      for (let p = r(-60, 0); p < len; p += r(70, 230)) {
+        const l = r(50, 190), t = r(4, 9);
         const [x, y, rw, rh] = horizontal ? [p, fixed, l, t] : [fixed, p, t, l];
         ctx.fillStyle = COLORS.violet;
         ctx.fillRect(x + 3, y + 3, rw, rh);
@@ -708,8 +715,10 @@ export class FxLayer {
 
   // ---------- loop ----------
 
+  // Whole frames at 24 fps, or every screen refresh while something that moves smoothly is on
+  // (her intro: its camera moves follow the clock, its drawings still change on whole frames).
   frame(now) {
-    if (now - this.last < FRAME_MS - 2) {
+    if (now - this.last < FRAME_MS - 2 && !this.items.some((it) => it.smooth)) {
       requestAnimationFrame((t) => this.frame(t));
       return;
     }
@@ -1406,7 +1415,8 @@ export class FxLayer {
         const T = INTRO_T;
         const { s, at, to } = it;
         const { w: vw, h: vh } = this.size;
-        const frame = Math.floor((now - it.born) / FRAME_MS);
+        const t = (now - it.born) / FRAME_MS; // in frames, not rounded: the moves follow it smoothly
+        const frame = Math.floor(t); // the drawings change on whole frames
         // a point of the close-up (its pixels) on screen, its face at (x, y), k times its size
         const onScreen = (p, x = at.x, y = at.y, k = 1) => ({ x: x + (p.x - GRAB.face.x) * s * k, y: y + (p.y - GRAB.face.y) * s * k });
         const hands = GRAB.hands.map((p) => {
@@ -1482,7 +1492,7 @@ export class FxLayer {
 
         if (frame < T.hands) {
           // the edges of the screen crackle red: something's about to grab them
-          if (frame % 2 === 0 || frame === T.hands - 1) this.screenEdges(vw, vh);
+          if (frame % 2 === 0 || frame === T.hands - 1) this.screenEdges(vw, vh, frame);
           break;
         }
 
@@ -1499,7 +1509,7 @@ export class FxLayer {
 
         if (frame < T.grab) {
           // her arms reaching in along them, faster and faster, as she hauls herself up to the glass
-          const u = (frame - T.reach + 1) / (T.grab - T.reach);
+          const u = clamp((t - T.reach + 1) / (T.grab - T.reach), 0, 1);
           const r = lerp(0.16, 1.2, u * u);
           this.grabbed(it, at.x, at.y + 70 * s * (1 - u * u), lerp(1.04, 1.02, u), {
             look, open, clip: (c) => cutEdges(c, r, r, frame),
@@ -1539,15 +1549,16 @@ export class FxLayer {
           } else if (frame >= T.regrab && frame < T.regrab + 2) {
             [snap, shake] = [[6, 8], [3, -4]][frame - T.regrab]; // and slamming back onto it
           }
-          if (frame % 5 === 0) {
+          if (frame % 5 === 0 && it.drifted !== frame) {
+            it.drifted = frame; // once per frame, however often it's drawn
             const a = rand(-Math.PI * 0.95, -Math.PI * 0.05);
             const r = Math.min(vw, vh) * rand(0.36, 0.5);
             this.drift(at.x + Math.cos(a) * r * 1.3, at.y + Math.sin(a) * r, a);
           }
-          const creep = 0.03 * clamp(since / (T.slip - T.hold), 0, 1);
+          const creep = 0.03 * clamp((t - T.hold) / (T.slip - T.hold), 0, 1);
           const bob = h0 >= 0 && h0 < 8 ? [0.024, 0.024, -0.017, -0.017, 0.009, 0.009, 0, 0][h0] : 0;
           const pop = h0 === 0 || h0 === 1 ? [0.025, 0.012][h0] : 0;
-          const k = 1.025 + pop + creep + 0.006 * Math.sin(n / 3.5);
+          const k = 1.025 + pop + creep + 0.006 * Math.sin(t / 7);
           const glitch = frame % 24 === 19 ? 6 : 0;
           this.grabbed(it, at.x + noise(1) * 1.5 + shake, at.y + noise(2) * 1.5, k, { rot: noise(3) * 0.003 + bob, look, open, cel, split: snap || glitch });
           if (h0 >= 0) hi([0.35, 1.22, 0.94][h0] ?? 1);
@@ -1559,15 +1570,18 @@ export class FxLayer {
           // she lets go: her arms come apart into shards from her hands in, the screen's edges
           // free again, and she sags a little; the tag squashed away
           const g = frame - T.slip;
-          const u = (g + 1) / (T.antic - T.slip);
+          const u = clamp((t - T.slip + 1) / (T.antic - T.slip), 0, 1);
           const half = lerp(GRAB.w * 0.5 + 60, 330, 1 - (1 - u) * (1 - u));
-          const y = at.y + [0, 6, 14, 26, 40, 56][g] * s;
+          const y = at.y + 56 * s * u * u;
           this.grabbed(it, at.x, y, kHold, { look, open, clip: (c) => cutBand(c, half, frame) });
-          // the shards where her arms break off
-          for (const side of [-1, 1]) {
-            for (let j = 0; j < 2; j++) {
-              const q = onScreen({ x: GRAB.face.x + side * half, y: rand(250, 800) }, at.x, y, kHold);
-              this.burst(q.x, q.y, { count: 4, power: 0.55, spread: 40 });
+          // the shards where her arms break off, once per frame
+          if (it.shattered !== frame) {
+            it.shattered = frame;
+            for (const side of [-1, 1]) {
+              for (let j = 0; j < 2; j++) {
+                const q = onScreen({ x: GRAB.face.x + side * half, y: rand(250, 800) }, at.x, y, kHold);
+                this.burst(q.x, q.y, { count: 4, power: 0.55, spread: 40 });
+              }
             }
           }
           if (g === 0) hi(1, 0.45);
@@ -1585,10 +1599,10 @@ export class FxLayer {
         }
 
         if (frame < T.land) {
-          // the dive: shrinking fast, then falling faster and faster into her (on twos), smeared
-          // along the way, her last drawings left behind her in violet, a zigzag where she's been
-          const steps = (T.land - T.shrink) / 2;
-          const u = (Math.floor((frame - T.shrink) / 2) + 1) / steps;
+          // the dive: shrinking fast, then falling faster and faster into her, smeared along the
+          // way, where she was a moment ago left behind her in violet, a zigzag where she's been
+          const u = clamp((t - T.shrink + 1) / (T.land - T.shrink), 0, 1);
+          const lag = 0.12; // how far back her violet afterimages are
           const k0 = kHold * 0.9, k1 = (to.size * 1.5) / (GRAB.face.size * s);
           const place = (v) => {
             const e = v * v;
@@ -1602,7 +1616,7 @@ export class FxLayer {
           const trail = [];
           for (let j = 0; j <= 10; j++) {
             const q = place(Math.max(0, u - 0.45 + (j / 10) * 0.45));
-            trail.push([q.x + (j % 2 ? 1 : -1) * rand(3, 9), q.y]);
+            trail.push([q.x + (j % 2 ? 1 : -1) * (3 + hash(j, frame) * 6), q.y]);
           }
           ctx.save();
           ctx.lineJoin = 'miter';
@@ -1612,7 +1626,7 @@ export class FxLayer {
           ctx.restore();
           const head = (c) => cutHead(c, R, frame);
           for (const [back, alpha] of [[2, 0.14], [1, 0.3]]) {
-            const v = u - back / steps;
+            const v = u - back * lag;
             if (v <= 0) continue;
             const q = place(v);
             ctx.save();
@@ -1620,7 +1634,7 @@ export class FxLayer {
             this.grabbed(it, q.x, q.y, q.k, { flat: 'violet', clip: head });
             ctx.restore();
           }
-          const q = place(u), prev = place(Math.max(0, u - 1 / steps));
+          const q = place(u), prev = place(Math.max(0, u - lag * 0.5));
           const ang = Math.atan2(q.y - prev.y, q.x - prev.x);
           const size = R * 2 * s * q.k;
           const st = clamp(1 + (Math.hypot(q.x - prev.x, q.y - prev.y) / size) * 0.3, 1, 2);

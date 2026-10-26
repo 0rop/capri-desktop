@@ -30,6 +30,8 @@ async function boot() {
     loadImage('../../assets/capri/capri-full.png'),
     // her intro: her close-up grabbing the screen, and its drawings with her mouth and arm moving
     Promise.all(GRAB_FRAMES.map((name) => loadImage(`../../assets/capri/intro-${name}.webp`).catch(() => null)))
+      // decoded now, not the first time each one shows up (a hitch right on "hi", on the wave)
+      .then((cels) => Promise.all(cels.map((cel) => cel && createImageBitmap(cel))))
       .then((cels) => (cels[0] ? Object.fromEntries(GRAB_FRAMES.map((name, i) => [name, cels[i]])) : null)),
     ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`)),
     document.fonts.load('600 16px "Chakra Petch"'),

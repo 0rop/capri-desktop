@@ -73,6 +73,34 @@ def pockets(fig):
     return outside.point(lambda v: 255 if v == 0 else 0)
 
 
+def unfringe(out):
+    """Where she was cut out of the red, her edges kept a thin rim of it: a red line along the black,
+    pink and magenta specks along the violet. Each pixel of that rim takes the colour of the nearest
+    pixel well inside her, unless that one is red too (the mane, her belly: their red edge is right)."""
+    w, h = out.size
+    alpha = out.getchannel('A')
+    rim = alpha.filter(ImageFilter.MinFilter(5)).load()     # under 255: within 2 px of the cut
+    inner = alpha.filter(ImageFilter.MinFilter(9)).load()   # 255: at least 4 px inside her
+    ap = alpha.load()
+    px = out.load()
+    near = sorted(((dx, dy) for dx in range(-6, 7) for dy in range(-6, 7) if dx or dy), key=lambda d: d[0] ** 2 + d[1] ** 2)
+    fixes = []
+    for y in range(h):
+        for x in range(w):
+            if not ap[x, y] or rim[x, y] == 255:
+                continue
+            for dx, dy in near:
+                u, v = x + dx, y + dy
+                if 0 <= u < w and 0 <= v < h and inner[u, v] == 255:
+                    r, g, b, _ = px[u, v]
+                    if not (r > 150 and r - max(g, b) > 60):
+                        fixes.append((x, y, r, g, b))
+                    break
+    for x, y, r, g, b in fixes:
+        px[x, y] = (r, g, b, ap[x, y])
+    return out
+
+
 def framed(path):
     """The picture at SIZE: the generated variants come out a pixel narrower, padded back out."""
     im = Image.open(path).convert('RGB')
@@ -130,7 +158,7 @@ def cut(im):
     alpha = alpha.point(lambda v: 0 if v < 60 else (255 if v > 190 else int((v - 60) * 255 / 130)))
     out = im.convert('RGBA')
     out.putalpha(alpha)
-    return out
+    return unfringe(out)
 
 
 def main():
@@ -139,7 +167,7 @@ def main():
         sys.exit(__doc__)
     for name, path in pairs:
         target = OUT / f'intro-{name}.webp'
-        cut(framed(path)).save(target, 'WEBP', quality=88, method=6)
+        cut(framed(path)).save(target, 'WEBP', quality=95, method=6)
         print('written', target)
 
 
