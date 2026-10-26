@@ -53,6 +53,19 @@ const NAME_ASK = /(?:appelle[- ]moi|call me|my name is|je m['’]appelle|ll[aá]
 // "souviens-toi que…", "remember that…", "recuerda que…", "lembra que…", "запомни, что…" (said first thing)
 const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:souviens[- ]toi(?: que| de)?|n['’]oublie pas(?: que| de)?|remember(?: that)?|recuerda(?: que)?|lembr[ae](?:-se)?(?: que| de)?|запомни,?(?: что)?)\s+(.{3,200})/iu;
 const MEMORIES_MAX = 30;
+// sites asked for by name ("open youtube") when no app on the PC goes by it: the address is hers, not
+// the model's, so it opens right away like an app you named
+const SITES = {
+  youtube: 'https://www.youtube.com', google: 'https://www.google.com', gmail: 'https://mail.google.com',
+  twitch: 'https://www.twitch.tv', netflix: 'https://www.netflix.com', reddit: 'https://www.reddit.com',
+  twitter: 'https://x.com', instagram: 'https://www.instagram.com', tiktok: 'https://www.tiktok.com',
+  facebook: 'https://www.facebook.com', github: 'https://github.com', chatgpt: 'https://chatgpt.com',
+  wikipedia: 'https://www.wikipedia.org', linkedin: 'https://www.linkedin.com', pinterest: 'https://www.pinterest.com',
+  crunchyroll: 'https://www.crunchyroll.com', outlook: 'https://outlook.live.com', whatsapp: 'https://web.whatsapp.com',
+  discord: 'https://discord.com/app', soundcloud: 'https://soundcloud.com', deezer: 'https://www.deezer.com',
+};
+// a browser named with a site ("open youtube on chrome"): the site, in the browser you use
+const BROWSER = /chrome|edge|firefox|opera|brave|vivaldi|duckduckgo|browser/i;
 // local models this small mostly talk nonsense ("llama3.2:1b", "qwen2.5:0.5b"…)
 const TINY = /[:-](0\.5b|1b|1\.5b|135m|270m|360m)\b/i;
 
@@ -266,6 +279,11 @@ export class Chat {
       return (await this.host.music(asked.song)) ? { line: fmt(t.music, { song: asked.song }), face: 'laugh' } : null;
     }
     const item = await this.host.findLaunch(asked.text);
+    const site = namedSite(asked.text);
+    if (site && (!item || BROWSER.test(item.name))) {
+      this.zap();
+      return (await this.host.openSite(site.url)) ? { line: fmt(t.siteOpened, { site: site.name }), face: 'laugh' } : null;
+    }
     if (!item) return null; // nothing by that name here: her tag may still say what you meant
     this.zap();
     const res = await this.host.launch(item);
@@ -291,7 +309,9 @@ export class Chat {
     if (kind === 'music') return this.music(value, answer);
     if (kind === 'site') return this.offerSite(value, answer);
     const item = await this.host.findLaunch(value);
-    return item ? this.launch(item, answer) : this.addLine(answer, fmt(t.notInstalled, { app: value }));
+    if (item) return this.launch(item, answer);
+    const site = namedSite(value); // "[[open: YouTube]]": a site, not an app
+    return site ? this.offerSite(site.url, answer) : this.addLine(answer, fmt(t.notInstalled, { app: value }));
   }
 
   // her answer, with a line of what she did under it
@@ -479,6 +499,12 @@ function clean(text) {
     .replace(/[*_`#]+/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .trim();
+}
+
+// A site from SITES named in the text: { name, url }, or null.
+function namedSite(text) {
+  const name = Object.keys(SITES).find((n) => new RegExp(`\\b${n}\\b`, 'i').test(text));
+  return name ? { name: new URL(SITES[name]).hostname.replace(/^www\./, ''), url: SITES[name] } : null;
 }
 
 // Whether your message asks for what her tag (its kind: open, music, media, site, close) would do.
