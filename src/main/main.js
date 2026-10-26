@@ -89,10 +89,12 @@ function targetDisplay() {
 }
 
 // Her window: the work area, or the whole screen while she rests on the taskbar (her legs hang
-// over it). `gap`: how much of her window is below the top of the taskbar (0, or its height).
+// over it), less its top row of pixels: a window on top covering the whole screen is a fullscreen
+// app to Windows (animated wallpapers pause, notifications wait). `gap`: how much of her window is
+// below the top of the taskbar (0, or its height).
 function overlayArea() {
   const { workArea, bounds } = targetDisplay();
-  const area = config.load().rest === 'taskbar' ? bounds : workArea;
+  const area = config.load().rest === 'taskbar' ? { ...bounds, y: bounds.y + 1, height: bounds.height - 1 } : workArea;
   return { area, gap: area.y + area.height - (workArea.y + workArea.height) };
 }
 
