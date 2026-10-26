@@ -60,18 +60,18 @@ function targetDisplay() {
 }
 
 // Her window: the work area, or the whole screen while she rests on the taskbar (her legs hang
-// over it). `floor`: the top of the taskbar, from the top of her window.
+// over it). `gap`: how much of her window is below the top of the taskbar (0, or its height).
 function overlayArea() {
   const { workArea, bounds } = targetDisplay();
   const area = config.load().rest === 'taskbar' ? bounds : workArea;
-  return { area, floor: workArea.y + workArea.height - area.y };
+  return { area, gap: area.y + area.height - (workArea.y + workArea.height) };
 }
 
 function fitOverlay() {
   if (!overlay) return;
-  const { area, floor } = overlayArea();
+  const { area, gap } = overlayArea();
   overlay.setBounds(area);
-  overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, floor });
+  overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, gap });
 }
 
 function createOverlay() {
@@ -104,8 +104,12 @@ function createOverlay() {
   overlay.setAlwaysOnTop(true, 'screen-saver');
   overlay.setIgnoreMouseEvents(true, { forward: true });
   overlay.loadURL('capri://app/src/renderer/index.html');
-  // always shown: put away, she's still there as her biochip in the corner
-  overlay.once('ready-to-show', () => overlay.showInactive());
+  // always shown: put away, she's still there as her biochip in the corner. Sized again first:
+  // Windows keeps a new window inside the work area, and resting on the taskbar it covers it too.
+  overlay.once('ready-to-show', () => {
+    fitOverlay();
+    overlay.showInactive();
+  });
   overlay.webContents.on('render-process-gone', (_e, details) => {
     console.error('[capri] renderer gone:', details.reason);
   });
@@ -183,7 +187,7 @@ function resolveLang(setting) {
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
   const cfg = config.load();
-  return { ...cfg, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floor: overlayArea().floor };
+  return { ...cfg, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
 }
 
 function updateConfig(patch) {

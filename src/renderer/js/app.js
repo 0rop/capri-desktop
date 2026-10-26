@@ -51,8 +51,9 @@ async function boot() {
     intro,
   });
   fx.resize(innerWidth, innerHeight);
-  // the top of the taskbar: her window covers it too while she rests on it
-  let floorGap = innerHeight - (config.floor ?? innerHeight);
+  // how far the top of the taskbar is from the bottom of her window: she covers it too while she
+  // rests on it (the floor she stands on stays its top)
+  let floorGap = config.floorGap ?? 0;
   const chip = new Chip(document.getElementById('chip'));
   chip.place(innerWidth, innerHeight - floorGap);
   const mask = new Mask(document.getElementById('mask'));
@@ -277,11 +278,11 @@ async function boot() {
   // the windows as they are now: the watcher only speaks again when something changes
   host.windowsNow().then((data) => data && capri.setWindows(data));
 
-  host.onResize(({ width, height, floor = height }) => {
-    floorGap = height - floor;
+  host.onResize(({ width, height, gap = 0 }) => {
+    floorGap = gap;
     fx.resize(width, height);
-    chip.place(width, floor);
-    capri.setView(width, height, floor);
+    chip.place(width, height - gap);
+    capri.setView(width, height, height - gap);
   });
   window.addEventListener('resize', () => {
     fx.resize(innerWidth, innerHeight);
