@@ -118,6 +118,18 @@ function rearmOverlay() {
   console.log('[capri] mouse hook set up again');
 }
 
+// Back on top of everything, the taskbar included (it comes up over her when it's clicked). Twice:
+// the taskbar can come up again a moment later, as its menus and previews open.
+function raiseOverlay() {
+  for (const wait of [0, 400]) {
+    setTimeout(() => {
+      if (!overlay || overlay.isDestroyed()) return;
+      overlay.setAlwaysOnTop(true, 'screen-saver');
+      overlay.moveTop();
+    }, wait);
+  }
+}
+
 function createOverlay() {
   overlay = new BrowserWindow({
     ...overlayArea().area,
@@ -699,6 +711,8 @@ function main() {
     windowWatch = startWindowWatch({
       overlay,
       onUpdate: (data) => {
+        // a click on the taskbar brings it up over her: sitting on it, her legs would vanish behind it
+        if (data.taskbar && !lastWindows?.taskbar && config.load().rest === 'taskbar') raiseOverlay();
         lastWindows = data;
         overlay?.webContents.send('windows:update', data);
       },
