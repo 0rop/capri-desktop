@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
-  clipboard, ClipboardItem, dialog,
+  clipboard, ClipboardItem, dialog, powerMonitor,
 } = require('electron');
 
 const config = require('./config');
@@ -103,6 +103,19 @@ function fitOverlay() {
   const { area, gap } = overlayArea();
   overlay.setBounds(area);
   overlay.webContents.send('overlay:resize', { width: area.width, height: area.height, gap });
+}
+
+// The pointer reaches her click-through window through a mouse hook, and Windows drops a hook that
+// doesn't answer in time without a word (waking from sleep, a locked screen, a stall): she can't be
+// clicked anymore. Off then on puts in a new one; her place on top and her size are set again too.
+function rearmOverlay() {
+  if (!overlay || overlay.isDestroyed()) return;
+  overlay.setIgnoreMouseEvents(false);
+  overlay.setIgnoreMouseEvents(true, { forward: true });
+  overlay.setAlwaysOnTop(true, 'screen-saver');
+  fitOverlay();
+  sendCommand('rearmed'); // click-through again: she waits for the pointer to be on her
+  console.log('[capri] mouse hook set up again');
 }
 
 function createOverlay() {
@@ -440,6 +453,7 @@ function registerIpc() {
   ipcMain.on('overlay:interactive', (_e, on) => {
     overlay?.setIgnoreMouseEvents(!on, { forward: true });
   });
+  ipcMain.on('overlay:rearm', () => rearmOverlay()); // the pointer moved over her and she never heard of it
   ipcMain.handle('overlay:cursor', () => {
     const p = screen.getCursorScreenPoint();
     const b = overlay.getBounds();
@@ -602,6 +616,11 @@ async function debugHandler(route, body) {
     overlay.webContents.reloadIgnoringCache();
     return { ok: true };
   }
+  if (route === 'unhook') {
+    // the pointer no longer passed on to her, as when Windows drops the mouse hook
+    overlay.setIgnoreMouseEvents(true);
+    return { ok: true };
+  }
   if (route === 'testwin') {
     // plain windows to sit on, opened without stealing focus, by name (`id`, default "main");
     // each one opened goes in front of the others. { open: false } without an id closes them all.
@@ -697,6 +716,9 @@ function main() {
     screen.on('display-metrics-changed', fitOverlay);
     screen.on('display-added', () => { fitOverlay(); rebuildTray(); });
     screen.on('display-removed', () => { fitOverlay(); rebuildTray(); });
+    // after sleep or a locked screen, once Windows has settled
+    powerMonitor.on('resume', () => setTimeout(rearmOverlay, 2000));
+    powerMonitor.on('unlock-screen', () => setTimeout(rearmOverlay, 1000));
   });
 
   app.on('will-quit', () => {
