@@ -369,6 +369,19 @@ function rebuildTray() {
       })),
     },
     {
+      label: t.display,
+      // only read when she starts: she restarts in the mode picked
+      submenu: [['auto', t.displayAuto], ['gl', t.displayGl], ['software', t.displaySoftware]].map(([render, label]) => ({
+        label, type: 'radio', checked: cfg.render === render,
+        click: () => {
+          if (cfg.render === render) return;
+          config.save({ render });
+          app.relaunch();
+          app.exit(0);
+        },
+      })),
+    },
+    {
       label: t.lang,
       submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({
         label, type: 'radio', checked: cfg.lang === lang, click: () => updateConfig({ lang }),
@@ -725,7 +738,22 @@ async function debugHandler(route, body) {
   throw new Error('unknown debug route');
 }
 
+// How her window is drawn, set before Electron starts (her menu › Display). On some PCs her see-through
+// window shows up black (NVIDIA with FXAA, MFAA or HDR on, for one): drawing it through OpenGL, or
+// without the graphics card, often fixes it.
+function applyRender() {
+  const { render } = config.load();
+  if (render === 'gl') app.commandLine.appendSwitch('use-angle', 'gl');
+  if (render === 'software') {
+    app.disableHardwareAcceleration();
+    app.commandLine.appendSwitch('enable-unsafe-swiftshader'); // her drawing still needs WebGL, done on the CPU
+  }
+  // --dev: what Chromium ended up drawing with
+  if (DEV) app.whenReady().then(() => setTimeout(() => console.log('[capri] display:', render, JSON.stringify(app.getGPUFeatureStatus())), 4000));
+}
+
 function main() {
+  applyRender();
   if (!app.requestSingleInstanceLock()) {
     app.quit();
     return;

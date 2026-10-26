@@ -310,6 +310,10 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 - **She barely moves, her intro just fades in and out.** Windows has its animations turned off (Settings ›
   Accessibility › Visual effects › Animation effects), and she follows it. Her menu › **Animations** › **Full** makes
   her move anyway; the first time, she asks.
+- **A black screen behind her.** Some PCs show her see-through window black (often NVIDIA cards with FXAA, MFAA or
+  HDR on; other overlay apps like Desktop Mate do it too there). Right-click her, or her icon by the clock › **Display**
+  › **OpenGL**: she restarts drawn another way. Still black? **Without the graphics card**, which costs a bit more CPU.
+  Turning off FXAA and MFAA in the NVIDIA Control Panel can fix it as well.
 - **Can I turn her off?** Ctrl+Alt+C puts her away, **Quit** in her menu closes her. Claude Code works exactly the same
   without her.
 - **She only floats around and says idle things.** That's normal until Claude Code does something. If it never reacts,

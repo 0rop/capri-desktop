@@ -326,6 +326,11 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 - **Elle bouge à peine, son intro apparaît et disparaît juste en fondu.** Windows a ses animations coupées
   (Paramètres › Accessibilité › Effets visuels › Effets d'animation), et elle suit ce réglage. Son menu ›
   **Animations** › **Toutes** la fait bouger quand même ; la première fois, elle te pose la question.
+- **Un écran noir derrière elle.** Sur certains PC, sa fenêtre transparente s'affiche en noir (souvent les cartes
+  NVIDIA avec FXAA, MFAA ou le HDR activés ; d'autres applis du même genre comme Desktop Mate le font aussi). Clic droit
+  sur elle, ou sur son icône près de l'horloge › **Affichage** › **OpenGL** : elle redémarre en se dessinant autrement.
+  Toujours noir ? **Sans la carte graphique**, qui demande un peu plus au processeur. Couper FXAA et MFAA dans le
+  panneau de configuration NVIDIA peut aussi régler le problème.
 - **Je peux l'éteindre ?** Ctrl+Alt+C la range, **Quitter** dans son menu la ferme. Claude Code marche exactement pareil
   sans elle.
 - **Elle flotte et dit des petites phrases, mais rien d'autre.** C'est normal tant que Claude Code ne fait rien. S'il ne
