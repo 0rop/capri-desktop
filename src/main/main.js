@@ -248,6 +248,7 @@ function rebuildTray() {
     { label: t.help, click: () => sendCommand('welcome') },
     ...(cfg.claude ? [{ label: t.report, click: () => sendCommand('report') }] : []),
     { label: t.talk, click: () => sendCommand('chat') },
+    { label: t.custom, click: () => sendCommand('customize') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
     {

@@ -34,6 +34,11 @@ const MUSIC_WORD = /musi|chanson|song|track|titre|morceau|spotify|canci|faixa|п
 // "put X on Spotify", "mets X sur Spotify", "pon X en Spotify", "coloca X no Spotify", "включи X в Spotify"
 const SPOTIFY_ASK = /(?:play|put on|put|mets|joue|lance|écoute|pon|toca|reproduce|coloca|toque|включи|поставь)\s+(?:moi\s+|me\s+)?(.+?)\s+(?:on|sur|en|no|na|в)\s+spotify/i;
 const MEDIA_ACTIONS = new Set(MEDIA_ASK.map(([action]) => action));
+// "appelle-moi Max", "call me Max", "llámame Max", "me chama de Max", "зови меня Макс"
+const NAME_ASK = /(?:appelle[- ]moi|call me|my name is|je m['’]appelle|ll[aá]mame|me llamo|me cham[ae] de|meu nome [eé]|зови меня|меня зовут)\s+([\p{L}\p{N}'’-]{1,24})/iu;
+// "souviens-toi que…", "remember that…", "recuerda que…", "lembra que…", "запомни, что…" (said first thing)
+const MEMO_ASK = /^\s*(?:capri,?\s+|stp,?\s+|please,?\s+)?(?:souviens[- ]toi(?: que| de)?|n['’]oublie pas(?: que| de)?|remember(?: that)?|recuerda(?: que)?|lembr[ae](?:-se)?(?: que| de)?|запомни,?(?: что)?)\s+(.{3,200})/iu;
+const MEMORIES_MAX = 30;
 
 export class Chat {
   constructor({ capri, panel, voice, host, brain }) {
@@ -199,12 +204,16 @@ export class Chat {
   // { kind: 'media', action } | { kind: 'music', song } | { kind: 'close', name } | { kind: 'open', text }
   asked(text) {
     const count = text.trim().split(/\s+/).length;
+    const name = NAME_ASK.exec(text)?.[1];
+    if (name) return { kind: 'name', name };
+    const memo = MEMO_ASK.exec(text)?.[1]?.trim();
+    if (memo) return { kind: 'memo', text: memo };
     const media = MEDIA_ASK.find(([, re]) => re.test(text))?.[0];
     if (media && (count <= 5 || MUSIC_WORD.test(text))) return { kind: 'media', action: media };
     const song = SPOTIFY_ASK.exec(text)?.[1];
     if (song) return { kind: 'music', song };
-    const name = this.askedToClose(text);
-    if (name) return { kind: 'close', name };
+    const app = this.askedToClose(text);
+    if (app) return { kind: 'close', name: app };
     if (OPEN_ASK.test(text) && count <= 8) return { kind: 'open', text };
     return null;
   }
@@ -212,6 +221,17 @@ export class Chat {
   // Doing it now. Resolves with her line about it ({ line, face }), or null if there was nothing to do.
   async doNow(asked) {
     const { t } = this;
+    const custom = this.brain.custom;
+    if (asked.kind === 'name') {
+      custom.userName = asked.name; // her answer, being written now, already knows it
+      this.host.setConfig({ userName: asked.name });
+      return { line: fmt(this.brain.t.custom.named, { name: asked.name }), face: 'laugh' };
+    }
+    if (asked.kind === 'memo') {
+      custom.memories = [...(custom.memories || []).filter((m) => m !== asked.text), asked.text].slice(-MEMORIES_MAX);
+      this.host.setConfig({ memories: custom.memories });
+      return { line: this.brain.t.custom.remembered, face: 'smug' };
+    }
     if (asked.kind === 'media') {
       this.capri.pulse();
       return (await this.host.media(asked.action)) ? { line: t.media[asked.action], face: 'smug' } : null;
@@ -380,6 +400,18 @@ export class Chat {
     return lines;
   }
 
+  // What the user made her (custom.js): their name, how they want her, what to remember.
+  personal() {
+    const { userName, persona, memories = [] } = this.brain.custom || {};
+    return [
+      userName
+        ? `The user's name is ${userName}: call them that now and then. Never call them "Claude", that's their coding assistant.`
+        : 'You don\'t know the user\'s name. Never call them "Claude", that\'s their coding assistant.',
+      persona ? `How the user wants you to be, in their own words (follow it, while staying Capri): ${persona}` : '',
+      memories.length ? `Things the user asked you to remember:\n${memories.map((m) => `- ${m}`).join('\n')}` : '',
+    ].filter(Boolean);
+  }
+
   onDelta(id, piece) {
     if (id !== this.turn) return;
     this.answer += piece;
@@ -400,6 +432,7 @@ export class Chat {
       'How you talk: playful, a little mischievous and teasing, warm underneath, never cruel. Night City slang now and then (choom, preem, nova, gonk, flatline), not in every sentence.',
       `Rules: answer in the language the user writes in (${language} if unsure). Keep it short: one to three sentences of plain text, no markdown, no lists, no emoji. Stay in character.`,
       'You are an AI-generated fan version of the character, not the real one: say so if asked.',
+      ...this.personal(),
       ...(this.agent
         ? ['Under the hood you are Claude Code, working in the user\'s project: really do what they ask with your tools, as carefully as ever. Only your final answer is in character: it shows in a small speech bubble, so sum up what you did in those few sentences.']
         : this.powers()),

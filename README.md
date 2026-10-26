@@ -159,6 +159,19 @@ panel says so every time.
 
 Nothing else: she can't see your screen or your files.
 
+### Make her yours
+
+Right-click her › **Make her yours…** (or "Make me yours" in her guide), one panel at a time, each one skippable:
+
+- **What she calls you.** She uses it now and then, and comes online with it ("Capri online. Hi, Max.").
+- **How she is**, in your words ("more teasing, and talk to me about Night City"): her chat follows it. She stays Capri.
+- **Lines of yours**, that she says now and then with hers when you click her. Write `{name}` in one and she puts
+  your name there.
+- **Things to remember** (your favorite game, your cat, D…): her chat keeps them in mind.
+
+In her chat, "call me Léa" and "remember that my cat is called Neko" work too. All of it stays in her settings on
+your PC.
+
 She only catches the mouse on her actual body (pixel-precise): the rest of the screen works as usual.
 
 - **Click** her: she tells you where Claude is at (nothing going on: a **Talk to me** button, to chat with her).

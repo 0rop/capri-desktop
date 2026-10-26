@@ -169,6 +169,21 @@ fan d'elle, et le panneau du chat le dit à chaque fois.
 
 Rien d'autre : elle ne voit ni ton écran ni tes fichiers.
 
+### La personnaliser
+
+Clic droit sur elle › **La personnaliser…** (ou « Me personnaliser » dans son guide), un panneau à la fois, et chacun
+peut être passé :
+
+- **Comment elle t'appelle.** Elle s'en sert de temps en temps, et en revenant (« Capri en ligne. Salut, Max. »).
+- **Comment elle est**, avec tes mots (« plus taquine, et parle-moi de Night City ») : son chat suit ça. Elle reste
+  Capri.
+- **Des phrases à toi**, qu'elle dit de temps en temps avec les siennes quand tu cliques sur elle. Écris `{name}` dans
+  l'une d'elles et elle y met ton prénom.
+- **Des choses à retenir** (ton jeu préféré, ton chat, D…) : son chat les garde en tête.
+
+Dans son chat, « appelle-moi Léa » et « souviens-toi que mon chat s'appelle Neko » marchent aussi. Tout ça reste dans
+ses réglages, sur ton PC.
+
 Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l'écran reste utilisable normalement.
 
 - **Clic** sur elle : elle te dit où en est Claude (s'il ne se passe rien : un bouton **Parle-moi**, pour discuter

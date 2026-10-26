@@ -23,6 +23,7 @@ export class Brain {
     this.mission = mission; // today's log, for her report card (mission.js)
     this.lang = lang;
     this.assistant = assistant; // 'claude', 'codex' or 'agy': whose events she follows
+    this.custom = {};       // what you made her (custom.js): { userName, persona, myLines, memories }
     this.sessions = new Map();
     this.replyFor = null;    // the session whose answer she's holding up for you
     this.linked = true;      // has a Claude Code event ever reached her (app.js sets it from the config)
@@ -347,12 +348,24 @@ export class Brain {
     this.say('info', fmt(pick(this.t.bye), { project: s.project }), s, { face: 'aside', hold: 4000 });
   }
 
+  // Something to say with nothing going on: one of your lines half the time, if you wrote some.
+  idleLine() {
+    const mine = this.custom.myLines || [];
+    return fmt(mine.length && Math.random() < 0.5 ? pick(mine) : pick(this.t.idle), { name: this.custom.userName || 'choom' });
+  }
+
+  // What she says when she comes online: with your name, if she knows it.
+  onlineLine() {
+    const name = this.custom.userName;
+    return name ? fmt(pick(this.t.custom.onlineName), { name }) : pick(this.t.online);
+  }
+
   // What she says when you click her. Nothing going on: she offers to talk (chat.js).
   status() {
     const busy = this.busySessions;
     if (!busy.length) {
       const talk = this.onTalk && { actions: [{ id: 'talk', label: this.t.chat.talk }], onAction: () => this.onTalk(), hold: 6000 };
-      this.say('idle', pick(this.t.idle), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000, ...talk });
+      this.say('idle', this.idleLine(), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000, ...talk });
       return;
     }
     const s = busy.sort((a, b) => b.seen - a.seen)[0];

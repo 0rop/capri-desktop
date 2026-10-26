@@ -19,6 +19,7 @@ export class Guide {
     this.sceneId = 0;
     this.setup = null;  // setup.js: getting her chat going, and the free way to run Claude Code
     this.onTalk = null; // () => void: "Talk to me" picked in her menu (app.js opens her chat)
+    this.custom = null; // custom.js: what she calls you, how she is, your lines
     panel.onAction = (id) => this.answer(id);
     panel.onDismiss = (msg) => {
       if (this.waiting && msg.token === this.waiting.token) this.answer(null);
@@ -37,6 +38,36 @@ export class Guide {
       this.waiting = { token, resolve };
       // something more important on screen (a permission prompt, Claude's answer): no guide now
       if (!this.panel.say({ kind, face, line, quote, badge, actions, guide: true, hold: null, token })) this.answer(null);
+    });
+  }
+
+  // One of her guide's panels with a line to type in (secret: hidden as you type). Resolves with
+  // { text } (what you typed), { action } (a button that ends it), or null if it went away.
+  // onAction(id) true: that button did its thing, the panel stays.
+  askText({ face, line, quote, secret = false, placeholder, send = this.brain.t.setup.save, tag, note, actions = [], onAction = () => false }) {
+    this.answer(null);
+    const token = Symbol('guide');
+    return new Promise((resolve) => {
+      let over = false;
+      const finish = (value) => {
+        if (over) return;
+        over = true;
+        if (this.waiting?.token === token) this.waiting = null;
+        this.host.focusOverlay(false);
+        resolve(value);
+      };
+      // like ask(): the next panel of a scene, or answer(id), ends it
+      this.waiting = { token, resolve: (id) => finish(id === null ? null : { action: id }) };
+      const shown = this.panel.say({
+        kind: 'info', face, line, quote, guide: true, hold: null, token,
+        chat: { placeholder, send, close: this.brain.t.setup.later, noteTag: tag, note, secret },
+        actions,
+        onAction: (id) => onAction(id) || finish({ action: id }),
+        onSend: (text) => finish({ text }),
+        onLeave: () => finish(null),
+      });
+      if (!shown) return finish(null);
+      this.host.focusOverlay(true); // the keyboard, to type in it
     });
   }
 
@@ -146,10 +177,12 @@ export class Guide {
       actions.push({ id: 'folder', label: t.topics.folder });
     }
     actions.push({ id: 'talk', label: t.topics.talk });
+    if (this.custom) actions.push({ id: 'custom', label: t.topics.custom });
     actions.push({ id: 'close', label: t.topics.close });
     this.capri.perform('curious', this.capri.towardCenter());
     const id = await this.ask({ face: 'smug', line: t.menu.line, quote: t.menu.quote, actions });
     if (id === 'talk') return 'talk'; // her chat opens once the scene is over (menu, welcome)
+    if (id === 'custom') await this.custom.steps();
     if (id === 'connect') await this.connect();
     else if (id === 'icon') await this.icon();
     else if (id === 'claude') await this.claude();

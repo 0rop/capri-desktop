@@ -196,7 +196,7 @@ export class Setup {
   // Her panel with a line to paste the key into (hidden as you type), and the page to get one.
   async paste(provider, error = '') {
     const t = this.t;
-    const text = await this.askText({
+    const got = await this.guide.askText({
       face: error ? 'wide' : 'look',
       line: fmt(t.paste, { name: NAMES[provider] || provider }),
       quote: error ? `${t.keyBad} ${error}` : t.pasteHow,
@@ -207,17 +207,17 @@ export class Setup {
       actions: [{ id: 'page', label: t.where }, { id: 'other', label: t.other }],
       onAction: (id) => id === 'page' && (this.host.keyPage(provider), true),
     });
-    if (text === 'other') return this.choose(null);
-    if (!text) return false;
+    if (got?.action === 'other') return this.choose(null);
+    if (!got?.text) return false;
     this.working(t.checking);
-    const res = await this.host.useProvider({ provider, key: text });
+    const res = await this.host.useProvider({ provider, key: got.text });
     return res.ok ? this.done() : this.paste(provider, res.error);
   }
 
   // The address of an OpenAI-compatible server of your own (LM Studio, llama.cpp…).
   async address(error = '') {
     const t = this.t;
-    const text = await this.askText({
+    const got = await this.guide.askText({
       face: error ? 'wide' : 'look',
       line: t.address,
       quote: error ? `${t.failed} ${error}` : t.addressHow,
@@ -226,10 +226,10 @@ export class Setup {
       note: t.addressNote,
       actions: [{ id: 'other', label: t.other }],
     });
-    if (text === 'other') return this.choose(null);
-    if (!text) return false;
+    if (got?.action === 'other') return this.choose(null);
+    if (!got?.text) return false;
     this.working(t.checking);
-    const res = await this.host.useProvider({ provider: 'custom', url: text });
+    const res = await this.host.useProvider({ provider: 'custom', url: got.text });
     return res.ok ? this.done() : this.address(res.error);
   }
 
@@ -280,31 +280,6 @@ export class Setup {
     this.capri.hurt();
     await this.guide.ask({ kind: 'error', face: 'wide', line, quote, actions: [{ id: 'ok', label: this.t.ok, primary: true }] });
     return false;
-  }
-
-  // One of her panels with a line to type in. Resolves with what you typed, the id of a button
-  // that ends it, or null if it went away. onAction(id) true: the button did its thing, stay.
-  askText({ face, line, quote, secret = false, placeholder, tag, note, actions = [], onAction = () => false }) {
-    this.guide.answer(null);
-    return new Promise((resolve) => {
-      let over = false;
-      const finish = (value) => {
-        if (over) return;
-        over = true;
-        this.host.focusOverlay(false);
-        resolve(value);
-      };
-      const shown = this.panel.say({
-        kind: 'info', face, line, quote, guide: true, hold: null, token: Symbol('setup'),
-        chat: { placeholder, send: this.t.save, close: this.t.later, noteTag: tag, note, secret },
-        actions,
-        onAction: (id) => onAction(id) || finish(id),
-        onSend: (text) => finish(text),
-        onLeave: () => finish(null),
-      });
-      if (!shown) return finish(null);
-      this.host.focusOverlay(true); // the keyboard, to type in it
-    });
   }
 
   size(bytes) {

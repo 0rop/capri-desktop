@@ -8,6 +8,7 @@ import { Guide } from './guide.js';
 import { Mission } from './mission.js';
 import { Chat } from './chat.js';
 import { Setup } from './setup.js';
+import { Custom } from './custom.js';
 import { linesFor } from './lines.js';
 import { pick, fmt, reducedMotion } from './util.js';
 
@@ -24,6 +25,9 @@ function loadImage(src) {
 
 // close-ups of her for the cut-ins, frames of the show (tools/build-cutins.py)
 const CUTINS = ['grin', 'laugh', 'eyes', 'many', 'look'];
+
+// what you made her, from the config (custom.js)
+const mine = (cfg) => ({ userName: cfg.userName || '', persona: cfg.persona || '', myLines: cfg.myLines || [], memories: cfg.memories || [] });
 
 async function boot() {
   const [config, image, intro, ...cutins] = await Promise.all([
@@ -193,6 +197,10 @@ async function boot() {
   guide.onTalk = () => chat.start();
   chat.onSetup = (status) => setup.chat(status);
   setup.onReady = () => chat.start();
+  // What she calls you, how she is, your lines, what she remembers (custom.js)
+  const custom = new Custom({ guide, host, brain, capri, voice });
+  guide.custom = custom;
+  brain.custom = mine(config);
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
   brain.watching = config.claude !== false;
@@ -315,6 +323,7 @@ async function boot() {
       if (capri.mode === 'work' || capri.mode === 'alert') capri.setMode('idle');
     }
     brain.watching = cfg.claude !== false;
+    brain.custom = mine(cfg);
     brain.assistant = cfg.assistant;
     panel.labels = linesFor(cfg.lang, cfg.assistant);
     if (cfg.scale !== capri.scale) capri.setScale(cfg.scale);
@@ -333,6 +342,9 @@ async function boot() {
         break;
       case 'status':
         brain.status();
+        break;
+      case 'customize': // "Make her yours" in her menu
+        custom.open();
         break;
       case 'setupChat': // "Set it up with her" in her menu's AI model
         setup.chat();
@@ -474,7 +486,7 @@ async function boot() {
   const hooks = await host.hooksStatus();
   // her welcome: the first time, or while she's meant to watch Claude Code and isn't plugged into it
   if (!config.welcomed || (config.claude && !hooks.installed)) guide.welcome();
-  else panel.say({ kind: 'info', line: pick(brain.t.online), hold: 4000 });
+  else panel.say({ kind: 'info', line: brain.onlineLine(), hold: 4000 });
 
   // In the evening, after a real day's work, she brings you her report card once, on her own,
   // at a quiet moment.

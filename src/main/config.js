@@ -21,6 +21,10 @@ const DEFAULTS = {
   apiKeys: {},       // { openai: 'sk-...' }, else the provider's env variable
   customUrl: '',     // the 'custom' provider: any OpenAI-compatible base URL (http://host:port/v1)
   claudeCwd: null,   // the folder Claude Code works in (null: your home folder)
+  userName: '',      // what she calls you
+  persona: '',       // how you want her, in your words (her chat)
+  myLines: [],       // lines of yours she says now and then, with hers
+  memories: [],      // things you asked her to remember (her chat)
   claudeMode: 'default', // Claude Code's permission mode in her chat: 'default' only reads, 'acceptEdits' edits without asking
   claude: true,      // she watches Claude Code (off: she just keeps you company, no word of it)
   rest: 'corner',    // where she rests when nothing's going on: 'corner', or 'taskbar' (sitting on it)

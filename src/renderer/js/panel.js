@@ -278,7 +278,7 @@ export class Panel {
     this.el.classList.toggle('is-chat', Boolean(chat));
     this.line.classList.remove('is-streaming');
     this.chatForm.hidden = !chat;
-    this.note.hidden = !chat;
+    this.note.hidden = !chat?.note;
     if (!chat) return;
     this.chatInput.type = chat.secret ? 'password' : 'text';
     this.chatInput.placeholder = chat.placeholder;
@@ -287,9 +287,11 @@ export class Panel {
     this.chatSend.disabled = false;
     this.chatSend.textContent = chat.send;
     this.chatClose.setAttribute('aria-label', chat.close);
-    const tag = document.createElement('b');
-    tag.textContent = chat.noteTag;
-    this.note.replaceChildren(tag, ` ${chat.note}`);
+    if (chat.note) {
+      const tag = document.createElement('b');
+      tag.textContent = chat.noteTag || '';
+      this.note.replaceChildren(...(chat.noteTag ? [tag, ' '] : []), chat.note);
+    }
     requestAnimationFrame(() => this.chatInput.focus());
   }
 
