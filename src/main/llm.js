@@ -40,14 +40,31 @@ function endpoint(id, cfg) {
 
 const headers = (key) => ({ 'content-type': 'application/json', ...(key && { authorization: `Bearer ${key}` }) });
 
+// Why a server said no, in a sentence (Gemini sends its error inside an array), with a code when it's
+// worth another try: 'busy' (too many people on it right now), 'gone' (that model isn't served anymore).
 async function failure(res) {
   const body = await res.text().catch(() => '');
+  let message = body.slice(0, 200) || `answered ${res.status}`;
   try {
-    const err = JSON.parse(body).error;
-    return new Error(typeof err === 'string' ? err : err?.message || body);
+    const parsed = JSON.parse(body);
+    const err = (Array.isArray(parsed) ? parsed[0] : parsed)?.error;
+    if (err) message = typeof err === 'string' ? err : err.message || message;
   } catch {
-    return new Error(body.slice(0, 200) || `answered ${res.status}`);
+    // not JSON: the start of the body says it
   }
+  const code = res.status === 429 || res.status === 503 || /overloaded|high demand|unavailable/i.test(message) ? 'busy'
+    : res.status === 404 ? 'gone' : null;
+  return Object.assign(new Error(message), { status: res.status, code });
+}
+
+// Gemini lists every model it has (embeddings, speech, images…): only the ones to chat with, a current
+// stable Flash first (older ones get closed to new keys, previews come and go).
+function geminiModels(names) {
+  const version = (n) => Number(/gemini-(\d+(?:\.\d+)?)/.exec(n)?.[1] || 0);
+  const rank = (n) => (/preview|exp/.test(n) ? 4 : 0) + (/flash-lite/.test(n) ? 1 : /flash/.test(n) ? 0 : 2);
+  return names
+    .filter((n) => /gemini/.test(n) && !/embed|tts|image|audio|live|veo|imagen|computer-use|robotics|aqa/.test(n))
+    .sort((a, b) => rank(a) - rank(b) || version(b) - version(a));
 }
 
 // The provider's models by name; null when it can't be reached (Ollama only), throws with why otherwise.
@@ -62,7 +79,8 @@ async function models(id, cfg) {
   if (!res.ok) throw await failure(res);
   const body = await res.json();
   const list = Array.isArray(body) ? body : body.data || body.models || [];
-  return list.map((m) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
+  const names = list.map((m) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
+  return id === 'gemini' ? geminiModels(names) : names;
 }
 
 function warm(id, model) {

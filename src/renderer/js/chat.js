@@ -121,7 +121,7 @@ export class Chat {
     this.cold = status.warmup && !this.warm;
     this.agent = Boolean(status.agent); // Claude Code answers, as her, and really works in your project
     this.listApps();
-    const shortModel = status.model.replace(/:latest$/, '');
+    const shortModel = status.model.replace(/:latest$/, '').replace(/^models\//, ''); // Ollama's tag, Gemini's prefix
     const tiny = status.provider === 'ollama' && TINY.test(status.model) && this.onBetterModel;
     host.focusOverlay(true); // the keyboard, for typing to her
     const shown = this.panel.say({
@@ -199,7 +199,8 @@ export class Chat {
     if (!res.ok) {
       this.history.pop();
       this.panel.setFace('wide');
-      this.panel.stream(`${this.t.failed} ${res.error}`, { done: true });
+      // too busy or gone even after trying other models (main.js): said plainly, not the server's JSON
+      this.panel.stream(res.code === 'busy' ? this.t.swamped : res.code === 'gone' ? this.t.gone : `${this.t.failed} ${res.error}`, { done: true });
       this.panel.setChatBusy(false);
       return;
     }

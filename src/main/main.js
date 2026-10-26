@@ -434,6 +434,33 @@ async function refreshModels() {
   return chatModels;
 }
 
+// Her answer from the model picked, or from the next one when that one can't: too busy twice in a row
+// (Gemini's "high demand"), or not served anymore (an older model closed to new keys). The model
+// that answered is kept for next time.
+async function chatWithFallback(cfg, messages, send, signal, streamed) {
+  let model = pickModel(cfg);
+  const tried = new Set();
+  let busy = 0;
+  for (;;) {
+    try {
+      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model, messages }, send, signal);
+      if (model !== pickModel(cfg)) updateConfig({ chatModel: model });
+      return text;
+    } catch (err) {
+      if (signal.aborted || streamed() || !['busy', 'gone'].includes(err.code)) throw err;
+      if (err.code === 'busy' && busy++ === 0) {
+        await new Promise((r) => setTimeout(r, 1500)); // usually gone a moment later
+        continue;
+      }
+      tried.add(model);
+      const next = chatModels?.find((m) => !tried.has(m));
+      if (!next || tried.size >= 3) throw err;
+      model = next;
+      busy = 0;
+    }
+  }
+}
+
 async function pickProvider(provider) {
   updateConfig({ provider });
   await refreshModels();
@@ -497,13 +524,17 @@ function registerIpc() {
     const abort = new AbortController();
     chats.set(id, abort);
     try {
-      const send = (text) => overlay?.webContents.send('chat:delta', { id, text });
+      let streamed = false;
+      const send = (text) => {
+        streamed = true;
+        overlay?.webContents.send('chat:delta', { id, text });
+      };
       const cfg = config.load();
-      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model: pickModel(), messages }, send, abort.signal);
+      const text = await chatWithFallback(cfg, messages, send, abort.signal, () => streamed);
       if (cfg.provider === 'claude') saveMemory({ claude: llm.claudeMemory() });
       return { ok: true, text };
     } catch (err) {
-      return { ok: false, error: abort.signal.aborted ? 'stopped' : err.message };
+      return { ok: false, error: abort.signal.aborted ? 'stopped' : err.message, code: err.code || null };
     } finally {
       chats.delete(id);
     }
