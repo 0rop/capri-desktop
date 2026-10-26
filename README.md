@@ -129,7 +129,8 @@ The first time, she sets it up with you, with buttons, no terminal:
 
 - **On my PC** (free, nothing leaves your machine): she installs [Ollama](https://ollama.com) for you (with winget,
   Windows' own installer), wakes it up, and downloads a model while a bar fills up: gemma3 (3.3 GB, better in languages
-  other than English) or llama3.2 (2 GB, for smaller PCs).
+  other than English) or llama3.2 (2 GB, for smaller PCs). On a tiny model (1B and under) she warns you it may talk
+  nonsense and offers a better one.
 - **Online, no account**: Pollinations, nothing to set up.
 - **I have a key**: Groq or Gemini (both have a free tier), OpenRouter, OpenAI, Mistral or DeepSeek. You paste your
   key in her panel and she checks it. It's kept on your PC, encrypted with your Windows account, and only ever sent to
