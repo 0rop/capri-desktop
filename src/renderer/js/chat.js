@@ -403,10 +403,11 @@ export class Chat {
   // What the user made her (custom.js): their name, how they want her, what to remember.
   personal() {
     const { userName, persona, memories = [] } = this.brain.custom || {};
+    // small models mix the user up with the assistant she watches: said plainly
+    const watched = this.brain.watching ? (this.brain.assistant === 'claude' ? 'Claude' : ASSISTANT_NAMES[this.brain.assistant]) : '';
+    const notThem = watched ? ` Never call them "${watched}", that's their coding assistant.` : '';
     return [
-      userName
-        ? `The user's name is ${userName}: call them that now and then. Never call them "Claude", that's their coding assistant.`
-        : 'You don\'t know the user\'s name. Never call them "Claude", that\'s their coding assistant.',
+      userName ? `The user's name is ${userName}: call them that now and then.${notThem}` : notThem && `You don't know the user's name.${notThem}`,
       persona ? `How the user wants you to be, in their own words (follow it, while staying Capri): ${persona}` : '',
       memories.length ? `Things the user asked you to remember:\n${memories.map((m) => `- ${m}`).join('\n')}` : '',
     ].filter(Boolean);
