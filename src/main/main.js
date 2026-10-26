@@ -5,12 +5,15 @@ const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, protocol, net, shell, globalShortcut, nativeImage,
+  clipboard, ClipboardItem,
 } = require('electron');
 
 const config = require('./config');
 const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
+const ollama = require('./ollama');
+const apps = require('./apps');
 const hooks = require('../../scripts/install-hooks');
 const demoSteps = require('../../scripts/demo-sequence');
 
@@ -19,6 +22,7 @@ const DEV = process.argv.includes('--dev');
 const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const SOUND_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 const CLAUDE_CODE_HELP = 'https://code.claude.com/docs/en/quickstart';
+const OLLAMA_SITE = 'https://ollama.com';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'capri', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -31,6 +35,8 @@ let demoTimer = null;
 let windowWatch = null;
 // the watcher only speaks when something changes: the overlay asks for this when it (re)loads
 let lastWindows = null;
+let chatModels = null; // the Ollama models, as last seen (null: Ollama not reached)
+const chats = new Map(); // id -> AbortController of an answer being streamed
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
 
@@ -196,6 +202,8 @@ function rebuildTray() {
     { label: t.satellite, click: () => sendCommand('satellite') },
     { label: t.demo, click: playDemo },
     { label: t.help, click: () => sendCommand('welcome') },
+    { label: t.report, click: () => sendCommand('report') },
+    { label: t.talk, click: () => sendCommand('chat') },
     { label: cfg.visible ? t.hide : t.show, accelerator: 'Ctrl+Alt+C', click: () => toggleVisible() },
     { type: 'separator' },
     {
@@ -227,6 +235,14 @@ function rebuildTray() {
         checked: d.id === current,
         click: () => { config.save({ displayId: d.id }); fitOverlay(); rebuildTray(); },
       })),
+    },
+    {
+      label: t.chatModel,
+      submenu: chatModels?.length
+        ? chatModels.map((name) => ({
+          label: name, type: 'radio', checked: name === pickModel(cfg), click: () => updateConfig({ chatModel: name }),
+        }))
+        : [{ label: t.noOllama, enabled: false }],
     },
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
     { label: t.possess, type: 'checkbox', checked: cfg.possess, click: (item) => updateConfig({ possess: item.checked }) },
@@ -274,6 +290,18 @@ function runHooks(action, { quiet = false } = {}) {
   return outcome;
 }
 
+// The model she talks with: the one picked in her menu if it's still installed, else the first.
+function pickModel(cfg = config.load()) {
+  if (!chatModels?.length) return null;
+  return chatModels.includes(cfg.chatModel) ? cfg.chatModel : chatModels[0];
+}
+
+async function refreshModels() {
+  chatModels = await ollama.models().catch(() => null);
+  rebuildTray();
+  return chatModels;
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(ROOT, 'assets', 'icons', 'tray.png'));
   tray = new Tray(icon);
@@ -302,6 +330,50 @@ function registerIpc() {
   ipcMain.handle('claude:found', () => fs.existsSync(path.dirname(hooks.status().file))); // Claude Code keeps its settings there
   ipcMain.on('claude:help', () => shell.openExternal(CLAUDE_CODE_HELP));
   ipcMain.handle('windows:get', () => lastWindows);
+  // talking to her (chat.js): is Ollama there, with a model to talk with
+  ipcMain.handle('chat:status', async () => {
+    const models = await refreshModels();
+    if (!models) return { ok: false, error: 'offline' };
+    if (!models.length) return { ok: false, error: 'nomodel' };
+    ollama.warm(pickModel()); // loading while you type your first message
+    return { ok: true, model: pickModel() };
+  });
+  // her answer, streamed to the overlay piece by piece as `chat:delta`
+  ipcMain.handle('chat:send', async (_e, { id, messages }) => {
+    const abort = new AbortController();
+    chats.set(id, abort);
+    try {
+      const send = (text) => overlay?.webContents.send('chat:delta', { id, text });
+      const text = await ollama.chat({ model: pickModel(), messages }, send, abort.signal);
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: abort.signal.aborted ? 'stopped' : err.message };
+    } finally {
+      chats.delete(id);
+    }
+  });
+  ipcMain.on('chat:stop', (_e, id) => chats.get(id)?.abort());
+  ipcMain.on('chat:ollama', () => shell.openExternal(OLLAMA_SITE));
+  // closing an app you asked her to close, once you've clicked to confirm (apps.js)
+  const appInfo = (app) => app && { name: app.process, label: app.label };
+  ipcMain.handle('apps:list', async () => (await apps.list().catch(() => [])).map(appInfo));
+  ipcMain.handle('apps:find', async (_e, wanted) => appInfo(await apps.find(wanted).catch(() => null)));
+  ipcMain.handle('apps:close', (_e, { name, force }) => apps.close(name, { force }).catch((err) => ({ error: err.message })));
+  // typing to her: the overlay takes the keyboard while the chat is open, and gives it back after
+  ipcMain.on('overlay:focus', (_e, on) => {
+    if (!overlay) return;
+    overlay.setFocusable(Boolean(on));
+    if (on) overlay.focus();
+    else overlay.blur();
+  });
+  // her report card's copy button: a picture of that part of the overlay, on the clipboard
+  ipcMain.handle('panel:copy', async (_e, rect) => {
+    const image = await overlay.webContents.capturePage(rect);
+    if (image.isEmpty()) return false;
+    const png = new Blob([image.toPNG()], { type: 'image/png' });
+    await clipboard.write([new ClipboardItem({ 'image/png': png })]);
+    return true;
+  });
   // her guide: where her tray icon is (it lives in the taskbar, off the overlay, hence overlay
   // coordinates past its edge), and the corner by the clock in case Windows hid it behind the ^
   ipcMain.handle('guide:tray', () => {
@@ -384,6 +456,16 @@ async function debugHandler(route, body) {
     }
     return { ok: true };
   }
+  if (route === 'type') {
+    // typing into the overlay (her chat), and Enter if asked
+    if (body.text) await overlay.webContents.insertText(body.text);
+    if (body.enter) {
+      overlay.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+      overlay.webContents.sendInputEvent({ type: 'char', keyCode: 'Return' });
+      overlay.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+    }
+    return { ok: true };
+  }
   if (route === 'capture') {
     const image = await overlay.webContents.capturePage();
     // installed, the app's own folder is read-only: its data folder instead
@@ -422,6 +504,7 @@ function main() {
       onDebug: DEV ? debugHandler : null,
     });
     globalShortcut.register('Control+Alt+C', () => toggleVisible());
+    refreshModels(); // for her menu's model list
     screen.on('display-metrics-changed', fitOverlay);
     screen.on('display-added', () => { fitOverlay(); rebuildTray(); });
     screen.on('display-removed', () => { fitOverlay(); rebuildTray(); });

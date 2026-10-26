@@ -28,6 +28,12 @@ export function duration(ms, lang = 'fr') {
 
 export const basename = (p = '') => String(p).replace(/[\\/]+$/, '').split(/[\\/]/).pop() || '';
 
+// the local date, YYYY-MM-DD
+export const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // Tweens a set of numeric props on `target`. Values are read by the stepped render loop,
 // so the result lands on whole drawing frames like cel animation.
 export function tween(target, to, ms, easing = ease.out) {

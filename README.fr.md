@@ -12,18 +12,24 @@ vient te chercher quand Claude attend ta permission et part en vrille quand la t
 
 ## Ce qu'elle fait
 
-- **Quand elle démarre** : son visage en grand en haut à droite de l'écran, image par image tiré de la série. Ses
-  morceaux arrivent en spirale, elle devient une ligne rouge, la ligne se dédouble et s'ouvre sur elle comme un
-  obturateur, l'image arrive avec ses couleurs décalées, puis son cadre se construit autour d'elle pendant que la
-  caméra zoome. Elle ouvre la bouche et te dit hi. Puis elle rétrécit et plonge jusqu'à sa place en laissant des
-  images d'elle derrière, et son corps se déplie depuis son visage.
+- **Quand elle démarre** : elle attrape ton écran. Ses bords grésillent en rouge, sa main gauche s'abat sur le bord,
+  puis la droite, ses bras s'allongent vers le centre pendant qu'elle se hisse, et son visage percute la vitre (un
+  flash blanc, un noir, ses couleurs décalées, l'écran qui tremble). Elle regarde autour d'elle, cligne des yeux,
+  ouvre grand la bouche sur « hi » (une étiquette surgit à côté de son visage, son nom tapé dessous), lâche le bord
+  droit pour te faire coucou de sa main griffue, le rattrape, jette un œil là où elle va, et lâche : ses bras se
+  brisent en éclats depuis les mains, et sa tête prend son élan et plonge jusqu'à sa place, où son corps se déplie
+  depuis son visage.
 
-  ![Son intro : l'ouverture, son cadre qui se construit, « hi », le plongeon](docs/intro.png)
+  ![Son intro : ses mains sur les bords, son visage contre la vitre, le coucou, elle se ragrippe](docs/intro.png)
 
 - **Pendant que Claude bosse** : un ticker au-dessus d'elle affiche l'action en cours
   (`MODIFIE gigs.ts`, `EXÉCUTE npm test`, `CHERCHE "paginate"`…) et elle lâche des petits glyphes de données.
   Quand Claude lance une commande ou va sur le web, des étincelles rouges partent de ses doigts ; assise sur une fenêtre,
   elle se branche dessus et l'éclair court le long du bord.
+- **Quand Claude se tait en pleine tâche** (il réfléchit, ou un modèle local qui rame) : au bout de 15 secondes, le
+  ticker passe en violet et compte les secondes (`RÉFLÉCHIT… 45 s`), et elle s'occupe (une pirouette, un coup d'œil
+  autour d'elle, le satellite une fois). Après 40 secondes elle en dit un mot ; après deux minutes elle te prévient
+  que rien n'est bloqué.
 - **Quand Claude a besoin de toi** (permission, question) : elle se téléporte à côté de ta souris, crinière hérissée, et insiste.
   Si tu es sur une autre fenêtre, elle va plutôt à côté de celle de Claude et la montre du doigt (une ligne en pointillés,
   des crochets sur ses coins, `CLAUDE` sur une étiquette) : c'est là qu'est la question. Elle arrête dès que tu as répondu.
@@ -108,16 +114,49 @@ glitche d'une expression à l'autre.
 
 ![Ses huit expressions](docs/faces.png)
 
+### Son rapport de mission
+
+**Rapport de mission** dans son menu : une carte de ce que Claude a abattu aujourd'hui, faite pour être capturée. Les
+tâches finies en gros, puis les actions, les fichiers modifiés et les erreurs, la plus longue mission et son projet, les
+prompts, les autorisations et les projets. Les chiffres défilent jusqu'à leur valeur. **Copier l'image** met une image
+de la carte dans ton presse-papiers, sur son propre fond sombre, prête à coller n'importe où. Le soir (après 18 h),
+après une vraie journée (3 tâches ou plus), elle te l'apporte d'elle-même, une fois. La démo ne compte pas, et tout
+reste sur ton PC, un jour à la fois.
+
+### Lui parler (Ollama)
+
+**Lui parler** dans son menu (ou le bouton **Parle-moi** quand tu cliques sur elle et qu'il ne se passe rien) : tu
+écris dans son panneau et elle te répond, dans son personnage, grâce à un modèle d'IA qui tourne sur ton PC avec
+[Ollama](https://ollama.com). Elle sait ce que fait Claude et ce qu'il a fait aujourd'hui. Elle répond par écrit,
+dans sa langue.
+
+1. Installe Ollama et ouvre-le.
+2. Dans un terminal : `ollama pull llama3.2` (environ 2 Go). N'importe quel modèle de chat marche : choisis-le dans
+   son menu › **Modèle IA (Ollama)**.
+3. Son menu › **Lui parler**. Entrée envoie, Échap ferme.
+
+**C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
+fan d'elle, et le panneau du chat le dit à chaque fois.
+
+**Fermer une appli** (Windows) : demande-lui (« ferme AM Music », « tu peux couper Discord ? ») et elle te propose un
+bouton au nom de l'appli. Rien ne se passe tant que tu ne cliques pas. Elle la ferme comme son propre bouton de
+fermeture, donc l'appli peut encore te demander d'enregistrer. Si elle s'est seulement cachée dans la zone de
+notification, elle te propose **Forcer la fermeture**, là encore seulement sur ton clic (le travail non enregistré est
+alors perdu). Elle ne ferme jamais les morceaux de Windows, Claude, Ollama ni elle-même, et elle ne peut rien faire
+d'autre sur ton PC.
+
 Elle n'attrape la souris que sur son corps (au pixel près) : tout le reste de l'écran reste utilisable normalement.
 
-- **Clic** sur elle : elle te dit où en est Claude.
+- **Clic** sur elle : elle te dit où en est Claude (s'il ne se passe rien : un bouton **Parle-moi**, pour discuter
+  avec elle).
 - **Glisser** : tu la déplaces.
 - **Clic** sur le panneau : il se ferme.
 - **Ctrl+Alt+C** : elle se range (dans son biochip, comme dans la série) et il ne reste d'elle que son masque, les yeux
   fermés, en bas à gauche de l'écran. Ses yeux ne s'ouvrent que quand Claude a besoin de toi. Clique sur le masque
   (ou refais Ctrl+Alt+C) pour la faire revenir.
 - **Son menu** : clic droit sur elle (il est aussi sur son icône près de l'horloge) : téléporter, regarder le satellite,
-  démo, comment ça marche, taille, son, écran, se balader, posséder tes fenêtres, langue, lancement au démarrage, hooks.
+  démo, comment ça marche, rapport de mission, lui parler, taille, son, écran, modèle IA, se balader,
+  posséder tes fenêtres, langue, lancement au démarrage, hooks.
 
 Elle parle **français, anglais, espagnol, portugais du Brésil et russe**, et choisit toute seule la langue de ton
 système. Tu peux en choisir une autre dans son menu.
@@ -225,6 +264,9 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 - **Mac, Linux ?** Pas encore d'installeur, mais tu peux la lancer depuis le code (voir plus haut).
 - **Téléphone, Android ?** Non, il lui faut un ordinateur.
 - **D'autres assistants (Codex, Cursor, Windsurf, Gemini…) ?** Seulement Claude Code pour l'instant.
+- **Ollama ?** De deux façons. Claude Code qui tourne sur un modèle local via Ollama (`ollama launch claude`) : elle le
+  voit comme n'importe quel Claude Code, c'est juste plus lent, et son ticker compte les secondes pendant qu'il
+  réfléchit. Et elle peut discuter avec toi via Ollama : voir « Lui parler ».
 - **Je peux l'éteindre ?** Ctrl+Alt+C la range, **Quitter** dans son menu la ferme. Claude Code marche exactement pareil
   sans elle.
 - **Elle flotte et dit des petites phrases, mais rien d'autre.** C'est normal tant que Claude Code ne fait rien. S'il ne
@@ -237,6 +279,10 @@ Rien. Le hook ne garde que ce qui sert à l'affichage (nom de l'outil, chemin du
 début de ton prompt, dernier message de Claude jusqu'à 6 000 caractères pour pouvoir te l'afficher, le tout tronqué)
 et l'envoie à `127.0.0.1` uniquement.
 Le contenu de tes fichiers n'est jamais transmis : pour une écriture, seule sa taille passe.
+
+Son chat va à Ollama sur ton PC (`127.0.0.1:11434`, ou `OLLAMA_HOST`) avec ce qu'elle sait du moment (le nom du
+projet, la dernière action de Claude, les compteurs du jour). Son journal de mission reste dans son propre stockage,
+sur ton PC.
 
 ## Direction artistique
 
@@ -277,11 +323,15 @@ Le but : qu'on ait l'impression qu'elle sort de l'anime, pas d'un widget.
 - **Téléportation** : charge, éclats, effondrement en ligne, et là où elle était, une fente noire avec un trait rouge
   dedans, comme dans la série. Colonne de lumière rouge vers le ciel, éclair jusqu'à la destination, ses morceaux
   (éclats de crinière et étoiles vertes de ses yeux) qui reviennent en spirale, retour avec deux *impact frames*.
-- **Son intro** : neuf images de la série jouées dans son portrait (le zoom sur son visage, sa bouche qui s'ouvre
-  pour « hi »), tirées de la copie la plus nette de l'extrait, le grain du GIF lissé. Ça s'ouvre sur une ligne rouge
-  dédoublée, avec un décalage RVB qui se resserre en s'ouvrant ; le bord flashe, puis son ombre violette, sa ligne
-  rouge et son nom arrivent l'un après l'autre. L'étiquette claque avec des lignes de vitesse, puis un plongeon avec
-  un étirement, des images rémanentes et son zigzag.
+- **Son intro** : un gros plan d'elle, découpé pour que ton bureau se voie autour de sa crinière
+  (`tools/build-intro.py`), en six dessins échangés comme des cellulos (au repos, la bouche entrouverte, à moitié et
+  grande ouverte pour « hi », la main penchée d'un côté puis de l'autre pour le coucou, une image sur trois), et
+  tout le reste est de l'animation par-dessus : des images d'impact (elle en silhouette
+  blanche puis noire), un décalage RVB qui se resserre, l'écran qui tremble, le trait qui vibre une image sur deux,
+  ses yeux redessinés par-dessus ceux de l'image pour qu'ils regardent autour et clignent, la caméra qui avance,
+  l'étiquette qui claque. Jamais un bord droit de l'image à l'écran : elle apparaît par des découpes en dents de
+  scie qui bougent (ses bras depuis les côtés, puis qui se brisent depuis les mains, puis sa tête seule pour le
+  plongeon, avec des images rémanentes et son zigzag).
 - **Cut-ins** : des gros plans d'elle tirés de la série, en poussée de caméra avec des lignes de vitesse : son sourire
   ou son rire après une tâche terminée, tous ses yeux quand Claude t'attend, ses yeux juste avant la lumière rouge,
   son regard en coin après un éclair sur ta souris. Le visage du panneau change aussi selon ce qu'elle dit.
@@ -298,9 +348,12 @@ Si Windows est réglé sur « Afficher les animations : non », elle se contente
 hooks/capri-hook.js      lancé par Claude Code, lit l'événement sur stdin et le poste à l'app
 scripts/install-hooks.js ajoute / retire le hook dans ~/.claude/settings.json
 tools/build-sprite.py    reconstruit le sprite depuis la découpe d'origine (Python + Pillow, seulement si tu la changes)
-tools/build-cutins.py    découpe les cut-ins, ses expressions et son intro dans des images de la série
+tools/build-cutins.py    découpe les cut-ins et ses expressions dans des images de la série
+tools/build-intro.py     détoure les gros plans de son intro, tous de la même façon
 src/main/                Electron : fenêtre transparente plein écran, clic à travers, tray, bridge HTTP local
   windows.js / .ps1      où sont les autres fenêtres (Windows), pour qu'elle s'assoie dessus
+  ollama.js              son chat : le modèle local, via Ollama
+  apps.js                fermer une appli que tu lui demandes de fermer (après ton clic)
 src/renderer/js/
   sprite.js              shader WebGL : tête, crinière, position assise, smears, images rémanentes, couleurs, glitch
   acting.js              les feuilles d'exposition : chaque mouvement, dessin par dessin
@@ -309,6 +362,8 @@ src/renderer/js/
   panel.js               le panneau « transmission », ses expressions et le ticker
   guide.js               son guide : les tutos, aller jusqu'aux choses et les montrer du doigt
   brain.js               traduit les événements Claude en répliques et en actions
+  mission.js             le journal de mission du jour, pour son rapport
+  chat.js                lui parler : la conversation, qui elle est, ses réponses qui arrivent
   lines.js               ce qu'elle dit (FR / EN / ES / PT / RU)
   chip.js                son masque : quand elle dort, et en bas à gauche quand tu la ranges
   voice.js               les sons
@@ -316,14 +371,14 @@ src/renderer/js/
 
 Pour bosser dessus : `npm run dev` active des routes de debug sur le bridge (`/debug/capture` enregistre une image de la fenêtre dans `captures/`,
 `/debug/testwin` ouvre des fenêtres de test sur lesquelles elle peut s'asseoir, une par nom, `/debug/mouse` bouge et clique un pointeur
-factice sur la fenêtre de Capri, sans toucher au vrai).
+factice sur la fenêtre de Capri, sans toucher au vrai, `/debug/type` écrit dans son chat).
 `npm run dist` fabrique l'installeur Windows dans `dist/`.
 
 ## Crédits et droits
 
 Capri / Project Capricorn, Cyberpunk et Cyberpunk: Edgerunners appartiennent à CD PROJEKT RED, Studio Trigger et Netflix.
-Projet de fan, non commercial, sans lien avec eux. Les images du personnage dans `assets/capri/` viennent d'images de la série
-et d'une découpe faite par des fans ; elles ne sont **pas** couvertes par la licence MIT du code.
+Projet de fan, non commercial, sans lien avec eux. Les images du personnage dans `assets/capri/` viennent d'images de la série,
+d'une découpe faite par des fans et d'un fan art (les gros plans de son intro) ; elles ne sont **pas** couvertes par la licence MIT du code.
 Si un ayant droit veut qu'elles soient retirées, ouvre une issue.
 
 Polices : Chakra Petch et JetBrains Mono, sous licence SIL Open Font License, via Fontsource.

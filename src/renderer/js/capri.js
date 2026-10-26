@@ -7,7 +7,7 @@
 
 import { SpriteRenderer, SPRITE } from './sprite.js';
 import { ACTS, NEUTRAL, Player } from './acting.js';
-import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion } from './util.js';
+import { sleep, rand, pick, clamp, lerp, ease, tween, reducedMotion, today } from './util.js';
 
 const ON_TWOS = 1000 / 12;
 const ON_ONES = 1000 / 24;
@@ -18,12 +18,6 @@ const GRAVITY = 2600; // px/s²
 const THIGH = 73;     // hip to knee, sprite px (see sprite.js)
 
 const UPLINK_DAY = 'capri.uplinkDay'; // the last day she sent the red light up
-
-// the local date, YYYY-MM-DD
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 const GREEN = [0.21, 1, 0.48];
 const INK = [0.08, 0.06, 0.11];
@@ -1381,8 +1375,8 @@ export class Capri {
     this.busy = false;
   }
 
-  // Her intro, when she starts: her face big in the top right corner of the screen says hi,
-  // then dives down to where she stands and her body unfolds from it (fx.intro).
+  // Her intro, when she starts: she grabs your screen by its edges, huge, says hi, then her hands
+  // slip and she dives down to where she stands, and her body unfolds from her face (fx.intro).
   // `still`: no motion, it comes and goes where it is (Windows' animations off).
   async intro(at, { label = 'hi', caption = 'PROJECT CAPRICORN', still = reducedMotion.matches } = {}) {
     const p = this.p;
@@ -1402,10 +1396,14 @@ export class Capri {
       caption,
       still,
       onCue: (cue) => {
-        if (cue === 'open') this.voice.play('charge'); // her pieces coming in
-        else if (cue === 'tear') this.voice.play('teleport-in');
-        else if (cue === 'hi') this.voice.play('hello');
-        else if (cue === 'dive') this.voice.play('teleport-out');
+        if (cue === 'open') this.voice.play('charge'); // the edges of the screen crackling
+        else if (cue === 'hand') this.voice.play('land'); // a hand on the edge
+        else if (cue === 'wave') this.voice.play('rise'); // a hand off it, to wave
+        else if (cue === 'grab') {
+          this.voice.play('land'); // she slams into it
+          this.voice.play('bolt');
+        } else if (cue === 'hi') this.voice.play('hello');
+        else if (cue === 'slip') this.voice.play('teleport-out');
       },
     });
     await this.arrive(at, { face: this.facing, beam: false });

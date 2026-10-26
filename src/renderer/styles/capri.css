@@ -436,6 +436,288 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ---------- her report card (mission log) ---------- */
+
+.panel[data-kind='report'] { --accent: var(--green); }
+
+.panel.has-report {
+  width: clamp(340px, 26vw, 440px);
+}
+
+.panel__report {
+  margin: 12px 0 0;
+  padding: 10px 12px 9px;
+  background: var(--ink-2);
+  border-top: 2px solid var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+.report__head,
+.report__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.report__head {
+  font-size: var(--text-meta);
+  color: var(--paper-3);
+}
+
+.report__title {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* the day in one number: big, tight, with her violet misregistered copy behind it */
+.report__hero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 8px;
+}
+
+.report__big {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(46px, 3.3vw, 62px);
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+  color: var(--accent);
+  text-shadow: 3px 3px 0 var(--violet);
+  font-variant-numeric: tabular-nums;
+}
+
+.report__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-2);
+}
+
+.report__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  border-top: 1px solid oklch(0.97 0.012 350 / 0.08);
+}
+
+.report__cell {
+  padding: 7px 0 2px;
+}
+
+.report__cell + .report__cell {
+  padding-left: 10px;
+  border-left: 1px solid oklch(0.97 0.012 350 / 0.08);
+}
+
+.report__cell .report__label {
+  display: block;
+  font-weight: 400;
+  color: var(--paper-3);
+}
+
+.report__cell dd {
+  margin: 2px 0 0;
+}
+
+.report__num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+
+.report__cell.is-hot .report__num {
+  color: var(--red);
+}
+
+.report__longest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-data);
+  color: var(--paper-2);
+  white-space: nowrap;
+}
+
+.report__chip {
+  flex: none;
+  padding: 2px 6px 1px;
+  background: var(--red);
+  color: var(--ink);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+.report__project {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report__time {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.report__foot {
+  flex-wrap: wrap;
+  row-gap: 3px;
+  margin-top: 9px;
+  padding-top: 6px;
+  border-top: 1px solid oklch(0.97 0.012 350 / 0.08);
+  font-size: 9px;
+  color: var(--paper-3);
+}
+
+.report__sign {
+  margin-left: auto;
+  color: var(--violet);
+  font-weight: 600;
+}
+
+/* the picture for the clipboard: on its own dark plate, no buttons */
+.panel.is-capturing .panel__actions,
+.panel.is-capturing .panel__tail {
+  display: none !important;
+}
+
+.snap-plate {
+  position: fixed;
+  z-index: 2;
+  background: oklch(0.12 0.03 300);
+  pointer-events: none;
+}
+
+/* ---------- talking to her (chat) ---------- */
+
+.panel[data-kind='chat'] { --accent: var(--green); }
+
+.panel.is-chat {
+  width: clamp(320px, 24vw, 420px);
+}
+
+/* your line up top like a prompt, her answer under it */
+.panel.is-chat .panel__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel.is-chat .panel__meta { order: -2; }
+
+.panel.is-chat .panel__quote {
+  order: -1;
+  margin: 0 0 8px;
+  padding-left: 0;
+  border-left: 0;
+  -webkit-line-clamp: 2;
+}
+
+.panel.is-chat .panel__quote::before {
+  content: '> ';
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.panel.is-chat .panel__line {
+  max-height: min(36vh, 320px);
+  padding-block: 2px; /* the display face's glyphs reach past its line box: no scrollbar for that */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--violet) transparent;
+}
+
+/* her answer coming in: a block cursor at its end, on twos */
+.panel__line.is-streaming::after {
+  content: '▌';
+  margin-left: 1px;
+  color: var(--accent);
+  animation: blink 600ms steps(2, jump-none) infinite;
+}
+
+.panel__chat {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+
+.panel__input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px 6px;
+  border: 0;
+  border-bottom: 2px solid var(--accent);
+  background: var(--ink-2);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-data) + 1px);
+  caret-color: var(--accent);
+  user-select: text;
+  outline: none;
+  clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%, 0 7px);
+}
+
+.panel__input::placeholder {
+  color: var(--paper-3);
+}
+
+.panel__input:focus {
+  background: oklch(0.27 0.05 300);
+}
+
+.panel__input:disabled {
+  color: var(--paper-3);
+}
+
+.panel__chat .panel__action {
+  flex: none;
+}
+
+.panel__chat .panel__action:disabled {
+  background: var(--ink-2);
+  color: var(--paper-3);
+  cursor: default;
+}
+
+.panel__close {
+  padding-inline: 10px;
+}
+
+/* it's an AI, and it's not her voice from the show: said on every chat, plainly */
+.panel__note {
+  margin: 9px 0 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--paper-3);
+}
+
+.panel__note b {
+  margin-right: 4px;
+  padding: 1px 5px 0;
+  background: var(--violet);
+  color: var(--paper);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
 /* the jagged tail pointing back at her */
 .panel__tail {
   position: absolute;
@@ -513,6 +795,25 @@ body {
   color: var(--paper-2);
 }
 
+/* Claude thinking, nothing to show yet: her violet, a slower pulse, the seconds counting up */
+.ticker[data-thinking='true'] .ticker__dot {
+  background: var(--violet);
+  animation-duration: 1400ms;
+}
+
+.ticker[data-thinking='true'] .ticker__verb {
+  color: var(--paper);
+}
+
+.ticker[data-thinking='true'] .ticker__verb::after {
+  content: '…';
+  letter-spacing: 0;
+}
+
+.ticker[data-thinking='true'] .ticker__target {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -521,6 +822,7 @@ body {
   .panel__face img,
   .ticker.is-flash .ticker__plate,
   .ticker__dot,
+  .panel__line.is-streaming::after,
   .panel[data-kind='alert'] .panel__state {
     animation: none !important;
   }

@@ -1,26 +1,35 @@
 // Turns Claude Code hook events into things Capri says and does.
 
 import { LINES } from './lines.js';
-import { pick, fmt, duration, basename } from './util.js';
+import { pick, fmt, duration, basename, rand } from './util.js';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const HACKING_TOOLS = new Set(['Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Agent', 'Task']);
 const WORKING_EVERY = 20; // say something about progress every N tool calls
 const LONG_JOB_MS = 8 * 60 * 1000; // a job this long (or this busy) earns the whole satellite sequence
 const LONG_JOB_ACTIONS = 50;
+// mid-task with not a word from Claude: this long and the ticker starts counting (it's thinking),
+// this long and she says something about it, this long and she tells you nothing's stuck
+const THINK_AFTER = 15000;
+const THINK_SAY = 40000;
+const THINK_LONG = 120000;
 
 export class Brain {
-  constructor({ capri, panel, voice, host, lang = 'fr' }) {
+  constructor({ capri, panel, voice, host, mission, lang = 'fr' }) {
     this.capri = capri;
     this.panel = panel;
     this.voice = voice;
     this.host = host;
+    this.mission = mission; // today's log, for her report card (mission.js)
     this.lang = lang;
     this.sessions = new Map();
     this.replyFor = null;    // the session whose answer she's holding up for you
     this.linked = true;      // has a Claude Code event ever reached her (app.js sets it from the config)
     this.onLinked = null;
     this.onShowcase = null; // the demo's second half (app.js)
+    this.onTalk = null;     // opens a chat with her (app.js, chat.js)
+    this.thinkTimer = 0;
+    this.thinking = null;   // { s, since, said, fidget, gazed } while Claude is quiet mid-task
   }
 
   get t() {
@@ -45,7 +54,12 @@ export class Brain {
   }
 
   say(kind, line, s, extra = {}) {
-    this.panel.say({ kind, line, tag: s ? s.title || s.project : '', ...extra });
+    return this.panel.say({ kind, line, tag: s ? s.title || s.project : '', ...extra });
+  }
+
+  // today's log, for real events only: the demo's don't go on her report card
+  tally(evt) {
+    return evt.demo ? null : this.mission;
   }
 
   handle(evt) {
@@ -99,9 +113,56 @@ export class Brain {
     // the window in front when you send a prompt is the one you typed it in: Claude's
     const window = this.capri.windows.fg || null;
     Object.assign(s, { taskStart: Date.now(), count: 0, files: new Set(), log: [], working: true, window });
+    this.tally(evt)?.prompt(s.project);
     this.capri.goToWork(); // perched on the window in front if she can, else her corner
     const prompt = String(evt.prompt || '').replace(/\s+/g, ' ').trim();
     this.say('work', pick(this.t.prompt), s, { quote: prompt ? clip(prompt, 110) : '', hold: 4500 });
+    this.watchThinking();
+  }
+
+  // Mid-task and nothing from Claude for a while: it's thinking (a big question, a slow local
+  // model). The ticker counts the seconds and she keeps herself busy, so you can tell nothing froze.
+  watchThinking() {
+    if (!this.thinkTimer) this.thinkTimer = setInterval(() => this.thinkTick(), 1000);
+  }
+
+  thinkTick() {
+    const busy = this.busySessions;
+    if (!busy.length) {
+      clearInterval(this.thinkTimer);
+      this.thinkTimer = 0;
+      this.thinking = null;
+      return;
+    }
+    const s = busy.sort((a, b) => b.seen - a.seen)[0];
+    const quiet = Date.now() - s.seen; // any event from it counts as a sign of life
+    if (s.waiting || quiet < THINK_AFTER) {
+      // it spoke up again (or it's your turn): whatever it did is on the ticker now
+      if (this.thinking && this.panel.tickerAction?.thinking) this.panel.setTicker(s.last || null);
+      this.thinking = null;
+      return;
+    }
+    let th = this.thinking;
+    if (th?.s !== s || th.since !== s.seen) th = this.thinking = { s, since: s.seen, said: 0, fidget: 0, gazed: false };
+    const t = this.t.thinking;
+    this.panel.setTicker({ verb: t.verb, target: duration(quiet, this.lang), thinking: true });
+
+    const now = performance.now();
+    if (now > th.fidget && !this.capri.stowed) {
+      th.fidget = now + rand(9000, 16000);
+      // once in a long think she looks up at the satellite; otherwise a little something
+      const gazed = !th.gazed && quiet > 25000 && this.capri.gaze({ big: false });
+      if (gazed) th.gazed = true;
+      else this.capri.flourish();
+    }
+    if (th.said < 1 && quiet >= THINK_SAY) {
+      th.said = 1;
+      this.say('work', pick(t.hmm), s, { face: 'aside', hold: 4000 });
+    }
+    if (th.said < 2 && quiet >= THINK_LONG) {
+      th.said = 2;
+      this.say('info', pick(t.long), s, { face: 'smug', quote: t.longHow, hold: 8000 });
+    }
   }
 
   onTool(evt, s) {
@@ -111,6 +172,7 @@ export class Brain {
     s.last = action;
     s.log.push(action);
     if (s.log.length > 8) s.log.shift();
+    this.tally(evt)?.action();
     if (EDIT_TOOLS.has(evt.tool_name)) {
       const file = evt.tool_input?.file_path || evt.tool_input?.notebook_path;
       if (file) s.files.add(file);
@@ -135,6 +197,7 @@ export class Brain {
     // "Exit code 1" says nothing; the next line usually does
     const lines = String(evt.error || '').split('\n').map((l) => l.trim()).filter(Boolean);
     const firstLine = lines.find((l) => !/^exit code \d+$/i.test(l)) || lines[0] || '';
+    this.tally(evt)?.error();
     this.capri.hurt();
     this.voice.play('error');
     this.say('error', fmt(pick(this.t.error), { tool: evt.tool_name || 'outil' }), s, {
@@ -148,6 +211,7 @@ export class Brain {
     const type = evt.notification_type;
     if (type === 'permission_prompt' || type === 'elicitation_dialog' || type === 'agent_needs_input') {
       s.waiting = true;
+      this.tally(evt)?.approval();
       this.capri.setMode('alert');
       this.voice.play('alert');
       // you're on another window: she goes and points at Claude's, where the question is
@@ -184,6 +248,9 @@ export class Brain {
       s.taskStart && duration(Date.now() - s.taskStart, this.lang),
     ].filter(Boolean).join(' · ');
     const quote = cleanMarkdown(evt.last_assistant_message || '');
+    if (wasWorking || s.count) {
+      this.tally(evt)?.done({ files: s.files.size, ms: s.taskStart ? Date.now() - s.taskStart : 0, project: s.project });
+    }
 
     if (!this.busySessions.length) {
       this.panel.setTicker(null);
@@ -257,17 +324,71 @@ export class Brain {
     this.say('info', fmt(pick(this.t.bye), { project: s.project }), s, { face: 'aside', hold: 4000 });
   }
 
-  // What she says when you click her.
+  // What she says when you click her. Nothing going on: she offers to talk (chat.js).
   status() {
     const busy = this.busySessions;
     if (!busy.length) {
-      this.say('idle', pick(this.t.idle), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000 });
+      const talk = this.onTalk && { actions: [{ id: 'talk', label: this.t.chat.talk }], onAction: () => this.onTalk(), hold: 6000 };
+      this.say('idle', pick(this.t.idle), null, { face: pick(['calm', 'smug', 'aside']), hold: 4000, ...talk });
       return;
     }
     const s = busy.sort((a, b) => b.seen - a.seen)[0];
     const time = s.taskStart ? duration(Date.now() - s.taskStart, this.lang) : '…';
     const extra = busy.length > 1 ? ` ${fmt(this.t.sessions, { count: busy.length })}.` : '';
     this.say('work', fmt(this.t.status, { project: s.project, time }) + extra, s, { log: s.log, hold: 6000 });
+  }
+
+  // What's going on, in plain words, for her chat: so she can answer "what's Claude up to?".
+  context() {
+    const busy = this.busySessions.sort((a, b) => b.seen - a.seen);
+    const now = busy.length
+      ? busy.map((s) => {
+        const time = s.taskStart ? ` for ${duration(Date.now() - s.taskStart, 'en')}` : '';
+        const last = s.last ? `, last: ${s.last.verb} ${s.last.target}` : '';
+        return `Claude is working on ${s.project}${time} (${plural(s.count, ['action', 'actions'], 'en')} so far${last}).`;
+      }).join(' ')
+      : 'Claude is idle.';
+    const d = this.mission?.day;
+    const today = d ? ` Today: ${d.missions} tasks finished, ${d.actions} actions, ${d.files} files changed, ${d.errors} errors.` : '';
+    return now + today;
+  }
+
+  // Her report card: what Claude got through today, made to be screenshotted (her menu, or on
+  // her own in the evening). The copy button puts a picture of it on the clipboard.
+  report() {
+    const d = this.mission.day;
+    const t = this.t.report;
+    if (!d.missions && !d.prompts) {
+      this.say('idle', pick(t.lines.none), null, { face: 'aside', hold: 6000 });
+      return false;
+    }
+    const tier = d.missions >= 10 || d.actions >= 300 ? 'big' : d.missions < 3 ? 'light' : 'good';
+    const copy = async () => {
+      const ok = await this.panel.snapshot((rect) => this.host.copyImage(rect)).catch(() => false);
+      this.panel.relabel('copy', ok ? t.copied : t.copyFailed);
+    };
+    return this.say('report', pick(t.lines[tier]), null, {
+      badge: t.badge,
+      face: tier === 'big' ? 'laugh' : 'smug',
+      report: {
+        date: new Intl.DateTimeFormat(this.lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()),
+        hero: { value: d.missions, label: t.missions },
+        stats: [
+          { value: d.actions, label: t.actions },
+          { value: d.files, label: t.files },
+          { value: d.errors, label: t.errors, hot: d.errors > 0 },
+        ],
+        longest: d.longest && { label: t.longest, project: d.longest.project, time: duration(d.longest.ms, this.lang) },
+        foot: [
+          plural(d.prompts, t.prompts, this.lang),
+          plural(d.approvals, t.approvals, this.lang),
+          plural(d.projects.length, t.projects, this.lang),
+        ].join(' · '),
+      },
+      actions: [{ id: 'copy', label: t.copy, primary: true }, { id: 'close', label: t.close }],
+      onAction: (id) => (id === 'copy' ? copy() : this.panel.hide()),
+      hold: null,
+    });
   }
 
   describe(evt) {

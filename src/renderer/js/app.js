@@ -1,10 +1,12 @@
 import { Capri } from './capri.js';
-import { FxLayer } from './fx.js';
+import { FxLayer, GRAB_FRAMES } from './fx.js';
 import { Chip, Mask } from './chip.js';
 import { Panel } from './panel.js';
 import { Voice } from './voice.js';
 import { Brain } from './brain.js';
 import { Guide } from './guide.js';
+import { Mission } from './mission.js';
+import { Chat } from './chat.js';
 import { LINES } from './lines.js';
 import { pick, fmt } from './util.js';
 
@@ -26,7 +28,9 @@ async function boot() {
   const [config, image, intro, ...cutins] = await Promise.all([
     host.getConfig(),
     loadImage('../../assets/capri/capri-full.png'),
-    loadImage('../../assets/capri/intro-face.webp').catch(() => null), // her intro, frames of the show
+    // her intro: her close-up grabbing the screen, and its drawings with her mouth and arm moving
+    Promise.all(GRAB_FRAMES.map((name) => loadImage(`../../assets/capri/intro-${name}.webp`).catch(() => null)))
+      .then((cels) => (cels[0] ? Object.fromEntries(GRAB_FRAMES.map((name, i) => [name, cels[i]])) : null)),
     ...CUTINS.map((name) => loadImage(`../../assets/capri/cutin-${name}.png`)),
     document.fonts.load('600 16px "Chakra Petch"'),
     document.fonts.load('400 11px "JetBrains Mono"'),
@@ -63,7 +67,8 @@ async function boot() {
   capri.possessWindows = config.possess;
   capri.setScale(config.scale);
 
-  const brain = new Brain({ capri, panel, voice, host, lang: config.lang });
+  const mission = new Mission();
+  const brain = new Brain({ capri, panel, voice, host, mission, lang: config.lang });
 
   // Click-through everywhere except on her body, the panel and her biochip.
   let interactive = false;
@@ -164,6 +169,9 @@ async function boot() {
   // Her guide (guide.js): her welcome on first launch, and "How does it work?" in her menu,
   // where she takes you to things and points at them.
   const guide = new Guide({ capri, panel, voice, host, brain });
+  // Talking to her (chat.js): "Talk to her" in her menu, or the button when you click her idle.
+  const chat = new Chat({ capri, panel, voice, host, brain });
+  brain.onTalk = () => chat.start();
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
   brain.onLinked = () => {
@@ -290,6 +298,17 @@ async function boot() {
       case 'welcome': // "How does it work?" in her menu
         guide.menu();
         break;
+      case 'chat': // "Talk to her" in her menu
+        chat.start();
+        break;
+      case 'report': // "Mission report" in her menu
+        if (capri.stowed) {
+          host.setConfig({ visible: true });
+          await capri.unstow();
+        }
+        capri.wake();
+        if (brain.report()) capri.perform('curious', capri.towardCenter());
+        break;
       case 'fakeClaude': { // --dev: the topmost window (the test window) is where a prompt was typed, and you're elsewhere
         const win = capri.windows.wins[0];
         if (win) {
@@ -372,6 +391,19 @@ async function boot() {
   const hooks = await host.hooksStatus();
   if (!config.welcomed || !hooks.installed) guide.welcome();
   else panel.say({ kind: 'info', line: pick(brain.t.online), hold: 4000 });
+
+  // In the evening, after a real day's work, she brings you her report card once, on her own,
+  // at a quiet moment.
+  setInterval(() => {
+    const day = mission.day;
+    const quiet = !brain.busySessions.length && !panel.visible && !guide.running && !capri.busy && !capri.act;
+    if (new Date().getHours() < 18 || day.reported || day.missions < 3 || !quiet) return;
+    if (capri.stowed || capri.dormant || capri.mode === 'sleep') return;
+    if (brain.report()) {
+      mission.markReported();
+      capri.perform('curious', capri.towardCenter());
+    }
+  }, 60000);
 }
 
 boot().catch((err) => {

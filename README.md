@@ -12,17 +12,22 @@ comes to find you when Claude needs your permission, and loses it when the job i
 
 ## What she does
 
-- **When she starts**: her face, big, in the top right corner of your screen, frame by frame from the show. Her pieces
-  spiral in, she's a red line, the line splits in two and opens on her like a shutter, the picture coming in with its
-  colours apart, then her frame builds around her while the camera pushes in. She opens her mouth and says hi. Then
-  she shrinks and dives down to her spot, leaving afterimages of herself behind, and her body unfolds from her face.
+- **When she starts**: she grabs your screen. Its edges crackle red, her left hand slams onto its edge, then her
+  right, her arms reach in along them as she hauls herself up, and her face hits the glass (a white flash, an ink
+  one, her colours apart, the screen shaking). She looks around, blinks, opens her mouth wide on "hi" (a tag pops
+  by her face, her name typed under it), lets go of the right edge to wave at you with her clawed hand, grabs it
+  again, glances at where she's going, and lets go: her arms break into shards from her hands in, and her head
+  crouches and dives down to her spot, where her body unfolds from her face.
 
-  ![Her intro: the shutter opening, her frame building, "hi", the dive](docs/intro.png)
+  ![Her intro: her hands on the edges, her face hitting the glass, the wave, holding on again](docs/intro.png)
 
 - **While Claude works**: a ticker over her head shows the current action
   (`EDITS gigs.ts`, `RUNS npm test`, `GREPS "paginate"`…) and she sheds little data glyphs.
   When Claude runs a command or goes on the web, red sparks fly off her fingers; sitting on a window,
   she jacks into it and the lightning runs along its edge.
+- **When Claude goes quiet mid-task** (thinking it over, or a slow local model): after 15 seconds the ticker turns
+  violet and counts the seconds (`THINKING… 45 s`), and she keeps herself busy (a spin, a look around, the satellite
+  once). After 40 seconds she says something about it; after two minutes she tells you nothing's stuck.
 - **When Claude needs you** (permission, question): she teleports next to your mouse, mane bristling, and won't let it go.
   If you're on another window, she goes to Claude's window instead and points at it with her finger (a dashed line,
   brackets on its corners, `CLAUDE` on a tag): that's where the question is. She stops once you've answered.
@@ -103,16 +108,43 @@ Each message picks the one that fits, and her portrait glitches from one face to
 
 ![Her eight faces](docs/faces.png)
 
+### Her mission report
+
+**Mission report** in her menu: a card of what Claude got through today, made to be screenshotted. Tasks finished in
+big, then actions, files changed and errors, the longest mission and its project, prompts, approvals and projects. The
+numbers count up. **Copy image** puts a picture of the card on your clipboard, on its own dark plate, ready to paste
+anywhere. In the evening (after 6 pm), after a real day's work (3 tasks or more), she brings it to you once, on her
+own. The demo doesn't count, and it stays on your PC, one day at a time.
+
+### Talk to her (Ollama)
+
+**Talk to her** in her menu (or the **Talk to me** button when you click her and nothing's going on): you type in her
+panel and she answers in character, through an AI model running on your PC with [Ollama](https://ollama.com). She knows
+what Claude is doing and what it got done today. She answers in writing, in her own language.
+
+1. Install Ollama and open it.
+2. In a terminal: `ollama pull llama3.2` (about 2 GB). Any chat model works: pick it in her menu › **AI model (Ollama)**.
+3. Her menu › **Talk to her**. Enter sends, Esc closes.
+
+**It's AI.** Her replies are written by the model, not by the show's writers: it's a fan version of her, and the chat
+panel says so every time.
+
+**Closing an app** (Windows): ask her ("close AM Music", "can you shut Discord down?") and she offers a button with the
+app's name. Nothing happens until you click it. She closes it the way its own close button does, so it can still ask
+you to save. If it only hid in the tray, she offers **Force quit**, again only on your click (unsaved work is lost
+then). She never closes Windows' own pieces, Claude, Ollama or herself, and she can't do anything else on your PC.
+
 She only catches the mouse on her actual body (pixel-precise): the rest of the screen works as usual.
 
-- **Click** her: she tells you where Claude is at.
+- **Click** her: she tells you where Claude is at (nothing going on: a **Talk to me** button, to chat with her).
 - **Drag** her: move her around.
 - **Click** the panel: it closes.
 - **Ctrl+Alt+C**: she puts herself away (into her biochip, like in the show) and all that's left of her is her mask,
   eyes shut, in the bottom-left corner. Her eyes only open when Claude needs you. Click the mask (or Ctrl+Alt+C again)
   to bring her back.
 - **Her menu**: right-click her (it's also on her tray icon, next to the clock): teleport, look at the satellite, demo,
-  how it works, size, sound, screen, wander, possess your windows, language, start with Windows, hooks.
+  how it works, mission report, talk to her, size, sound, screen, AI model, wander, possess your windows,
+  language, start with Windows, hooks.
 
 She speaks **French, English, Spanish, Brazilian Portuguese and Russian**, and picks the language of your system on her
 own. You can choose another one in her menu.
@@ -218,6 +250,9 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 - **Mac, Linux?** No installer yet, but you can run her from the source (see above).
 - **Phone, Android?** No, she needs a desktop.
 - **Other assistants (Codex, Cursor, Windsurf, Gemini…)?** Claude Code only for now.
+- **Ollama?** Two ways. Claude Code running on a local model through Ollama (`ollama launch claude`): she sees it like
+  any Claude Code, it's just slower, and her ticker counts the seconds while it thinks. And she can chat with you
+  through Ollama herself: see "Talk to her".
 - **Can I turn her off?** Ctrl+Alt+C puts her away, **Quit** in her menu closes her. Claude Code works exactly the same
   without her.
 - **She only floats around and says idle things.** That's normal until Claude Code does something. If it never reacts,
@@ -228,6 +263,9 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 Nothing. The hook only keeps what the display needs (tool name, file path, command, the start of your prompt,
 Claude's last message up to 6,000 characters so she can show it to you, all truncated) and sends it to `127.0.0.1` only.
 Your file contents are never sent: for a write, only its size goes through.
+
+Her chat goes to Ollama on your PC (`127.0.0.1:11434`, or `OLLAMA_HOST`) with what she knows of the moment (the
+project's name, Claude's last action, today's counts). Her mission log stays in her own storage on your PC.
 
 ## Art direction
 
@@ -268,10 +306,13 @@ The goal: she should feel like she stepped out of the anime, not like a widget.
 - **Teleport**: charge, shards, collapse into a line, and where she was, a black slit with a red line in it,
   like in the show. A red column of light to the sky, a bolt to the destination, her pieces (mane shards and the
   green stars of her eyes) spiralling back in, back with two *impact frames*.
-- **Her intro**: nine frames of the show played in her portrait (the push-in on her face, her mouth opening for
-  "hi"), from the sharpest copy of the clip, its GIF grain smoothed out. It opens on a red line split in two, with
-  an RGB split that settles as it opens; its edge flashes, then its violet shadow, red line and her name come in one
-  after the other. The tag slams on with speed lines, then a dive with a smear, afterimages and her zigzag.
+- **Her intro**: a close-up of her, cut out so your desktop shows around her mane (`tools/build-intro.py`), in six
+  drawings swapped like cels (at rest, her mouth ajar, half open and wide open for "hi", her hand tilted one way and
+  the other for the wave, on threes), and everything else is animation on top: impact frames (her as a flat white then ink silhouette), an RGB split that
+  settles, screen shake, the line boiling on twos, her eyes redrawn over the picture's so they can look around and
+  blink, the camera creeping in, the tag slamming on. Never a straight edge of the picture on screen: it shows
+  through jagged cuts that move (her arms from the sides in, then breaking off from the hands in, then just her
+  head for the dive, with afterimages and her zigzag).
 - **Cut-ins**: close-ups of her taken from the show, pushed in, with speed lines: her grin or her laugh after a
   finished job, all her eyes when Claude is waiting on you, her eyes right before the red light, her sideways look
   after zapping your pointer. Her face in the panel changes with what she's saying, too.
@@ -288,9 +329,12 @@ If Windows is set to "Show animations: off", she sticks to fades.
 hooks/capri-hook.js      run by Claude Code, reads the event on stdin and posts it to the app
 scripts/install-hooks.js adds / removes the hook in ~/.claude/settings.json
 tools/build-sprite.py    rebuilds the sprite from the original cut-out (Python + Pillow, only if you change it)
-tools/build-cutins.py    cuts the cut-ins, her faces and her intro out of frames of the show
+tools/build-cutins.py    cuts the cut-ins and her faces out of frames of the show
+tools/build-intro.py     cuts her intro's close-ups out of their background, all the same way
 src/main/                Electron: full-screen transparent click-through window, tray, local HTTP bridge
   windows.js / .ps1      where the other windows are (Windows only), so she can sit on them
+  ollama.js              her chat: the local model, through Ollama
+  apps.js                closing an app you asked her to close (after your click)
 src/renderer/js/
   sprite.js              WebGL shader: head tilt, mane flare, sitting, smears, afterimages, colors, glitch
   acting.js              the exposure sheets: every move, drawing by drawing
@@ -299,6 +343,8 @@ src/renderer/js/
   panel.js               the "transmission" panel, her faces, and the ticker
   guide.js               her guide: the tutorials, going to things and pointing at them
   brain.js               turns Claude events into lines and actions
+  mission.js             today's mission log, for her report card
+  chat.js                talking to her: the conversation, who she is, her answers coming in
   lines.js               what she says (FR / EN / ES / PT / RU)
   chip.js                her mask: while she sleeps, and bottom left when you put her away
   voice.js               the sounds
@@ -306,14 +352,14 @@ src/renderer/js/
 
 To hack on it: `npm run dev` turns on debug routes on the bridge (`/debug/capture` saves a frame of the window to `captures/`,
 `/debug/testwin` opens test windows she can sit on, one per name, `/debug/mouse` moves and clicks a stand-in pointer
-over Capri's window, without touching the real one).
+over Capri's window, without touching the real one, `/debug/type` types in her chat).
 `npm run dist` builds the Windows installer in `dist/`.
 
 ## Credits and rights
 
 Capri / Project Capricorn, Cyberpunk and Cyberpunk: Edgerunners belong to CD PROJEKT RED, Studio Trigger and Netflix.
 This is a non-commercial fan project with no affiliation. The character images in `assets/capri/` come from frames of
-the show and a fan-made cut-out; they are **not** covered by the code's MIT license.
+the show, a fan-made cut-out and fan art (her intro's close-ups); they are **not** covered by the code's MIT license.
 If a rights holder wants them removed, open an issue.
 
 Fonts: Chakra Petch and JetBrains Mono, under the SIL Open Font License, via Fontsource.
