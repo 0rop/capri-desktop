@@ -132,10 +132,11 @@ function toggleVisible(force) {
 
 function playDemo() {
   clearTimeout(demoTimer);
+  const steps = demoSteps(resolveLang(config.load().lang)); // in her language
   let i = 0;
   const next = () => {
-    if (i >= demoSteps.length) return;
-    const [delay, evt] = demoSteps[i++];
+    if (i >= steps.length) return;
+    const [delay, evt] = steps[i++];
     demoTimer = setTimeout(() => {
       overlay?.webContents.send('claude:event', evt);
       next();
@@ -261,6 +262,12 @@ function rebuildTray() {
       })),
     },
     { label: t.claude, type: 'checkbox', checked: cfg.claude, click: (item) => updateConfig({ claude: item.checked }) },
+    {
+      label: t.motion,
+      submenu: [['auto', t.motionAuto], ['full', t.motionFull], ['reduced', t.motionReduced]].map(([motion, label]) => ({
+        label, type: 'radio', checked: cfg.motion === motion, click: () => updateConfig({ motion, motionAsked: true }),
+      })),
+    },
     {
       label: t.lang,
       submenu: [[t.auto, 'auto'], ...LANGS.map((lang) => [TRAY[lang].name, lang])].map(([label, lang]) => ({

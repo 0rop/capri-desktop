@@ -225,7 +225,8 @@ Rejoue une fausse session complète (lecture, recherche web, sous-agent, écritu
 permission, fin), puis montre tout ce qu'elle fait toute seule, une phrase avant chaque numéro : ses autres esprits,
 l'éclair sur ta souris, la grande séquence du satellite, la possession d'une fenêtre (un petit terminal s'ouvre
 pour elle, puis se ferme sous elle et elle tombe), le sommeil jusqu'à son masque, et le rangement en bas à gauche.
-C'est aussi dans le menu de l'icône.
+C'est aussi dans le menu de l'icône, dans sa langue ; en ligne de commande c'est en anglais, ou précise la langue :
+`npm run demo -- fr` (ou `es`, `pt`, `ru`).
 
 ## Sons
 
@@ -267,6 +268,9 @@ avec ces noms (`.mp3`, `.wav`, `.ogg` ou `.m4a`) :
 - **Ollama ?** De deux façons. Claude Code qui tourne sur un modèle local via Ollama (`ollama launch claude`) : elle le
   voit comme n'importe quel Claude Code, c'est juste plus lent, et son ticker compte les secondes pendant qu'il
   réfléchit. Et elle peut discuter avec toi via Ollama : voir « Lui parler ».
+- **Elle bouge à peine, son intro apparaît et disparaît juste en fondu.** Windows a ses animations coupées
+  (Paramètres › Accessibilité › Effets visuels › Effets d'animation), et elle suit ce réglage. Son menu ›
+  **Animations** › **Toutes** la fait bouger quand même ; la première fois, elle te pose la question.
 - **Je peux l'éteindre ?** Ctrl+Alt+C la range, **Quitter** dans son menu la ferme. Claude Code marche exactement pareil
   sans elle.
 - **Elle flotte et dit des petites phrases, mais rien d'autre.** C'est normal tant que Claude Code ne fait rien. S'il ne

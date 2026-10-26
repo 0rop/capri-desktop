@@ -211,7 +211,8 @@ Replays a fake session from start to finish (reads, a web fetch, a subagent, wri
 prompt, the end), then shows everything she does on her own, a line before each trick: the other minds in her,
 zapping your pointer, the whole satellite sequence, possessing a window (a little terminal opens for her, then closes
 under her and she falls), sleeping down to her mask, and putting herself away in the bottom-left corner.
-It's also in the tray menu.
+It's also in the tray menu, in her language; from the command line it's in English, or add one: `npm run demo -- fr`
+(or `es`, `pt`, `ru`).
 
 ## Sounds
 
@@ -253,6 +254,9 @@ named like this (`.mp3`, `.wav`, `.ogg` or `.m4a`):
 - **Ollama?** Two ways. Claude Code running on a local model through Ollama (`ollama launch claude`): she sees it like
   any Claude Code, it's just slower, and her ticker counts the seconds while it thinks. And she can chat with you
   through Ollama herself: see "Talk to her".
+- **She barely moves, her intro just fades in and out.** Windows has its animations turned off (Settings ›
+  Accessibility › Visual effects › Animation effects), and she follows it. Her menu › **Animations** › **Full** makes
+  her move anyway; the first time, she asks.
 - **Can I turn her off?** Ctrl+Alt+C puts her away, **Quit** in her menu closes her. Claude Code works exactly the same
   without her.
 - **She only floats around and says idle things.** That's normal until Claude Code does something. If it never reacts,

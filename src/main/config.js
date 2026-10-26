@@ -18,6 +18,8 @@ const DEFAULTS = {
   chatModel: null,   // the Ollama model she talks with (null: the first one installed)
   claude: true,      // she watches Claude Code (off: she just keeps you company, no word of it)
   rest: 'corner',    // where she rests when nothing's going on: 'corner', or 'taskbar' (sitting on it)
+  motion: 'auto',    // her animations: 'auto' (like Windows' animation effects), 'full' or 'reduced'
+  motionAsked: false, // she asked once, Windows' animations being off, whether to move anyway
 };
 
 let cache = null;

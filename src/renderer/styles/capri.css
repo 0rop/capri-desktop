@@ -816,14 +816,13 @@ body {
 
 /* ---------- reduced motion ---------- */
 
-@media (prefers-reduced-motion: reduce) {
-  .panel.is-entering .panel__frame,
-  .panel.is-leaving .panel__frame,
-  .panel__face img,
-  .ticker.is-flash .ticker__plate,
-  .ticker__dot,
-  .panel__line.is-streaming::after,
-  .panel[data-kind='alert'] .panel__state {
-    animation: none !important;
-  }
+/* Windows' animation effects off, or her menu › Animations › Reduced (app.js sets data-motion) */
+html[data-motion='reduced'] .panel.is-entering .panel__frame,
+html[data-motion='reduced'] .panel.is-leaving .panel__frame,
+html[data-motion='reduced'] .panel__face img,
+html[data-motion='reduced'] .ticker.is-flash .ticker__plate,
+html[data-motion='reduced'] .ticker__dot,
+html[data-motion='reduced'] .panel__line.is-streaming::after,
+html[data-motion='reduced'] .panel[data-kind='alert'] .panel__state {
+  animation: none !important;
 }

@@ -2,9 +2,11 @@
 'use strict';
 
 // Plays the demo session against a running Capri, through the same HTTP bridge the hooks use.
+//   npm run demo           (in English)
+//   npm run demo -- fr     (or es, pt, ru)
 
 const http = require('node:http');
-const steps = require('./demo-sequence');
+const steps = require('./demo-sequence')(process.argv[2]);
 
 const PORT = Number(process.env.CAPRI_PORT) || 47823;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

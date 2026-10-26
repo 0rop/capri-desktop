@@ -50,6 +50,7 @@ export const LINES = {
     crashed: ['Claude s’est arrêté en plein vol.', 'Grosse panne. Claude n’a pas pu finir.'],
     subagentStart: ['Sous-agent {agent} déployé.'],
     subagentStop: ['Sous-agent {agent} de retour.'],
+    someTool: 'L’outil', someAgent: 'agent', // un outil, un sous-agent sans nom
     compact: ['Je compresse nos souvenirs…', 'Trop de mémoire. Je fais le tri.'],
     // lui parler (chat.js) : un modèle local via Ollama ; réponses et voix générées par IA, et c'est dit
     chat: {
@@ -157,6 +158,8 @@ export const LINES = {
       failed: 'Je n’ai pas pu me brancher : {error}',
     },
     online: ['Capri en ligne.', 'De retour sur ton bureau, choom.'],
+    // Windows a coupé ses animations : elle bouge à peine, et le dit une fois
+    motion: { line: 'Windows a coupé ses animations, alors je bouge à peine.', quote: 'Tu veux que je bouge quand même ? Tu pourras changer ça dans mon menu › Animations.', full: 'Bouge !', still: 'Reste calme' },
     status: 'Claude travaille sur {project} depuis {time}.',
     last: 'Dernière action : {action}',
     sessions: '{count} sessions actives',
@@ -206,6 +209,7 @@ export const LINES = {
     crashed: ['Claude stopped mid-flight.', 'Hard crash. Claude couldn’t finish.'],
     subagentStart: ['Subagent {agent} deployed.'],
     subagentStop: ['Subagent {agent} is back.'],
+    someTool: 'The tool', someAgent: 'agent', // a tool, a subagent with no name
     compact: ['Compressing our memories…', 'Too much memory. Tidying up.'],
     // talking to her (chat.js): a local model through Ollama; replies and voice are AI-generated, and she says so
     chat: {
@@ -313,6 +317,8 @@ export const LINES = {
       failed: 'I couldn’t plug in: {error}',
     },
     online: ['Capri online.', 'Back on your desktop, choom.'],
+    // Windows has its animations off: she barely moves, and says so once
+    motion: { line: 'Windows has its animations turned off, so I’m barely moving.', quote: 'Want me to move anyway? You can change it later in my menu › Animations.', full: 'Move!', still: 'Stay calm' },
     status: 'Claude has been working on {project} for {time}.',
     last: 'Last action: {action}',
     sessions: '{count} active sessions',
@@ -361,6 +367,7 @@ export const LINES = {
     crashed: ['Claude se detuvo en pleno vuelo.', 'Caída grave. Claude no pudo terminar.'],
     subagentStart: ['Subagente {agent} desplegado.'],
     subagentStop: ['Subagente {agent} de vuelta.'],
+    someTool: 'La herramienta', someAgent: 'agente', // una herramienta, un subagente sin nombre
     compact: ['Comprimiendo nuestros recuerdos…', 'Demasiada memoria. Ordenando.'],
     // hablar con ella (chat.js): un modelo local con Ollama; respuestas generadas por IA, y lo dice
     chat: {
@@ -465,6 +472,8 @@ export const LINES = {
       failed: 'No pude conectarme: {error}',
     },
     online: ['Capri en línea.', 'De vuelta en tu escritorio, choom.'],
+    // Windows tiene las animaciones desactivadas: apenas se mueve, y lo dice una vez
+    motion: { line: 'Windows tiene las animaciones desactivadas, así que apenas me muevo.', quote: '¿Quieres que me mueva igual? Puedes cambiarlo en mi menú › Animaciones.', full: '¡Muévete!', still: 'Quédate tranquila' },
     status: 'Claude lleva {time} trabajando en {project}.',
     last: 'Última acción: {action}',
     sessions: '{count} sesiones activas',
@@ -515,6 +524,7 @@ export const LINES = {
     crashed: ['O Claude parou no meio do voo.', 'Pane feia. O Claude não conseguiu terminar.'],
     subagentStart: ['Subagente {agent} enviado.'],
     subagentStop: ['Subagente {agent} voltou.'],
+    someTool: 'A ferramenta', someAgent: 'agente', // uma ferramenta, um subagente sem nome
     compact: ['Comprimindo nossas memórias…', 'Memória demais. Arrumando tudo.'],
     // falar com ela (chat.js): um modelo local pelo Ollama; respostas geradas por IA, e ela avisa
     chat: {
@@ -619,6 +629,8 @@ export const LINES = {
       failed: 'Não consegui me conectar: {error}',
     },
     online: ['Capri online.', 'De volta na sua área de trabalho, choom.'],
+    // o Windows está com as animações desligadas: ela quase não se mexe, e avisa uma vez
+    motion: { line: 'O Windows está com as animações desligadas, então eu quase não me mexo.', quote: 'Quer que eu me mexa mesmo assim? Dá pra mudar depois no meu menu › Animações.', full: 'Se mexe!', still: 'Fica quieta' },
     status: 'O Claude tá trabalhando em {project} há {time}.',
     last: 'Última ação: {action}',
     sessions: '{count} sessões ativas',
@@ -669,6 +681,7 @@ export const LINES = {
     crashed: ['Claude остановился на полном ходу.', 'Серьёзный сбой. Claude не смог закончить.'],
     subagentStart: ['Субагент {agent} отправлен.'],
     subagentStop: ['Субагент {agent} вернулся.'],
+    someTool: 'Инструмент', someAgent: 'агент', // инструмент, субагент без имени
     compact: ['Сжимаю наши воспоминания…', 'Слишком много памяти. Навожу порядок.'],
     // поговорить с ней (chat.js): локальная модель через Ollama; ответы генерирует ИИ, и она это говорит
     chat: {
@@ -775,6 +788,8 @@ export const LINES = {
       failed: 'Не удалось подключиться: {error}',
     },
     online: ['Капри в сети.', 'Снова на твоём рабочем столе, чумба.'],
+    // в Windows отключены анимации: она почти не двигается и один раз говорит об этом
+    motion: { line: 'В Windows отключены анимации, поэтому я почти не двигаюсь.', quote: 'Хочешь, чтобы я всё равно двигалась? Это можно поменять в моём меню › Анимации.', full: 'Двигайся!', still: 'Не надо' },
     status: 'Claude работает над {project} уже {time}.',
     last: 'Последнее действие: {action}',
     sessions: 'Активных сессий: {count}',

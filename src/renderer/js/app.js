@@ -8,7 +8,7 @@ import { Guide } from './guide.js';
 import { Mission } from './mission.js';
 import { Chat } from './chat.js';
 import { LINES } from './lines.js';
-import { pick, fmt } from './util.js';
+import { pick, fmt, reducedMotion } from './util.js';
 
 const host = window.host;
 
@@ -38,6 +38,13 @@ async function boot() {
     document.fonts.load('400 11px "JetBrains Mono"'),
   ]);
   document.documentElement.lang = config.lang;
+  // her animations: like Windows, full or reduced (her menu)
+  const applyMotion = (setting) => {
+    reducedMotion.setting = setting || 'auto';
+    document.documentElement.dataset.motion = reducedMotion.matches ? 'reduced' : 'full';
+  };
+  applyMotion(config.motion);
+  reducedMotion.onSystemChange(() => applyMotion(reducedMotion.setting));
 
   const fx = new FxLayer(document.getElementById('fx'), {
     cutins: Object.fromEntries(CUTINS.map((name, i) => [name, cutins[i]])),
@@ -287,6 +294,7 @@ async function boot() {
     capri.wander = cfg.wander;
     capri.possessWindows = cfg.possess;
     capri.restOn = cfg.rest || 'corner';
+    applyMotion(cfg.motion);
     if (cfg.claude === false && brain.watching) {
       // no longer watching Claude Code: whatever it was in the middle of is no business of hers
       brain.sessions.clear();
@@ -404,6 +412,29 @@ async function boot() {
   if (config.visible === false) capri.stowNow();
   else if (intro) await capri.intro(capri.spot('post'));
   else await capri.materialize(capri.spot('post'));
+  // Windows has its animations off and she's following it: she barely moves. The first time, she
+  // says so and asks whether to move anyway (her menu › Animations changes it later).
+  if (reducedMotion.setting === 'auto' && reducedMotion.system && !config.motionAsked) {
+    const m = brain.t.motion;
+    await new Promise((done) => {
+      const asked = panel.say({
+        kind: 'info',
+        face: 'aside',
+        guide: true,
+        line: m.line,
+        quote: m.quote,
+        actions: [{ id: 'full', label: m.full, primary: true }, { id: 'reduced', label: m.still }],
+        onAction: (id) => {
+          host.setConfig({ motion: id, motionAsked: true });
+          panel.hide();
+          if (id === 'full') capri.perform('hop');
+        },
+        onLeave: done,
+        hold: null,
+      });
+      if (!asked) done();
+    });
+  }
   const hooks = await host.hooksStatus();
   // her welcome: the first time, or while she's meant to watch Claude Code and isn't plugged into it
   if (!config.welcomed || (config.claude && !hooks.installed)) guide.welcome();

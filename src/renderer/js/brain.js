@@ -202,7 +202,7 @@ export class Brain {
     this.tally(evt)?.error();
     this.capri.hurt();
     this.voice.play('error');
-    this.say('error', fmt(pick(this.t.error), { tool: evt.tool_name || 'outil' }), s, {
+    this.say('error', fmt(pick(this.t.error), { tool: evt.tool_name || this.t.someTool }), s, {
       face: pick(['laugh', 'wide']), // a failure: she laughs at the chaos, or it caught her off guard
       log: [action, { verb: '✕', target: clip(firstLine, 70), error: true }],
       hold: 5500,
@@ -310,7 +310,7 @@ export class Brain {
   }
 
   onSubagent(evt, s, starting) {
-    const agent = evt.agent_type || 'agent';
+    const agent = evt.agent_type || this.t.someAgent;
     const line = fmt(pick(starting ? this.t.subagentStart : this.t.subagentStop), { agent });
     const action = { verb: starting ? '↗' : '↘', target: line };
     s.log.push(action);
