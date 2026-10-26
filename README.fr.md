@@ -103,7 +103,10 @@ regard. Quand elle a fini, le fil se ravale dans son doigt et le bras revient d'
 - **Où est Claude ?** Elle pointe la fenêtre de Claude : celle où tu as tapé ton dernier prompt.
 - **Le dossier de Claude** : elle ouvre `~/.claude` dans l'Explorateur avec `settings.json` sélectionné, pointe la
   fenêtre, et t'explique ce qu'est son hook là-dedans et comment le retirer.
-- **Me brancher à Claude** : ses hooks en un clic. C'est aussi son accueil la première fois qu'elle démarre.
+- **Me brancher à Claude** : ses hooks en un clic. C'est aussi son accueil la première fois qu'elle démarre. À côté,
+  **Gratuit avec Ollama** lance Claude Code (ou Codex) via Ollama pour toi : ses hooks se mettent en place, Ollama
+  s'installe s'il n'est pas là, et une fenêtre s'ouvre sur `ollama launch claude`, où tu choisis un modèle.
+- **Me parler** : voir « Lui parler » plus bas.
 
 Elle fait des têtes en parlant : huit expressions, toutes des images d'elle tirées de la série (elle observe, elle
 détourne la tête, le sourire avec le croc, les yeux tout ronds, elle te regarde droit dans les yeux, le fou rire bouche
@@ -123,17 +126,28 @@ de la carte dans ton presse-papiers, sur son propre fond sombre, prête à colle
 après une vraie journée (3 tâches ou plus), elle te l'apporte d'elle-même, une fois. La démo ne compte pas, et tout
 reste sur ton PC, un jour à la fois.
 
-### Lui parler (Ollama)
+### Lui parler
 
 **Lui parler** dans son menu (ou le bouton **Parle-moi** quand tu cliques sur elle et qu'il ne se passe rien) : tu
-écris dans son panneau et elle te répond, dans son personnage, grâce à un modèle d'IA qui tourne sur ton PC avec
-[Ollama](https://ollama.com). Elle sait ce que fait Claude et ce qu'il a fait aujourd'hui. Elle répond par écrit,
-dans sa langue.
+écris dans son panneau et elle te répond, dans son personnage. Elle sait ce que fait Claude et ce qu'il a fait
+aujourd'hui. Elle répond par écrit, dans sa langue. Entrée envoie, Échap ferme.
 
-1. Installe Ollama et ouvre-le.
-2. Dans un terminal : `ollama pull llama3.2` (environ 2 Go). N'importe quel modèle de chat marche : choisis-le dans
-   son menu › **Modèle IA (Ollama)**.
-3. Son menu › **Lui parler**. Entrée envoie, Échap ferme.
+La première fois, elle règle tout avec toi, avec des boutons, sans terminal :
+
+- **Sur mon PC** (gratuit, rien ne sort de chez toi) : elle installe [Ollama](https://ollama.com) pour toi (avec
+  winget, l'installeur de Windows), le réveille, et télécharge un modèle pendant qu'une barre se remplit : gemma3
+  (3,3 Go, meilleur dans les autres langues que l'anglais) ou llama3.2 (2 Go, pour les petits PC).
+- **En ligne, sans compte** : Pollinations, rien à régler.
+- **J'ai une clé** : Groq ou Gemini (tous les deux ont une offre gratuite), OpenRouter, OpenAI, Mistral ou DeepSeek.
+  Tu colles ta clé dans son panneau et elle la vérifie. Elle reste sur ton PC, chiffrée avec ton compte Windows, et ne
+  part que vers ce service.
+
+Son menu › **Modèle IA** pour changer plus tard : **Choisir avec elle…**, ou directement un service et un modèle,
+LM Studio (`:1234`), llama.cpp ou vLLM (`:8080`), n'importe quel serveur compatible OpenAI (**Clé API ou
+adresse…**), ou **Claude Code** lui-même : tes messages partent à `claude -p` dans le dossier que tu choisis, en
+continuant la même conversation, et ses hooks montrent ce qu'il fait. Dans ce cas, le mode `default` ne le laisse que
+lire (personne n'est là pour dire oui) ; `acceptEdits` le laisse modifier des fichiers sans demander. **Oublier nos
+conversations** efface ce qu'elle a retenu de vos discussions.
 
 **C'est une IA.** Ses réponses sont écrites par le modèle, pas par les scénaristes de la série : c'est une version
 fan d'elle, et le panneau du chat le dit à chaque fois.

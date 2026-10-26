@@ -32,6 +32,8 @@ export class Panel {
     this.streamTo = [];
     this.portrait = panel.querySelector('.panel__face img');
     this.quote = panel.querySelector('.panel__quote');
+    this.progress = panel.querySelector('.panel__progress');
+    this.bar = panel.querySelector('.panel__bar');
     this.reply = panel.querySelector('.panel__reply');
     this.report = panel.querySelector('.panel__report');
     this.actions = panel.querySelector('.panel__actions');
@@ -98,20 +100,24 @@ export class Panel {
   // face: her expression (a key of FACES), instead of the one for its kind
   // report: her report card, { date, hero: { value, label }, stats: [{ value, label, hot }],
   //         longest: { label, project, time }, foot }
-  // chat: a line to type to her, { placeholder, send, close, noteTag, note }; onSend(text) gets
-  //       what you typed
+  // chat: a line to type to her, { placeholder, send, close, noteTag, note, secret }; onSend(text)
+  //       gets what you typed (secret: hidden as you type, a key)
+  // progress: a bar under the line, 0..1 (a download)
   // onLeave: () => void, when this message goes (closed, timed out or replaced)
   say(msg) {
     const cur = this.current;
-    if (cur && this.visible && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
-      return false; // don't step on something more important that just appeared
+    // don't step on something more important that just appeared (one step of her guide follows another)
+    const steps = cur?.guide && msg.guide;
+    if (cur && this.visible && !steps && cur.kind !== msg.kind && PRIORITY[cur.kind] > PRIORITY[msg.kind] && performance.now() - cur.at < 2600) {
+      return false;
     }
     // nor on something you may be reading: an answer, her report (progress lines don't knock it off)
     if (cur?.reply && this.visible && PRIORITY[msg.kind] < 2) return false;
     if (cur?.report && this.visible && PRIORITY[msg.kind] < 3) return false;
     // nor on a chat with her: only a permission prompt breaks in; Claude finishing waits until after
-    // (even while she teleports and the panel is put aside for a moment)
-    if (cur?.chat && !this.el.hidden && !this.leaving && PRIORITY[msg.kind] < 4) {
+    // (even while she teleports and the panel is put aside for a moment). Her setup's panels with a
+    // line to type in (a key) aren't a chat: its next step follows them.
+    if (cur?.chat && !cur.guide && !this.el.hidden && !this.leaving && PRIORITY[msg.kind] < 4) {
       if (PRIORITY[msg.kind] >= 3) this.missed = { ...msg, missedAt: performance.now() };
       return false;
     }
@@ -126,6 +132,7 @@ export class Panel {
     this.state.textContent = msg.badge || this.labels.state[msg.kind] || '';
     this.quote.textContent = msg.quote || '';
     this.quote.hidden = !msg.quote;
+    this.setProgress(msg.progress);
     this.reply.textContent = msg.reply || '';
     this.reply.hidden = !msg.reply;
     this.reply.scrollTop = 0;
@@ -149,6 +156,21 @@ export class Panel {
 
     if (msg.hold) this.hideTimer = setTimeout(() => this.hide(), msg.hold);
     return true;
+  }
+
+  // The bar under her line (a download), 0..1; nothing hides it.
+  setProgress(k) {
+    this.progress.hidden = typeof k !== 'number';
+    if (!this.progress.hidden) this.bar.style.transform = `scaleX(${clamp(k, 0, 1).toFixed(3)})`;
+  }
+
+  // The quote under her line, changed in place (how far a download is), without a new message.
+  setQuote(text) {
+    if (!this.current) return;
+    this.current.quote = text;
+    this.quote.textContent = text || '';
+    this.quote.hidden = !text;
+    this.place();
   }
 
   // Change her expression; the swap glitches across a couple of drawings.
@@ -258,6 +280,7 @@ export class Panel {
     this.chatForm.hidden = !chat;
     this.note.hidden = !chat;
     if (!chat) return;
+    this.chatInput.type = chat.secret ? 'password' : 'text';
     this.chatInput.placeholder = chat.placeholder;
     this.chatInput.setAttribute('aria-label', chat.placeholder);
     this.chatInput.disabled = false;

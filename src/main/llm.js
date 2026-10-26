@@ -55,8 +55,9 @@ async function models(id, cfg) {
   const p = endpoint(id, cfg);
   if (p.kind === 'ollama') return ollama.models().catch(() => null);
   if (p.kind === 'claude') return claudeVersion().then(() => ['Claude Code']);
-  if (!p.url) throw new Error('set "customUrl" in config.json');
-  if (p.env && !p.key) throw new Error(`no API key: set ${p.env} or apiKeys.${id} in config.json`);
+  // what's missing has a code, so her setup knows what to ask for (setup.js)
+  if (!p.url) throw Object.assign(new Error('no address set for this server'), { code: 'nourl' });
+  if (p.env && !p.key) throw Object.assign(new Error(`no API key (or ${p.env})`), { code: 'nokey' });
   const res = await fetch(p.modelsUrl || `${p.url}/models`, { headers: headers(p.key), signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw await failure(res);
   const body = await res.json();

@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const os = require('node:os');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
 const {
@@ -13,6 +14,7 @@ const { TRAY, LANGS } = require('./labels');
 const { createBridge } = require('./bridge');
 const { startWindowWatch } = require('./windows');
 const llm = require('./llm');
+const setup = require('./setup');
 const apps = require('./apps');
 const { ASSISTANTS, assistant } = require('./assistants');
 const activeAssistant = () => assistant(config.load().assistant); // Claude Code or Codex
@@ -39,6 +41,7 @@ let windowWatch = null;
 let lastWindows = null;
 let chatModels = null; // the provider's models, as last seen (null: not reached)
 let chatError = null;  // why not, when the provider said
+let chatErrorCode = null; // 'nokey' or 'nourl': what her setup should ask for
 const chats = new Map(); // id -> AbortController of an answer being streamed
 
 const userSoundsDir = () => path.join(app.getPath('userData'), 'sounds');
@@ -211,8 +214,8 @@ function resolveLang(setting) {
 
 // What the overlay gets: `lang` is the resolved one, `langSetting` what the user picked.
 function rendererConfig() {
-  const cfg = config.load();
-  return { ...cfg, assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
+  const { apiKeys, ...cfg } = config.load(); // the keys stay here: the overlay only learns which ones are set
+  return { ...cfg, keys: Object.keys(apiKeys || {}), assistant: activeAssistant().id, lang: resolveLang(cfg.lang), langSetting: cfg.lang, floorGap: overlayArea().gap };
 }
 
 function updateConfig(patch) {
@@ -279,6 +282,8 @@ function rebuildTray() {
     {
       label: t.chatModel,
       submenu: [
+        { label: t.aiSetup, click: () => sendCommand('setupChat') },
+        { type: 'separator' },
         ...Object.entries(llm.PROVIDERS).map(([provider, p]) => ({
           label: p.label, type: 'radio', checked: cfg.provider === provider, click: () => pickProvider(provider),
         })),
@@ -299,8 +304,8 @@ function rebuildTray() {
           },
         ] : []),
         { label: t.forget, click: forgetChats },
-        // keys and the custom URL: by hand, in config.json (read again when you open her chat)
-        { label: 'API keys / custom URL (config.json)…', click: () => { config.save({}); shell.openPath(config.file()); } },
+        // the key (or the address) of the one picked, pasted in her panel
+        { label: t.apiKey, click: () => sendCommand('setupKey') },
       ],
     },
     { label: t.wander, type: 'checkbox', checked: cfg.wander, click: (item) => updateConfig({ wander: item.checked }) },
@@ -390,7 +395,12 @@ function pickModel(cfg = config.load()) {
 async function refreshModels() {
   const cfg = config.load();
   chatError = null;
-  chatModels = await llm.models(cfg.provider, cfg).catch((err) => { chatError = err.message; return null; });
+  chatErrorCode = null;
+  chatModels = await llm.models(cfg.provider, llmConfig(cfg)).catch((err) => {
+    chatError = err.message;
+    chatErrorCode = err.code || null;
+    return null;
+  });
   rebuildTray();
   return chatModels;
 }
@@ -398,6 +408,12 @@ async function refreshModels() {
 async function pickProvider(provider) {
   updateConfig({ provider });
   await refreshModels();
+  if (chatErrorCode) sendCommand('setupKey'); // it needs a key or an address: she asks for it
+}
+
+// What llm.js gets: the config with its keys opened (they're kept encrypted, setup.js)
+function llmConfig(cfg = config.load()) {
+  return { ...cfg, apiKeys: setup.openKeys(cfg.apiKeys) };
 }
 
 async function pickClaudeFolder() {
@@ -441,10 +457,10 @@ function registerIpc() {
     const cfg = config.load(true); // keys may have been edited by hand
     const { provider } = cfg;
     const models = await refreshModels();
-    if (!models) return { ok: false, error: chatError || 'offline' };
-    if (!models.length) return { ok: false, error: 'nomodel' };
+    if (!models) return { ok: false, error: chatError || 'offline', code: chatErrorCode, provider };
+    if (!models.length) return { ok: false, error: 'nomodel', provider };
     llm.warm(provider, pickModel()); // loading while you type your first message
-    return { ok: true, model: pickModel(), agent: provider === 'claude', local: llm.isLocal(provider, cfg), warmup: provider === 'ollama' };
+    return { ok: true, provider, model: pickModel(), agent: provider === 'claude', local: llm.isLocal(provider, cfg), warmup: provider === 'ollama' };
   });
   // her answer, streamed to the overlay piece by piece as `chat:delta`
   ipcMain.handle('chat:send', async (_e, { id, messages }) => {
@@ -453,7 +469,7 @@ function registerIpc() {
     try {
       const send = (text) => overlay?.webContents.send('chat:delta', { id, text });
       const cfg = config.load();
-      const text = await llm.chat(cfg.provider, cfg, { model: pickModel(), messages }, send, abort.signal);
+      const text = await llm.chat(cfg.provider, llmConfig(cfg), { model: pickModel(), messages }, send, abort.signal);
       if (cfg.provider === 'claude') saveMemory({ claude: llm.claudeMemory() });
       return { ok: true, text };
     } catch (err) {
@@ -466,6 +482,53 @@ function registerIpc() {
   ipcMain.handle('chat:memory', () => readMemory().history || []);
   ipcMain.on('chat:remember', (_e, history) => Array.isArray(history) && saveMemory({ history }));
   ipcMain.on('chat:ollama', () => shell.openExternal(OLLAMA_SITE));
+  // setting her up with buttons (setup.js): Ollama and a model, or a key, or an address
+  const progress = (payload) => overlay?.webContents.send('setup:progress', payload);
+  let pulling = null; // AbortController of the model being fetched
+  ipcMain.handle('setup:info', () => ({ models: setup.MODELS, ram: os.totalmem(), keyed: Object.keys(setup.KEY_PAGES) }));
+  ipcMain.handle('setup:ollama', () => setup.ollamaState());
+  ipcMain.handle('setup:install', () => setup.installOllama((line) => progress({ kind: 'install', line })));
+  ipcMain.handle('setup:start', async () => {
+    const res = await setup.startOllama();
+    await refreshModels();
+    return res;
+  });
+  ipcMain.handle('setup:pull', async (_e, name) => {
+    if (!setup.MODELS.some((m) => m.name === name)) return { ok: false, error: 'unknown model' };
+    pulling?.abort();
+    const abort = new AbortController();
+    pulling = abort;
+    try {
+      await setup.pullModel(name, (p) => progress({ kind: 'pull', ...p }), abort.signal);
+      updateConfig({ provider: 'ollama' });
+      await refreshModels();
+      const model = chatModels?.find((m) => m === name || m.startsWith(`${name}:`));
+      if (model) updateConfig({ chatModel: model });
+      return { ok: true, model };
+    } catch (err) {
+      return { ok: false, error: abort.signal.aborted ? 'stopped' : err.message };
+    } finally {
+      if (pulling === abort) pulling = null;
+    }
+  });
+  ipcMain.on('setup:cancel', () => pulling?.abort());
+  // who answers her chat, with its key or address if it needs one: saved, tried, and undone if it fails
+  ipcMain.handle('setup:use', async (_e, { provider, key, url }) => {
+    if (!llm.PROVIDERS[provider]) return { ok: false, error: 'unknown provider' };
+    const before = config.load();
+    const patch = { provider };
+    if (key) patch.apiKeys = { ...before.apiKeys, [provider]: setup.sealKey(String(key).trim()) };
+    if (url) patch.customUrl = String(url).trim();
+    updateConfig(patch);
+    const models = await refreshModels();
+    if (models?.length) return { ok: true, model: pickModel() };
+    const error = models ? 'no model' : chatError || 'offline';
+    updateConfig({ provider: before.provider, apiKeys: before.apiKeys, customUrl: before.customUrl });
+    await refreshModels();
+    return { ok: false, error };
+  });
+  ipcMain.on('setup:keyPage', (_e, provider) => setup.KEY_PAGES[provider] && shell.openExternal(setup.KEY_PAGES[provider]));
+  ipcMain.handle('setup:launch', (_e, integration) => setup.launchThroughOllama(integration));
   // closing an app you asked her to close, once you've clicked to confirm (apps.js)
   const appInfo = (app) => app && { name: app.process, label: app.label };
   ipcMain.handle('apps:list', async () => (await apps.list().catch(() => [])).map(appInfo));

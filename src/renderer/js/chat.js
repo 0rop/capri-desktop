@@ -29,6 +29,7 @@ export class Chat {
     this.answer = '';
     this.apps = [];    // the apps open on this PC, as last listed: [{ name, label }]
     this.appsReady = Promise.resolve();
+    this.onSetup = null; // (status) => void: she can't answer yet (app.js hands it to setup.js)
     host.onChatDelta(({ id, text }) => this.onDelta(id, text));
   }
 
@@ -48,6 +49,10 @@ export class Chat {
     }
     capri.wake();
     const status = await host.chatStatus();
+    if (!status.ok && this.onSetup) {
+      this.onSetup(status); // nothing to talk with yet: she sets it up with you, with buttons (setup.js)
+      return;
+    }
     if (!status.ok) {
       // no Ollama, or nothing to talk with yet: what to do about it
       const offline = status.error === 'offline';

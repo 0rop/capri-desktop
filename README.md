@@ -98,7 +98,10 @@ or glances back at you. When she's done, the wire reels back into her finger and
 - **Where's Claude?** She points at Claude's window: the one you typed your last prompt in.
 - **Claude's folder**: she opens `~/.claude` in Explorer with `settings.json` selected, points at the window, and
   explains what her hook in there is and how to take it out.
-- **Plug me into Claude**: her hooks in one click. It's also her welcome the first time she starts.
+- **Plug me into Claude**: her hooks in one click. It's also her welcome the first time she starts. Next to it,
+  **Free with Ollama** runs Claude Code (or Codex) through Ollama for you: her hooks go in, Ollama gets installed if it
+  isn't, and a window opens on `ollama launch claude`, where you pick a model.
+- **Talk to me**: see "Talk to her" below.
 
 She pulls faces while she talks: eight expressions, all frames of her from the show (watching, turned away, the fang
 grin, eyes gone round, looking right at you, laughing with her mouth wide open, all her eyes at once, the zigzag grin).
@@ -116,15 +119,27 @@ numbers count up. **Copy image** puts a picture of the card on your clipboard, o
 anywhere. In the evening (after 6 pm), after a real day's work (3 tasks or more), she brings it to you once, on her
 own. The demo doesn't count, and it stays on your PC, one day at a time.
 
-### Talk to her (Ollama)
+### Talk to her
 
 **Talk to her** in her menu (or the **Talk to me** button when you click her and nothing's going on): you type in her
-panel and she answers in character, through an AI model running on your PC with [Ollama](https://ollama.com). She knows
-what Claude is doing and what it got done today. She answers in writing, in her own language.
+panel and she answers in character. She knows what Claude is doing and what it got done today. She answers in writing,
+in her own language. Enter sends, Esc closes.
 
-1. Install Ollama and open it.
-2. In a terminal: `ollama pull llama3.2` (about 2 GB). Any chat model works: pick it in her menu › **AI model (Ollama)**.
-3. Her menu › **Talk to her**. Enter sends, Esc closes.
+The first time, she sets it up with you, with buttons, no terminal:
+
+- **On my PC** (free, nothing leaves your machine): she installs [Ollama](https://ollama.com) for you (with winget,
+  Windows' own installer), wakes it up, and downloads a model while a bar fills up: gemma3 (3.3 GB, better in languages
+  other than English) or llama3.2 (2 GB, for smaller PCs).
+- **Online, no account**: Pollinations, nothing to set up.
+- **I have a key**: Groq or Gemini (both have a free tier), OpenRouter, OpenAI, Mistral or DeepSeek. You paste your
+  key in her panel and she checks it. It's kept on your PC, encrypted with your Windows account, and only ever sent to
+  that service.
+
+Her menu › **AI model** lets you switch later: **Set it up with her…**, or straight to a service and a model, LM Studio
+(`:1234`), llama.cpp or vLLM (`:8080`), any OpenAI-compatible server (**API key or address…**), or **Claude Code**
+itself: your messages go to `claude -p` in the folder you pick, continuing one conversation, and her hooks show what it
+does. In that last one, permission mode `default` only lets it read (nobody is there to say yes); `acceptEdits` lets it
+edit files without asking. **Forget our conversations** clears what she remembers of your chats.
 
 **It's AI.** Her replies are written by the model, not by the show's writers: it's a fan version of her, and the chat
 panel says so every time.
@@ -382,14 +397,3 @@ If a rights holder wants them removed, open an issue.
 
 Fonts: Chakra Petch and JetBrains Mono, under the SIL Open Font License, via Fontsource.
 
-## Other AI models
-
-Tray menu → **AI model** picks who answers her chat:
-
-- **Local:** Ollama, LM Studio (`:1234`), llama.cpp / vLLM (`:8080`)
-- **No key:** Pollinations (cloud)
-- **Cloud:** OpenRouter, OpenAI, Groq, Gemini, DeepSeek, Mistral: set the env variable (`OPENAI_API_KEY`...) or `apiKeys` in `config.json` (menu → *API keys / custom URL*)
-- **Custom:** any OpenAI-compatible server, `customUrl` in `config.json`
-- **Claude Code:** your messages go to `claude -p` in the folder you pick, continuing one conversation; her hooks narrate what it does. Permission mode is in the same submenu (`default`: it reads but doesn't change anything, since nobody is there to say yes; `acceptEdits`: it edits files without asking).
-
-`npm run check:llm` checks the keyless gateway and Claude Code from the command line.

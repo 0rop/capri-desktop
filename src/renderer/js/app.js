@@ -7,6 +7,7 @@ import { Brain } from './brain.js';
 import { Guide } from './guide.js';
 import { Mission } from './mission.js';
 import { Chat } from './chat.js';
+import { Setup } from './setup.js';
 import { linesFor } from './lines.js';
 import { pick, fmt, reducedMotion } from './util.js';
 
@@ -186,6 +187,12 @@ async function boot() {
   // Talking to her (chat.js): "Talk to her" in her menu, or the button when you click her idle.
   const chat = new Chat({ capri, panel, voice, host, brain });
   brain.onTalk = () => chat.start();
+  // Getting her chat going with buttons (setup.js): Ollama and a model, a key, or an address
+  const setup = new Setup({ guide, panel, host, brain, capri, voice });
+  guide.setup = setup;
+  guide.onTalk = () => chat.start();
+  chat.onSetup = (status) => setup.chat(status);
+  setup.onReady = () => chat.start();
   // the first Claude Code event that ever reaches her: so you know it worked
   brain.linked = config.linked;
   brain.watching = config.claude !== false;
@@ -327,7 +334,22 @@ async function boot() {
       case 'status':
         brain.status();
         break;
-      case 'assistantChanged': // Claude Code or Codex, picked in her menu
+      case 'setupChat': // "Set it up with her" in her menu's AI model
+        setup.chat();
+        break;
+      case 'setupKey': // "API key or address" in her menu's AI model, or a service picked there that needs one
+        setup.key();
+        break;
+      case 'setupFree': // --dev: Claude Code (or Codex) through Ollama
+        setup.free();
+        break;
+      case 'setupStep': // --dev: one step of her setup on its own (pickModel, pull, pickKeyed, address…)
+        guide.scene(() => setup[cmd.step]?.(...(cmd.args || [])));
+        break;
+      case 'answer': // --dev: as if that button of her guide had been clicked
+        guide.answer(cmd.id);
+        break;
+      case 'assistantChanged': // Claude Code, Codex or Antigravity, picked in her menu
         guide.welcome();
         break;
       case 'welcome': // "How does it work?" in her menu

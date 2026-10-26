@@ -17,6 +17,8 @@ export class Guide {
     this.waiting = null; // { token, resolve } of the panel on screen
     this.running = false;
     this.sceneId = 0;
+    this.setup = null;  // setup.js: getting her chat going, and the free way to run Claude Code
+    this.onTalk = null; // () => void: "Talk to me" picked in her menu (app.js opens her chat)
     panel.onAction = (id) => this.answer(id);
     panel.onDismiss = (msg) => {
       if (this.waiting && msg.token === this.waiting.token) this.answer(null);
@@ -78,8 +80,9 @@ export class Guide {
   // ---------- topics ----------
 
   // First launch, or nothing hooked up yet: who she is, and plugging her into Claude Code.
-  welcome() {
-    return this.scene(async () => {
+  async welcome() {
+    let talk = false;
+    await this.scene(async () => {
       const w = this.brain.t.welcome;
       const [hooks, found] = await Promise.all([this.host.hooksStatus(), this.host.claudeFound()]);
       if (!this.brain.watching) {
@@ -88,8 +91,8 @@ export class Guide {
         await this.ask({ face: 'grin', line: w.hi, quote: `${w.alone}\n${w.menu}`, actions: [{ id: 'ok', label: w.ok, primary: true }] });
       } else if (hooks.installed) {
         this.capri.perform('curious', this.capri.towardCenter());
-        await this.ask({ face: 'look', line: w.ready, quote: w.readyHow, actions: [{ id: 'ok', label: w.ok, primary: true }, { id: 'more', label: this.t.more }] })
-          .then((id) => id === 'more' && this.menuNow());
+        const id = await this.ask({ face: 'look', line: w.ready, quote: w.readyHow, actions: [{ id: 'ok', label: w.ok, primary: true }, { id: 'more', label: this.t.more }] });
+        if (id === 'more') talk = (await this.menuNow()) === 'talk';
       } else if (found) {
         await this.connect();
       } else {
@@ -97,9 +100,15 @@ export class Guide {
           face: 'aside',
           line: w.hi,
           quote: `${w.noClaude}\n${w.menu}`,
-          actions: [{ id: 'claude', label: w.whatClaude, primary: true }, { id: 'later', label: w.justHang }],
+          actions: [
+            { id: 'claude', label: w.whatClaude, primary: true },
+            ...(this.freeWay ? [{ id: 'free', label: this.brain.t.setup.free }] : []),
+            { id: 'later', label: w.justHang },
+          ],
         });
-        if (id === 'claude') {
+        if (id === 'free') {
+          await this.setup.freeNow();
+        } else if (id === 'claude') {
           this.host.openClaudeHelp();
           await this.ask({ face: 'smug', line: w.hi, quote: w.afterInstall, actions: [{ id: 'ok', label: w.ok }] });
         } else if (id === 'later') {
@@ -108,11 +117,21 @@ export class Guide {
       }
       this.host.setConfig({ welcomed: true });
     });
+    if (talk) this.onTalk?.();
+  }
+
+  // Claude Code and Codex can run for free through Ollama (`ollama launch`): she offers it for those two
+  get freeWay() {
+    return Boolean(this.setup) && ['claude', 'codex'].includes(this.brain.assistant);
   }
 
   // "How does it work?" in her menu: what she can show you.
-  menu() {
-    return this.scene(() => this.menuNow());
+  async menu() {
+    let talk = false;
+    await this.scene(async () => {
+      talk = (await this.menuNow()) === 'talk';
+    });
+    if (talk) this.onTalk?.();
   }
 
   async menuNow() {
@@ -126,9 +145,11 @@ export class Guide {
       actions.push({ id: 'claude', label: t.topics.claude });
       actions.push({ id: 'folder', label: t.topics.folder });
     }
+    actions.push({ id: 'talk', label: t.topics.talk });
     actions.push({ id: 'close', label: t.topics.close });
     this.capri.perform('curious', this.capri.towardCenter());
     const id = await this.ask({ face: 'smug', line: t.menu.line, quote: t.menu.quote, actions });
+    if (id === 'talk') return 'talk'; // her chat opens once the scene is over (menu, welcome)
     if (id === 'connect') await this.connect();
     else if (id === 'icon') await this.icon();
     else if (id === 'claude') await this.claude();
@@ -142,8 +163,16 @@ export class Guide {
       face: 'grin',
       line: w.hi,
       quote: `${w.about}\n${w.connect}\n${w.menu}`,
-      actions: [{ id: 'connect', label: w.connectBtn, primary: true }, { id: 'later', label: w.later }],
+      actions: [
+        { id: 'connect', label: w.connectBtn, primary: true },
+        ...(this.freeWay ? [{ id: 'free', label: this.brain.t.setup.free }] : []),
+        { id: 'later', label: w.later },
+      ],
     });
+    if (id === 'free') {
+      await this.setup.freeNow(); // her hooks, then Claude Code (or Codex) through Ollama
+      return;
+    }
     if (id !== 'connect') return;
     const result = await this.host.installHooks();
     if (!result.ok) {
