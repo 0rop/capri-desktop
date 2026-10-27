@@ -157,9 +157,9 @@ async function music(query) {
   const q = String(query || '').trim().slice(0, 200);
   if (!q) return false;
   try {
-    await shell.openExternal(`spotify:search:${encodeURIComponent(q)}`);
+    await shell.openExternal(`deezer:search:${encodeURIComponent(q)}`);
   } catch {
-    await shell.openExternal(`https://open.spotify.com/search/${encodeURIComponent(q)}`);
+    await shell.openExternal(`https://www.deezer.com/search/${encodeURIComponent(q)}`);
   }
   return true;
 }
